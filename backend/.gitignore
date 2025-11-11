@@ -1,0 +1,12 @@
+.env
+docker
+node_modules
+dist
+
+docker-compose.yml
+docker-compose.prod.yml
+
+Dockerfile.dev
+Dockerfile.prod
+Dockerfile
+Dockerfile.celery
