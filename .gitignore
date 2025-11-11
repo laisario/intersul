@@ -31,3 +31,5 @@ frontend/public
 frontend/views
 frontend/config
 frontend/data
+
+node_modules/
