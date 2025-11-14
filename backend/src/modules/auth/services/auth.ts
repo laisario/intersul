@@ -74,12 +74,14 @@ export class AuthService {
     email: string;
     password: string;
     role: UserRole;
+    position?: string;
   }) {
     return this.createUserAccount({
       name: payload.name,
       email: payload.email,
       password: payload.password,
       role: payload.role,
+      position: payload.position,
     });
   }
 

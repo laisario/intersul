@@ -12,8 +12,8 @@
 	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
 	import type { InvitationDetails } from '$lib/api/types/auth.types.js';
 
-const props = $props<{ data: { token: string } }>();
-const token = props.data.token;
+	const props = $props<{ data: { token: string } }>();
+	const token = props.data.token;
 
 	const invitationQuery = $derived(useInvitationDetails(token));
 	const invitation = $derived(invitationQuery.data as InvitationDetails | undefined);
@@ -28,20 +28,21 @@ const token = props.data.token;
 	let email = $state('');
 	let password = $state('');
 	let confirmPassword = $state('');
+	let position = $state('');
 
 	const { mutate: acceptInvitation, isPending: isAccepting } = useAcceptInvitation();
 
-	const isInvitationExpired = $derived(() => {
-		if (!invitation?.expiresAt) return false;
-		return new Date(invitation.expiresAt).getTime() < Date.now();
-	});
+	const isInvitationExpired = $derived(invitation?.expiresAt ? new Date(invitation.expiresAt).getTime() < Date.now() : false);
 
-	const isInvitationUsed = $derived(() => invitation?.used ?? false);
-	const isEmailLocked = $derived(() => !!invitation?.email);
+	const isInvitationUsed = $derived(invitation?.used ?? false);
+	const isEmailLocked = $derived(!!invitation?.email);
 
 	$effect(() => {
 		if (invitation?.email) {
 			email = invitation.email;
+		}
+		if (invitation?.position) {
+			position = invitation.position;
 		}
 	});
 
@@ -69,6 +70,7 @@ const token = props.data.token;
 				name: name.trim(),
 				email: email.trim(),
 				password,
+				position: position.trim() || undefined,
 			},
 			{
 				onSuccess: () => {
@@ -91,7 +93,7 @@ const token = props.data.token;
 	<title>Criar conta - Intersul</title>
 </svelte:head>
 
-<div class="min-h-screen bg-muted/50 flex items-center justify-center px-4 py-12">
+<div class="min-h-screen bg-gradient-to-tr from-red-700/80 via-red-600/70 to-red-500/60  flex items-center justify-center px-4 py-12">
 	<Card class="w-full max-w-2xl">
 		{#if isLoadingInvitation}
 			<CardContent class="space-y-6">
@@ -175,6 +177,20 @@ const token = props.data.token;
 								{/if}
 							</div>
 
+							<div class="space-y-2 sm:col-span-2">
+								<Label for="register-position">Cargo/Posição {invitation?.position ? '(pré-preenchido)' : '(opcional)'}</Label>
+								<Input
+									id="register-position"
+									type="text"
+									placeholder="Ex: Gerente, Analista, Técnico"
+									bind:value={position}
+									readonly={!!invitation?.position}
+								/>
+								{#if invitation?.position}
+									<p class="text-xs text-muted-foreground">Cargo definido no convite.</p>
+								{/if}
+							</div>
+
 							<div class="space-y-2">
 								<Label for="register-password">Senha</Label>
 								<Input
@@ -182,7 +198,7 @@ const token = props.data.token;
 									type="password"
 									placeholder="Crie uma senha"
 									bind:value={password}
-									minlength="8"
+									minlength={8}
 									required
 								/>
 							</div>
@@ -193,7 +209,7 @@ const token = props.data.token;
 									type="password"
 									placeholder="Repita a senha"
 									bind:value={confirmPassword}
-									minlength="8"
+									minlength={8}
 									required
 								/>
 							</div>

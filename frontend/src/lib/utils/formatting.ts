@@ -4,6 +4,7 @@
 
 import { UserRole } from '$lib/api/types/auth.types.js';
 import { ServiceStatus, ServicePriority } from '$lib/api/types/service.types.js';
+import { getServiceStatusLabel } from './constants.js';
 import type {
   UserRole as UserRoleValue,
   ServiceStatus as ServiceStatusValue,
@@ -11,8 +12,18 @@ import type {
 } from '$lib/api/types/service.types.js';
 
 // Date formatting
-export function formatDate(date: string | Date, options?: Intl.DateTimeFormatOptions): string {
+export function formatDate(date: string | Date | null | undefined, options?: Intl.DateTimeFormatOptions): string {
+  if (!date) {
+    return '-';
+  }
+  
   const dateObj = typeof date === 'string' ? new Date(date) : date;
+  
+  // Check if date is valid
+  if (isNaN(dateObj.getTime())) {
+    return '-';
+  }
+  
   const defaultOptions: Intl.DateTimeFormatOptions = {
     year: 'numeric',
     month: 'short',
@@ -101,16 +112,9 @@ export function formatDuration(minutes: number): string {
 }
 
 // Status formatting
-export function formatServiceStatus(status: ServiceStatusValue): string {
-  const statusMap = {
-    [ServiceStatus.PENDING]: 'Pendente',
-    [ServiceStatus.IN_PROGRESS]: 'Em Andamento',
-    [ServiceStatus.COMPLETED]: 'Concluído',
-    [ServiceStatus.CANCELLED]: 'Cancelado',
-    [ServiceStatus.ON_HOLD]: 'Em Espera',
-  };
-  
-  return statusMap[status] || status;
+export function formatServiceStatus(status: ServiceStatusValue | string | null | undefined): string {
+  // Use the centralized function from constants
+  return getServiceStatusLabel(status);
 }
 
 export function formatServicePriority(priority: ServicePriorityValue): string {

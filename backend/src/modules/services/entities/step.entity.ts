@@ -52,6 +52,9 @@ export class Step {
   @Column({ nullable: true })
   responsable_client: string;
 
+  @Column({ type: 'text', nullable: true })
+  reason_cancellament: string;
+
   @Column({ nullable: true })
   category_id: number;
 

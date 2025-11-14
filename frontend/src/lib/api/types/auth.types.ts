@@ -10,7 +10,7 @@ export interface User {
   sector?: string;
   position?: string;
   avatar?: string;
-  isActive: boolean;
+  active: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -49,12 +49,14 @@ export interface AcceptInvitationPayload {
   name: string;
   email: string;
   password: string;
+  position?: string;
 }
 
 export interface InvitationDetails {
   id: number;
   token: string;
   role: UserRole;
+  position?: string | null;
   email?: string | null;
   expiresAt?: string | null;
   used: boolean;

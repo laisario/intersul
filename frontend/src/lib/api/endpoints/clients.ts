@@ -37,6 +37,12 @@ export const clientsApi = {
     axios.patch(`/clients/${id}`, data).then(res => res.data),
 
   /**
+   * Toggle client active status
+   */
+  toggleActive: (id: number): Promise<Client> =>
+    axios.patch(`/clients/${id}/toggle-active`).then(res => res.data),
+
+  /**
    * Delete client
    */
   delete: (id: number): Promise<void> =>

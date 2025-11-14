@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { useClients, useCreateClient, useUpdateClient, useDeleteClient } from '$lib/hooks/queries/use-clients.svelte.js';
+	import { useClients, useCreateClient, useUpdateClient, useDeleteClient, useToggleClientActive } from '$lib/hooks/queries/use-clients.svelte.js';
 	import { errorToast, successToast, showError } from '$lib/utils/toast.js';
 	import { formatDate } from '$lib/utils/formatting.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -8,7 +8,10 @@
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card/index.js';
 	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
 	import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '$lib/components/ui/sheet/index.js';
-	import { Plus, Edit, Trash2, Eye, Search, Loader2 } from 'lucide-svelte';
+	import { Select, SelectContent, SelectItem, SelectTrigger } from '$lib/components/ui/select/index.js';
+	import { Plus, Edit, Trash2, Eye, Search, Loader2, MoreVertical } from 'lucide-svelte';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
+	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { goto } from '$app/navigation';
 	import type { Client } from '$lib/api/types/client.types.js';
 	import type { CreateAddressDto } from '$lib/api/types/address.types.js';
@@ -18,7 +21,9 @@
 
 	let addressFormRef: any;
 
+	type StatusFilterOption = 'all' | 'active' | 'inactive';
 	let searchTerm = $state('');
+	let statusFilter = $state<StatusFilterOption>('all');
 	let showFormModal = $state(false);
 	let editingClient = $state<Client | null>(null);
 	let isSubmitting = $state(false);
@@ -48,6 +53,7 @@
 	const createClientMutation = useCreateClient();
 	const updateClientMutation = useUpdateClient();
 	const deleteClientMutation = useDeleteClient();
+	const { mutate: toggleActive, isPending: isToggling } = useToggleClientActive();
 	
 	let clients = $derived(clientsQuery.data || []);
 	let clientsLoading = $derived(clientsQuery.isLoading);
@@ -55,15 +61,27 @@
 	let refetchClients = $derived(clientsQuery.refetch);
 
 	let filteredClients = $derived(
-		searchTerm
-			? clients.filter(client =>
-					client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-					client.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-					client.phone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-					client.address?.neighborhood?.city?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-					client.address?.neighborhood?.name?.toLowerCase().includes(searchTerm.toLowerCase())
-			  )
-			: clients
+		clients.filter(client => {
+			// Status filter
+			if (statusFilter !== 'all') {
+				if (statusFilter === 'active' && !client.active) return false;
+				if (statusFilter === 'inactive' && client.active) return false;
+			}
+			
+			// Search filter
+			if (searchTerm) {
+				const searchLower = searchTerm.toLowerCase();
+				return (
+					client.name.toLowerCase().includes(searchLower) ||
+					client.email?.toLowerCase().includes(searchLower) ||
+					client.phone?.toLowerCase().includes(searchLower) ||
+					client.address?.neighborhood?.city?.name?.toLowerCase().includes(searchLower) ||
+					client.address?.neighborhood?.name?.toLowerCase().includes(searchLower)
+				);
+			}
+			
+			return true;
+		})
 	);
 	
 	function getPaginatedClients() {
@@ -101,6 +119,7 @@ function handlePageSizeChange(size: number) {
 	
 	$effect(() => {
 		searchTerm;
+		statusFilter;
 		currentPage = 1;
 	});
 
@@ -264,6 +283,17 @@ function handlePageSizeChange(size: number) {
 	function handleViewClient(clientId: number) {
 		goto(`/clients/${clientId}`);
 	}
+
+	function handleToggleActive(client: Client) {
+		toggleActive(client.id, {
+			onSuccess: () => {
+				successToast.updated(`Cliente ${client.name}`);
+			},
+			onError: () => {
+				errorToast.update('Cliente');
+			},
+		});
+	}
 </script>
 
 <svelte:head>
@@ -282,7 +312,7 @@ function handlePageSizeChange(size: number) {
 		</Button>
 	</div>
 
-	<div class="flex items-center justify-between">
+	<div class="flex items-center gap-4">
 		<div class="relative flex-1 max-w-sm">
 			<Search class="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
 			<Input
@@ -291,6 +321,26 @@ function handlePageSizeChange(size: number) {
 				bind:value={searchTerm}
 				class="pl-10"
 			/>
+		</div>
+		<div class="w-[180px]">
+			<Select
+				type="single"
+				value={statusFilter}
+				onValueChange={(value: string) => {
+					statusFilter = (value as StatusFilterOption) ?? 'all';
+				}}
+			>
+				<SelectTrigger class="w-full">
+					<span class="block text-left text-sm">
+						{statusFilter === 'all' ? 'Todos os status' : statusFilter === 'active' ? 'Ativos' : 'Inativos'}
+					</span>
+				</SelectTrigger>
+				<SelectContent>
+					<SelectItem value="all">Todos os status</SelectItem>
+					<SelectItem value="active">Ativos</SelectItem>
+					<SelectItem value="inactive">Inativos</SelectItem>
+				</SelectContent>
+			</Select>
 		</div>
 	</div>
 
@@ -328,6 +378,7 @@ function handlePageSizeChange(size: number) {
 						<thead>
 							<tr class="border-b">
 								<th class="text-left p-3 font-medium">Nome</th>
+								<th class="text-left p-3 font-medium">Status</th>
 								<th class="text-left p-3 font-medium">Telefone</th>
 								<th class="text-left p-3 font-medium">Email</th>
 								<th class="text-left p-3 font-medium">Cidade</th>
@@ -338,35 +389,50 @@ function handlePageSizeChange(size: number) {
 						<tbody>
 							{#each getPaginatedClients() as client}
 								<tr class="border-b hover:bg-gray-50">
-							<td class="p-3">{client.name}</td>
-							<td class="p-3">{client.phone || '-'}</td>
-							<td class="p-3">{client.email}</td>
-							<td class="p-3">{client.address?.neighborhood?.city?.name || '-'}</td>
-							<td class="p-3">{client.address?.neighborhood?.name || '-'}</td>
+									<td class="p-3">{client.name}</td>
 									<td class="p-3">
-										<div class="flex items-center justify-center space-x-2">
-											<Button
-												variant="ghost"
-												size="sm"
-												onclick={() => handleViewClient(client.id)}
-											>
-												<Eye class="w-4 h-4" />
-											</Button>
-											<Button
-												variant="ghost"
-												size="sm"
-												onclick={() => handleOpenEditModal(client)}
-											>
-												<Edit class="w-4 h-4" />
-											</Button>
-											<Button
-												variant="ghost"
-												size="sm"
-												onclick={() => openDeleteConfirmation(client.id, client.name)}
-												class="text-red-600 hover:text-red-700"
-											>
-												<Trash2 class="w-4 h-4" />
-											</Button>
+										<Badge variant={client.active ? 'default' : 'secondary'}>
+											{client.active ? 'Ativo' : 'Inativo'}
+										</Badge>
+									</td>
+									<td class="p-3">{client.phone || '-'}</td>
+									<td class="p-3">{client.email}</td>
+									<td class="p-3">{client.address?.neighborhood?.city?.name || '-'}</td>
+									<td class="p-3">{client.address?.neighborhood?.name || '-'}</td>
+									<td class="p-3">
+										<div class="flex items-center justify-center">
+											<DropdownMenu.Root>
+												<DropdownMenu.Trigger>
+													<Button variant="ghost" size="sm" class="px-2">
+														<MoreVertical class="w-4 h-4" />
+													</Button>
+												</DropdownMenu.Trigger>
+												<DropdownMenu.Content align="end">
+													<DropdownMenu.Item onclick={() => handleViewClient(client.id)}>
+														<Eye class="w-4 h-4 mr-2" />
+														Visualizar
+													</DropdownMenu.Item>
+													<DropdownMenu.Item onclick={() => handleOpenEditModal(client)}>
+														<Edit class="w-4 h-4 mr-2" />
+														Editar
+													</DropdownMenu.Item>
+													<DropdownMenu.Item
+														onclick={() => handleToggleActive(client)}
+														disabled={isToggling}
+													>
+														{client.active ? 'Desativar' : 'Ativar'}
+													</DropdownMenu.Item>
+													<DropdownMenu.Separator />
+													<DropdownMenu.Item
+														variant="destructive"
+														onclick={() => openDeleteConfirmation(client.id, client.name)}
+														disabled={deleteClientMutation.isPending}
+													>
+														<Trash2 class="w-4 h-4 mr-2" />
+														Excluir
+													</DropdownMenu.Item>
+												</DropdownMenu.Content>
+											</DropdownMenu.Root>
 										</div>
 									</td>
 								</tr>

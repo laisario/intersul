@@ -1,4 +1,4 @@
-# Intersul Monorepo
+docker # Intersul Monorepo
 
 Combined frontend and backend codebase for the Intersul service management platform. This repository keeps both applications under a single Git history so shared tooling, documentation, and deployment workflows stay in sync.
 

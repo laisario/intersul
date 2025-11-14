@@ -15,6 +15,7 @@
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Loader2, ClipboardList, Plus, Trash2, Check } from 'lucide-svelte';
 	import { showError, successToast } from '$lib/utils/toast.js';
+	import { SERVICE_PRIORITY } from '$lib/utils/constants.js';
 	import { useCreateService, useUpdateService, useService } from '$lib/hooks/queries/use-services.svelte.js';
 	import { useClients } from '$lib/hooks/queries/use-clients.svelte.js';
 	import { useCategories } from '$lib/hooks/queries/use-categories.svelte.js';
@@ -39,6 +40,7 @@
 		name: string;
 		description: string;
 		responsable_id?: number;
+		datetime_expiration?: string;
 		source?: 'suggestion' | 'manual';
 	};
 
@@ -57,7 +59,8 @@
 		client_id: 0,
 		category_id: 0,
 		client_copy_machine_id: undefined as number | undefined,
-		description: ''
+		description: '',
+		priority: '' as string | undefined
 	});
 
 	let steps = $state<FormStep[]>([]);
@@ -80,7 +83,8 @@
 			client_id: 0,
 			category_id: 0,
 			client_copy_machine_id: undefined,
-			description: ''
+			description: '',
+			priority: undefined
 		};
 		steps = [];
 		errors = {};
@@ -91,10 +95,12 @@
 		formData.category_id = serviceData.category_id;
 		formData.client_copy_machine_id = serviceData.client_copy_machine_id ?? undefined;
 		formData.description = serviceData.description || '';
+		formData.priority = serviceData.priority || undefined;
 		steps = (serviceData.steps || []).map((step) => ({
 			name: step.name,
 			description: step.description,
 			responsable_id: step.responsable_id,
+			datetime_expiration: step.datetime_expiration,
 			source: 'manual'
 		}));
 	}
@@ -128,6 +134,7 @@
 			{
 				name: step.name,
 				description: step.description,
+				datetime_expiration: step.datetime_expiration,
 				source: 'suggestion'
 			}
 		];
@@ -167,13 +174,8 @@
 	function validateForm() {
 		errors = {};
 
-		if (!formData.client_id) {
-			errors.client_id = 'Selecione um cliente';
-		}
-
-		if (!formData.category_id) {
-			errors.category_id = 'Selecione uma categoria';
-		}
+		// Cliente e categoria não são mais obrigatórios
+		// Validação removida
 
 		const invalidStep = steps.some((step) => !step.name.trim() || !step.description.trim());
 		if (invalidStep) {
@@ -189,19 +191,36 @@
 			return;
 		}
 
-		const payload: CreateServiceDto = {
-			client_id: formData.client_id,
-			category_id: formData.category_id,
-			client_copy_machine_id: formData.client_copy_machine_id || undefined,
-			description: formData.description?.trim() || undefined,
-			steps: steps.length
-				? steps.map<CreateServiceStepDto>((step) => ({
-					name: step.name.trim(),
-					description: step.description.trim(),
-					responsable_id: step.responsable_id
-				}))
-				: undefined
-		};
+		const payload: any = {};
+		
+		if (formData.client_id > 0) {
+			payload.client_id = formData.client_id;
+		}
+		
+		if (formData.category_id > 0) {
+			payload.category_id = formData.category_id;
+		}
+		
+		if (formData.client_copy_machine_id) {
+			payload.client_copy_machine_id = formData.client_copy_machine_id;
+		}
+		
+		if (formData.description?.trim()) {
+			payload.description = formData.description.trim();
+		}
+		
+		if (formData.priority) {
+			payload.priority = formData.priority;
+		}
+		
+		if (steps.length > 0) {
+			payload.steps = steps.map<CreateServiceStepDto>((step) => ({
+				name: step.name.trim(),
+				description: step.description.trim(),
+				responsable_id: step.responsable_id,
+				datetime_expiration: step.datetime_expiration || undefined
+			}));
+		}
 
 		try {
 			if (serviceId || service) {
@@ -231,7 +250,7 @@
 	}
 </script>
 
-<Sheet bind:open on:close={closeDialog}>
+<Sheet bind:open>
 	<SheetContent class="sm:max-w-[800px] overflow-y-auto">
 		<SheetHeader>
 			<SheetTitle class="flex items-center gap-2">
@@ -252,20 +271,24 @@
 				<CardContent class="space-y-4">
 					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 						<div class="space-y-2">
-							<Label>Cliente *</Label>
+							<Label>Cliente</Label>
 							<Select
+								type="single"
 								value={formData.client_id ? formData.client_id.toString() : ''}
-								onValueChange={(value) => {
+								onValueChange={(value: string) => {
 									formData.client_id = value ? parseInt(value) : 0;
 									formData.client_copy_machine_id = undefined;
 								}}
 							>
-								<SelectTrigger class={errors.client_id ? 'border-red-500' : ''}>
+								<SelectTrigger>
 									{formData.client_id
 										? clients.find((client) => client.id === formData.client_id)?.name || 'Selecione um cliente'
 										: 'Selecione um cliente'}
 								</SelectTrigger>
 								<SelectContent>
+									<SelectItem value="">
+										<span class="text-muted-foreground">Sem cliente (serviço interno)</span>
+									</SelectItem>
 									{#if clientsQuery.isLoading}
 										<SelectItem value="" disabled>Carregando clientes...</SelectItem>
 									{:else if clientsQuery.error}
@@ -279,23 +302,25 @@
 									{/if}
 								</SelectContent>
 							</Select>
-							{#if errors.client_id}
-								<p class="text-sm text-red-500">{errors.client_id}</p>
-							{/if}
+							<p class="text-xs text-muted-foreground">Para serviços internos (ex: lavar carro), deixe em branco.</p>
 						</div>
 
 						<div class="space-y-2">
-							<Label>Categoria *</Label>
+							<Label>Categoria</Label>
 							<Select
+								type="single"
 								value={formData.category_id ? formData.category_id.toString() : ''}
-								onValueChange={(value) => formData.category_id = value ? parseInt(value) : 0}
+								onValueChange={(value: string) => formData.category_id = value ? parseInt(value) : 0}
 							>
-								<SelectTrigger class={errors.category_id ? 'border-red-500' : ''}>
+								<SelectTrigger>
 									{formData.category_id
 										? categories.find((category) => category.id === formData.category_id)?.name || 'Selecione uma categoria'
 										: 'Selecione uma categoria'}
 								</SelectTrigger>
 								<SelectContent>
+									<SelectItem value="">
+										<span class="text-muted-foreground">Sem categoria</span>
+									</SelectItem>
 									{#if categoriesQuery.isLoading}
 										<SelectItem value="" disabled>Carregando categorias...</SelectItem>
 									{:else if categoriesQuery.error}
@@ -309,16 +334,15 @@
 									{/if}
 								</SelectContent>
 							</Select>
-							{#if errors.category_id}
-								<p class="text-sm text-red-500">{errors.category_id}</p>
-							{/if}
+							<p class="text-xs text-muted-foreground">Ideal preencher, mas não é obrigatório.</p>
 						</div>
 
 						<div class="space-y-2">
 							<Label>Equipamento do Cliente</Label>
 							<Select
+								type="single"
 								value={formData.client_copy_machine_id ? formData.client_copy_machine_id.toString() : ''}
-								onValueChange={(value) => formData.client_copy_machine_id = value ? parseInt(value) : undefined}
+								onValueChange={(value: string) => formData.client_copy_machine_id = value ? parseInt(value) : undefined}
 								disabled={!formData.client_id}
 							>
 								<SelectTrigger class={!formData.client_id ? 'opacity-60 cursor-not-allowed' : ''}>
@@ -353,6 +377,34 @@
 											</SelectItem>
 										{/each}
 									{/if}
+								</SelectContent>
+							</Select>
+							<p class="text-xs text-muted-foreground">Se este serviço envolver máquina, escolha uma.</p>
+						</div>
+
+						<div class="space-y-2">
+							<Label>Prioridade</Label>
+							<Select
+								type="single"
+								value={formData.priority || ''}
+								onValueChange={(value: string) => formData.priority = value || undefined}
+							>
+								<SelectTrigger>
+									{formData.priority
+										? (() => {
+											const priorityKey = formData.priority.toUpperCase() as keyof typeof SERVICE_PRIORITY;
+											return SERVICE_PRIORITY[priorityKey]?.label || formData.priority;
+										})()
+										: 'Selecione uma prioridade'}
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="">
+										<span class="text-muted-foreground">Sem prioridade</span>
+									</SelectItem>
+									<SelectItem value="LOW">Baixa</SelectItem>
+									<SelectItem value="MEDIUM">Média</SelectItem>
+									<SelectItem value="HIGH">Alta</SelectItem>
+									<SelectItem value="URGENT">Urgente</SelectItem>
 								</SelectContent>
 							</Select>
 						</div>
@@ -492,8 +544,9 @@
 									<div class="space-y-2">
 										<Label>Responsável</Label>
 										<Select
+											type="single"
 											value={step.responsable_id ? step.responsable_id.toString() : ''}
-											onValueChange={(value) => updateStepField(index, 'responsable_id', value ? parseInt(value) : undefined)}
+											onValueChange={(value: string) => updateStepField(index, 'responsable_id', value ? parseInt(value) : undefined)}
 										>
 											<SelectTrigger class="w-full md:w-[220px]">
 												{step.responsable_id
@@ -517,6 +570,61 @@
 												{/if}
 											</SelectContent>
 										</Select>
+									</div>
+
+									<div class="space-y-2">
+										<Label>Expira em</Label>
+										<Input
+											type="text"
+											value={step.datetime_expiration 
+												? (() => {
+													const date = new Date(step.datetime_expiration);
+													const day = String(date.getDate()).padStart(2, '0');
+													const month = String(date.getMonth() + 1).padStart(2, '0');
+													const year = date.getFullYear();
+													return `${day}/${month}/${year}`;
+												})()
+												: ''}
+											oninput={(e) => {
+												let value = e.currentTarget.value.replace(/\D/g, ''); // Remove non-digits
+												
+												// Limit to 8 digits (ddmmyyyy)
+												if (value.length > 8) {
+													value = value.slice(0, 8);
+												}
+												
+												// Format as dd/mm/yyyy
+												let formatted = value;
+												if (value.length > 2) {
+													formatted = value.slice(0, 2) + '/' + value.slice(2);
+												}
+												if (value.length > 4) {
+													formatted = value.slice(0, 2) + '/' + value.slice(2, 4) + '/' + value.slice(4, 8);
+												}
+												
+												// Update the input value
+												e.currentTarget.value = formatted;
+												
+												// Parse and convert to ISO string when complete
+												if (value.length === 8) {
+													const day = parseInt(value.slice(0, 2), 10);
+													const month = parseInt(value.slice(2, 4), 10) - 1; // Month is 0-indexed
+													const year = parseInt(value.slice(4, 8), 10);
+													
+													if (day >= 1 && day <= 31 && month >= 0 && month <= 11 && year >= 1900) {
+														const date = new Date(year, month, day);
+														date.setHours(23, 59, 59, 999);
+														updateStepField(index, 'datetime_expiration', date.toISOString());
+													} else {
+														updateStepField(index, 'datetime_expiration', undefined);
+													}
+												} else if (value.length === 0) {
+													updateStepField(index, 'datetime_expiration', undefined);
+												}
+											}}
+											placeholder="dd/mm/aaaa"
+											maxlength={10}
+										/>
 									</div>
 								</div>
 							{/each}

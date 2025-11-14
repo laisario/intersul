@@ -21,6 +21,10 @@ async function bootstrap() {
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
+      skipMissingProperties: false,
       exceptionFactory: (validationErrors = []) => {
         const details = validationErrors.map((err: any) => ({
           field: err.property,

@@ -2,6 +2,7 @@
 	import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '$lib/components/ui/dialog/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { AlertTriangle, Trash2, X } from 'lucide-svelte';
+	import type { Snippet } from 'svelte';
 
 	interface Props {
 		open: boolean;
@@ -14,6 +15,7 @@
 		loading?: boolean;
 		onConfirm: () => void | Promise<void>;
 		onCancel: () => void;
+		children?: Snippet;
 	}
 
 	let {
@@ -26,7 +28,8 @@
 		icon = 'warning',
 		loading = false,
 		onConfirm,
-		onCancel
+		onCancel,
+		children
 	}: Props = $props();
 
 	async function handleConfirm() {
@@ -110,6 +113,12 @@
 				</div>
 			</div>
 		</DialogHeader>
+
+		{#if children}
+			<div class="py-4">
+				{@render children()}
+			</div>
+		{/if}
 
 		<DialogFooter class="flex-col sm:flex-row gap-2">
 			<Button

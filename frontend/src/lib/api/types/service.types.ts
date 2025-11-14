@@ -25,6 +25,8 @@ export interface Service extends BaseEntity {
   created_at?: string;
   updated_at?: string;
   status?: string;
+  priority?: string;
+  reason_cancellament?: string;
 }
 
 export const ServiceStatus = {
@@ -51,6 +53,7 @@ export interface Step extends BaseEntity {
   description: string;
   observation?: string;
   responsable_client?: string;
+  reason_cancellament?: string;
   status?: string;
   datetime_start?: string;
   datetime_conclusion?: string;
@@ -59,6 +62,9 @@ export interface Step extends BaseEntity {
   service_id?: number;
   responsable_id?: number;
   responsable?: User;
+  service?: Service;
+  category?: Category;
+  images?: Image[];
 }
 
 export interface StepTemplate {
@@ -96,10 +102,11 @@ export interface CreateServiceStepDto {
 }
 
 export interface CreateServiceDto {
-  client_id: number;
-  category_id: number;
+  client_id?: number;
+  category_id?: number;
   client_copy_machine_id?: number;
   description?: string;
+  priority?: string;
   steps?: CreateServiceStepDto[];
 }
 
@@ -143,3 +150,8 @@ export interface ServiceStats {
 
 // Import User type from auth
 import type { User } from './auth.types';
+
+export interface Image extends BaseEntity {
+  path: string;
+  step_id?: number;
+}

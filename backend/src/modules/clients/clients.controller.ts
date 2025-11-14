@@ -66,6 +66,14 @@ export class ClientsController {
     return this.clientsService.update(id, updateClientDto);
   }
 
+  @Patch(':id/toggle-active')
+  @ApiOperation({ summary: 'Toggle client active status' })
+  @ApiResponse({ status: 200, description: 'Client active status toggled successfully', type: Client })
+  @ApiResponse({ status: 404, description: 'Client not found' })
+  async toggleActive(@Param('id', ParseIntPipe) id: number): Promise<Client> {
+    return this.clientsService.toggleActive(id);
+  }
+
   @Delete(':id')
   @ApiOperation({ summary: 'Delete client' })
   @ApiResponse({ status: 200, description: 'Client deleted successfully' })

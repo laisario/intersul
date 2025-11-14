@@ -8,6 +8,7 @@ export interface Client extends BaseEntity {
   cpf?: string;
   email: string;
   phone?: string;
+  active: boolean;
   address?: Address;
 }
 

@@ -36,6 +36,9 @@ export class Client {
   @Column({ unique: true })
   email: string;
 
+  @Column({ default: true })
+  active: boolean;
+
   @CreateDateColumn()
   created_at: Date;
 

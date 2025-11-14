@@ -4,7 +4,7 @@
 	import { useClient } from '$lib/hooks/queries/use-clients.svelte.js';
 	import { errorToast } from '$lib/utils/toast.js';
 	import { formatDate, formatCurrency } from '$lib/utils/formatting.js';
-	import { ACQUISITION_TYPE } from '$lib/utils/constants.js';
+	import { ACQUISITION_TYPE, getServiceStatusLabel, getServiceStatusVariant } from '$lib/utils/constants.js';
 	import { AcquisitionType } from '$lib/api/types/copy-machine.types.js';
 	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
@@ -471,8 +471,8 @@ const isLoadingServiceHistory = $derived(serviceHistoryQuery.isLoading);
 										<div class="flex-1 min-w-0">
 											<div class="flex items-center justify-between">
 												<h4 class="font-medium">{service.description || service.category?.name || `Serviço #${service.id}`}</h4>
-												<Badge variant={service.status === 'completed' ? 'default' : 'secondary'}>
-													{service.status === 'completed' ? 'Concluído' : service.status === 'in_progress' ? 'Em Andamento' : 'Pendente'}
+												<Badge variant={getServiceStatusVariant(service.status)}>
+													{getServiceStatusLabel(service.status)}
 												</Badge>
 											</div>
 											<p class="text-sm text-muted-foreground mt-1">
@@ -769,12 +769,8 @@ const isLoadingServiceHistory = $derived(serviceHistoryQuery.isLoading);
 												</div>
 											</div>
 											<div class="flex items-center gap-2">
-												<Badge 
-													variant={service.status === ServiceStatus.COMPLETED ? 'default' : 
-														service.status === ServiceStatus.IN_PROGRESS ? 'secondary' : 
-														service.status === ServiceStatus.CANCELLED ? 'destructive' : 'outline'}
-												>
-													{SERVICE_STATUS[service.status as ServiceStatus]?.label || service.status}
+												<Badge variant={getServiceStatusVariant(service.status)}>
+													{getServiceStatusLabel(service.status)}
 												</Badge>
 											</div>
 										</div>

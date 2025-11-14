@@ -5,7 +5,6 @@ import type { User } from '$lib/api/types/auth.types.js';
 import type {
   CreateUserInvitationPayload,
   CreateUserPayload,
-  UpdateUserPayload,
   UserInvitation,
   UserQueryParams,
   UserStats
@@ -45,22 +44,6 @@ export const useCreateUser = () => {
     },
     onError: (error) => {
       console.error('Create user failed:', error);
-    },
-  }));
-};
-
-
-export const useUpdateUser = () => {
-  return createMutation(() => ({
-    mutationFn: async ({ id, data }: { id: number; data: UpdateUserPayload }): Promise<User> => {
-      return usersApi.update(id, data);
-    },
-    onSuccess: (data) => {
-      queryClient.setQueryData(['users', data.id], data);
-      queryClient.invalidateQueries({ queryKey: ['users'] });
-    },
-    onError: (error) => {
-      console.error('Update user failed:', error);
     },
   }));
 };

@@ -81,6 +81,19 @@ export const useUpdateClient = () => {
   }));
 };
 
+export const useToggleClientActive = () => {
+  return createMutation(() => ({
+    mutationFn: (id: number) => clientsApi.toggleActive(id),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['client', data.id], data);
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+    },
+    onError: (error) => {
+      console.error('Toggle client active failed:', error);
+    },
+  }));
+};
+
 export const useDeleteClient = () => {
   return createMutation(() => ({
     mutationFn: (id: number) => clientsApi.delete(id),

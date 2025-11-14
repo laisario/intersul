@@ -11,15 +11,19 @@ import { ClientsModule } from '../clients/clients.module';
 import { CopyMachinesModule } from '../copy-machines/copy-machines.module';
 import { CategoryService } from './service/category';
 import { CategoryController } from './controller/category';
+import { StepService } from './service/step';
+import { StepController } from './controller/step';
+import { CommonModule } from '../common/common.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Service, Category, Step, Client, ClientCopyMachine]),
     ClientsModule,
     CopyMachinesModule,
+    CommonModule,
   ],
-  controllers: [ServicesController, CategoryController],
-  providers: [ServicesService, CategoryService],
-  exports: [ServicesService, CategoryService],
+  controllers: [ServicesController, CategoryController, StepController],
+  providers: [ServicesService, CategoryService, StepService],
+  exports: [ServicesService, CategoryService, StepService],
 })
 export class ServicesModule {}

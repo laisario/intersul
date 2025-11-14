@@ -1,18 +1,16 @@
-<!--
-  Enhanced dashboard with real backend data and charts
--->
 
 <script lang="ts">
 	import { useDashboardStats, useDashboardActivity } from '$lib/hooks/queries/use-dashboard.svelte.js';
-	import { useServices } from '$lib/hooks/queries/use-services.svelte.js';
+	import { useMySteps } from '$lib/hooks/queries/use-steps.svelte.js';
 	import { formatNumber, formatCurrency } from '$lib/utils/formatting.js';
 	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import ServiceTable from '$lib/components/tables/service-table.svelte';
-	import CreateServiceDialog from '$lib/components/dialogs/create-service-dialog.svelte';
+	import { Select, SelectTrigger, SelectContent, SelectItem } from '$lib/components/ui/select/index.js';
+	import StepsTable from '$lib/components/tables/steps-table.svelte';
 	import Breadcrumbs from '$lib/components/layout/breadcrumbs.svelte';
+	import PaginationControls from '$lib/components/pagination-controls.svelte';
 	import { 
 		Users, 
 		Wrench, 
@@ -26,18 +24,60 @@
 		Plus
 	} from 'lucide-svelte';
 	import { goto } from '$app/navigation';
+	import type { Step } from '$lib/api/types/service.types.js';
 
 	// Fetch dashboard data
 	const { data: stats, isLoading: statsLoading } = useDashboardStats();
 	const { data: activity, isLoading: activityLoading } = useDashboardActivity();
 	
-	// Fetch recent services for the table
-	const { data: servicesData, isLoading: servicesLoading, refetch: refetchServices } = useServices(() => ({
-		limit: 10,
-		page: 1
-	}));
+	// Filter state
+	type FilterOption = 'all' | 'created_today' | 'expires_today';
+	let filterOption = $state<FilterOption>('all');
+	let currentPage = $state(1);
+	let pageSize = $state(10);
 
-	let showCreateServiceDialog = $state(false);
+	// Get filter for API call (undefined if 'all')
+	const apiFilter = $derived.by(() => filterOption === 'all' ? undefined : filterOption);
+
+	// Fetch user's steps with filter
+	const { data: mySteps, isLoading: stepsLoading, refetch: refetchSteps } = useMySteps(apiFilter);
+
+	// Paginate steps (filtering is done in backend)
+	const paginatedSteps = $derived(() => {
+		if (!mySteps) return [];
+		const start = (currentPage - 1) * pageSize;
+		const end = start + pageSize;
+		return mySteps.slice(start, end);
+	});
+
+	const totalPages = $derived(Math.ceil((mySteps?.length || 0) / pageSize));
+
+	// Reset to page 1 when filter changes
+	$effect(() => {
+		filterOption;
+		currentPage = 1;
+	});
+
+	function handlePreviousPage() {
+		if (currentPage > 1) {
+			currentPage--;
+		}
+	}
+
+	function handleNextPage() {
+		if (currentPage < totalPages) {
+			currentPage++;
+		}
+	}
+
+	function handleSelectPage(page: number) {
+		currentPage = page;
+	}
+
+	function handlePageSizeChange(size: number) {
+		pageSize = size;
+		currentPage = 1;
+	}
 
 	// Quick stats cards
 	let quickStats = $derived([
@@ -80,29 +120,83 @@
 	<title>Dashboard - Intersul</title>
 </svelte:head>
 
-<div class="space-y-6">
+<div class="space-y-6 px-6">
 	<!-- Breadcrumbs -->
 	<Breadcrumbs />
 
 	<!-- Header -->
 	<div class="flex justify-between items-center">
 		<div>
-			<h1 class="text-3xl font-bold">Dashboard</h1>
+			<h1 class="text-3xl font-bold">Página Inicial</h1>
 			<p class="text-muted-foreground">Visão geral do sistema</p>
 		</div>
-		<div class="flex items-center space-x-2">
-			<Button variant="outline" on:click={() => refetchServices()}>
+		<!-- <div class="flex items-center space-x-2">
+			<Button variant="outline" onclick={() => refetchSteps()}>
 				<Activity class="w-4 h-4 mr-2" />
 				Atualizar
 			</Button>
-			<Button on:click={() => (showCreateServiceDialog = true)}>
-				<Plus class="w-4 h-4 mr-2" />
-				Novo Serviço
-			</Button>
-		</div>
+		</div> -->
 	</div>
 
-	<!-- Quick Stats -->
+
+	<Card>
+		<CardHeader>
+			<CardTitle>Sua parte do serviço</CardTitle>
+			<CardDescription>Etapas do serviço que você está responsável</CardDescription>
+		</CardHeader>
+		<CardContent>
+			<div class="space-y-4">
+				<!-- Filters -->
+				<div class="flex items-center gap-4">
+					<div class="w-[200px]">
+						<Select
+							type="single"
+							value={filterOption}
+							onValueChange={(value: string) => {
+								filterOption = (value as FilterOption) ?? 'all';
+							}}
+						>
+							<SelectTrigger class="w-full">
+								<span class="block text-left text-sm">
+									{filterOption === 'all' 
+										? 'Todas as tarefas' 
+										: filterOption === 'created_today' 
+										? 'Criadas hoje' 
+										: 'Expiram hoje'}
+								</span>
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="all">Todas as tarefas</SelectItem>
+								<SelectItem value="created_today">Tarefas criadas hoje</SelectItem>
+								<SelectItem value="expires_today">Tarefas que expiram hoje</SelectItem>
+							</SelectContent>
+						</Select>
+					</div>
+				</div>
+
+				<!-- Table -->
+				<StepsTable 
+					steps={paginatedSteps()}
+					isLoading={stepsLoading}
+					onRowClick={(step) => goto(`/steps/${step.id}`)}
+				/>
+
+				<!-- Pagination -->
+				<PaginationControls
+					page={currentPage}
+					totalPages={totalPages}
+					totalItems={mySteps?.length || 0}
+					pageSize={pageSize}
+					label="etapas"
+					onPrevious={handlePreviousPage}
+					onNext={handleNextPage}
+					onSelectPage={handleSelectPage}
+					onPageSizeChange={handlePageSizeChange}
+				/>
+			</div>
+		</CardContent>
+	</Card>
+<!-- 
 	<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
 		{#each quickStats as stat}
 			<Card>
@@ -127,11 +221,10 @@
 				</CardContent>
 			</Card>
 		{/each}
-	</div>
+	</div> -->
 
-	<!-- Main Content Grid -->
+<!-- 	
 	<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-		<!-- Services Overview -->
 		<Card class="lg:col-span-2">
 			<CardHeader>
 				<CardTitle>Resumo de Serviços</CardTitle>
@@ -183,7 +276,6 @@
 			</CardContent>
 		</Card>
 
-		<!-- Recent Activity -->
 		<Card>
 			<CardHeader>
 				<CardTitle>Atividade Recente</CardTitle>
@@ -229,11 +321,9 @@
 				{/if}
 			</CardContent>
 		</Card>
-	</div>
-
-	<!-- Additional Stats -->
+	</div> -->
+<!-- 
 	<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-		<!-- Client Status -->
 		<Card>
 			<CardHeader>
 				<CardTitle>Status dos Clientes</CardTitle>
@@ -267,7 +357,6 @@
 			</CardContent>
 		</Card>
 
-		<!-- System Health -->
 		<Card>
 			<CardHeader>
 				<CardTitle>Saúde do Sistema</CardTitle>
@@ -300,35 +389,6 @@
 				{/if}
 			</CardContent>
 		</Card>
-	</div>
+	</div> -->
 
-	<!-- Services Table -->
-	<Card>
-		<CardHeader>
-			<CardTitle>Serviços Recentes</CardTitle>
-			<CardDescription>Últimos serviços criados e atualizados</CardDescription>
-		</CardHeader>
-		<CardContent>
-			<ServiceTable 
-				services={servicesData?.data || []}
-				isLoading={servicesLoading}
-				onRowClick={(service) => goto(`/services/${service.id}`)}
-				onEdit={(service) => goto(`/services/${service.id}/edit`)}
-				onDelete={(service) => {
-					// Handle delete
-					console.log('Delete service:', service);
-				}}
-				showFilters={false}
-			/>
-		</CardContent>
-	</Card>
 </div>
-
-<!-- Create Service Dialog -->
-<CreateServiceDialog 
-	bind:open={showCreateServiceDialog}
-	onSuccess={() => {
-		refetchServices();
-		refetch();
-	}}
-/>

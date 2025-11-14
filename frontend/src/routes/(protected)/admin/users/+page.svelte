@@ -1,7 +1,6 @@
 
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import { goto } from '$app/navigation';
 	import {
 		useUsers,
 		useDeleteUser,
@@ -35,10 +34,9 @@
 	import type { User } from '$lib/api/types/auth.types.js';
 	import { UserRole } from '$lib/api/types/auth.types.js';
 	import type { UserInvitation } from '$lib/api/types/users.types.js';
-	import { MoreVertical, Edit, Trash2, Copy } from 'lucide-svelte';
+	import { MoreVertical, Trash2, Copy } from 'lucide-svelte';
 
 let activeTab = $state<'users' | 'invitations'>('users');
-let searchTerm = $state('');
 	type RoleFilterOption = 'all' | keyof typeof USER_ROLES;
 	type StatusFilterOption = 'all' | 'active' | 'inactive';
 let roleFilter = $state<RoleFilterOption>('all');
@@ -46,9 +44,12 @@ let statusFilter = $state<StatusFilterOption>('all');
 let showNewUserModal = $state(false);
 let currentPage = $state(1);
 let pageSize = $state(10);
+let invitationsCurrentPage = $state(1);
+let invitationsPageSize = $state(10);
 let showDeleteConfirmation = $state(false);
 let userToDelete = $state<User | null>(null);
 let inviteRole = $state<UserRole>(UserRole.TECHNICIAN);
+let invitePosition = $state('');
 let inviteEmail = $state('');
 let inviteExpiresInHours = $state(72);
 let generatedInvitation = $state<UserInvitation | null>(null);
@@ -76,7 +77,6 @@ const invitationExpirationOptions = [
 	};
 
 	const queryParams = $derived({
-		search: searchTerm || undefined,
 		role: roleFilter !== 'all' ? roleFilter : undefined,
 		active: statusFilter !== 'all' ? statusFilter === 'active' : undefined
 	});
@@ -96,6 +96,14 @@ const paginatedUsers = $derived(
 const userInvitationsQuery = $derived(useUserInvitations());
 const userInvitations = $derived<UserInvitation[]>(userInvitationsQuery.data ?? []);
 const isLoadingInvitations = $derived(userInvitationsQuery.isLoading);
+const totalInvitations = $derived(userInvitations?.length ?? 0);
+const invitationsTotalPages = $derived(Math.max(1, Math.ceil(totalInvitations / invitationsPageSize)));
+const paginatedInvitations = $derived(
+	(userInvitations ?? []).slice(
+		Math.max(0, (invitationsCurrentPage - 1) * invitationsPageSize),
+		Math.max(0, (invitationsCurrentPage - 1) * invitationsPageSize) + invitationsPageSize
+	)
+);
 
 	const { mutate: deleteUser, isPending: isDeleting } = useDeleteUser();
 	const { mutate: toggleActive, isPending: isToggling } = useToggleUserActive();
@@ -147,6 +155,7 @@ async function confirmDeleteUser() {
 
 function resetInvitationForm() {
 	inviteRole = UserRole.TECHNICIAN;
+	invitePosition = '';
 	inviteEmail = '';
 	inviteExpiresInHours = 72;
 	generatedInvitation = null;
@@ -175,6 +184,7 @@ function handleGenerateInvitation(event: Event) {
 	createInvitation(
 		{
 			role: inviteRole,
+			position: invitePosition || undefined,
 			email: inviteEmail || undefined,
 			expiresInHours: inviteExpiresInHours,
 		},
@@ -264,7 +274,6 @@ function getRoleBadge(role: UserRole) {
 	}
 
 $effect(() => {
-	searchTerm;
 	roleFilter;
 	statusFilter;
 	currentPage = 1;
@@ -300,6 +309,37 @@ function handlePageSizeChange(size: number) {
 		currentPage = 1;
 	}
 }
+
+function handleInvitationsSelectPage(page: number) {
+	if (page !== invitationsCurrentPage) {
+		invitationsCurrentPage = page;
+	}
+}
+
+function handleInvitationsPreviousPage() {
+	if (invitationsCurrentPage > 1) {
+		invitationsCurrentPage -= 1;
+	}
+}
+
+function handleInvitationsNextPage() {
+	if (invitationsCurrentPage < invitationsTotalPages) {
+		invitationsCurrentPage += 1;
+	}
+}
+
+function handleInvitationsPageSizeChange(size: number) {
+	if (size !== invitationsPageSize) {
+		invitationsPageSize = size;
+		invitationsCurrentPage = 1;
+	}
+}
+
+$effect(() => {
+	if (invitationsTotalPages > 0 && invitationsCurrentPage > invitationsTotalPages) {
+		invitationsCurrentPage = invitationsTotalPages;
+	}
+});
 </script>
 
 <svelte:head>
@@ -342,15 +382,7 @@ function handlePageSizeChange(size: number) {
 				<CardTitle>Filtros</CardTitle>
 			</CardHeader>
 			<CardContent>
-				<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-					<div>
-						<label for="search" class="block text-sm font-medium mb-2">Buscar</label>
-						<Input
-							id="search"
-							placeholder="Buscar por nome ou email"
-							bind:value={searchTerm}
-						/>
-					</div>
+				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 					<div>
 						<label for="role" class="block text-sm font-medium mb-2">Função</label>
 						<Select
@@ -366,7 +398,7 @@ function handlePageSizeChange(size: number) {
 								</span>
 							</SelectTrigger>
 							<SelectContent>
-								<SelectItem value="all">Todas</SelectItem>
+								<SelectItem value="all">Todas as funções</SelectItem>
 								{#each Object.entries(USER_ROLES) as [roleKey, config]}
 									<SelectItem value={roleKey}>
 										{config.label}
@@ -390,7 +422,7 @@ function handlePageSizeChange(size: number) {
 								</span>
 							</SelectTrigger>
 							<SelectContent>
-								<SelectItem value="all">Todos</SelectItem>
+								<SelectItem value="all">Todos os status</SelectItem>
 								<SelectItem value="active">Ativo</SelectItem>
 								<SelectItem value="inactive">Inativo</SelectItem>
 							</SelectContent>
@@ -451,8 +483,8 @@ function handlePageSizeChange(size: number) {
 											<Badge variant={getRoleBadgeVariant(user.role)}>
 												{getRoleBadge(user.role).label}
 											</Badge>
-											<Badge variant={user.isActive ? 'default' : 'secondary'}>
-												{user.isActive ? 'Ativo' : 'Inativo'}
+											<Badge variant={user.active ? 'default' : 'secondary'}>
+												{user.active ? 'Ativo' : 'Inativo'}
 											</Badge>
 										</div>
 										<div class="mt-1">
@@ -465,7 +497,7 @@ function handlePageSizeChange(size: number) {
 								</div>
 								<div class="flex items-center space-x-2">
 									<span class="text-sm text-muted-foreground">
-										Criado: {formatDate(user.createdAt)}
+										Criado: {formatDate((user as any).created_at)}
 									</span>
 									<DropdownMenu.Root>
 										<DropdownMenu.Trigger>
@@ -478,11 +510,7 @@ function handlePageSizeChange(size: number) {
 												onclick={() => handleToggleActive(user)}
 												disabled={isToggling}
 											>
-												{user.isActive ? 'Desativar' : 'Ativar'}
-											</DropdownMenu.Item>
-											<DropdownMenu.Item onclick={() => goto(`/admin/users/${user.id}/edit`)}>
-												<Edit class="w-4 h-4" />
-												Editar
+												{user.active ? 'Desativar' : 'Ativar'}
 											</DropdownMenu.Item>
 											<DropdownMenu.Separator />
 											<DropdownMenu.Item
@@ -500,7 +528,7 @@ function handlePageSizeChange(size: number) {
 						{/each}
 					</div>
 
-					{#if totalUsers > 0}
+					{#if !!totalUsers}
 						<div class="px-6 pb-6">
 							<PaginationControls
 								page={currentPage}
@@ -524,19 +552,11 @@ function handlePageSizeChange(size: number) {
 			<TabsContent value="invitations" class="space-y-6">
 				<Card>
 					<CardHeader>
-						<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-							<div>
-								<CardTitle>Convites de acesso</CardTitle>
-								<CardDescription>
-									Gere e acompanhe os convites enviados para novos usuários.
-								</CardDescription>
-							</div>
-							<Button variant="outline" onclick={openInvitationModal}>
-								<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-								</svg>
-								Novo convite
-							</Button>
+						<div>
+							<CardTitle>Convites de acesso</CardTitle>
+							<CardDescription>
+								Gere e acompanhe os convites enviados para novos usuários.
+							</CardDescription>
 						</div>
 					</CardHeader>
 					<CardContent>
@@ -573,7 +593,7 @@ function handlePageSizeChange(size: number) {
 										</TableRow>
 									</TableHeader>
 									<TableBody>
-										{#each userInvitations as invitation (invitation.id)}
+										{#each paginatedInvitations as invitation (invitation.id)}
 											<TableRow>
 												<TableCell>
 													<div class="flex flex-col gap-1">
@@ -581,6 +601,11 @@ function handlePageSizeChange(size: number) {
 															<Badge variant="outline">
 																{USER_ROLES[invitation.role]?.label ?? invitation.role}
 															</Badge>
+															{#if invitation.position}
+																<span class="text-sm text-muted-foreground">
+																	{invitation.position}
+																</span>
+															{/if}
 															<span class="text-sm text-muted-foreground">
 																{invitation.email ?? 'Qualquer e-mail'}
 															</span>
@@ -629,6 +654,23 @@ function handlePageSizeChange(size: number) {
 									</TableBody>
 								</Table>
 							</div>
+							
+							{#if !!totalInvitations}
+								<div class="px-6 pb-6">
+									<PaginationControls
+										page={invitationsCurrentPage}
+										totalPages={invitationsTotalPages}
+										totalItems={totalInvitations}
+										pageSize={invitationsPageSize}
+										label="convites"
+										onPrevious={handleInvitationsPreviousPage}
+										onNext={handleInvitationsNextPage}
+										onSelectPage={handleInvitationsSelectPage}
+										onPageSizeChange={handleInvitationsPageSizeChange}
+										pageSizeOptions={pageSizeOptions}
+									/>
+								</div>
+							{/if}
 						{/if}
 					</CardContent>
 				</Card>
@@ -669,7 +711,7 @@ function handlePageSizeChange(size: number) {
 					</div>
 					<form class="space-y-6" onsubmit={handleGenerateInvitation}>
 						<div class="space-y-2">
-							<Label>Função do usuário</Label>
+							<Label>Setor</Label>
 							<Select
 								type="single"
 								value={inviteRole}
@@ -678,7 +720,7 @@ function handlePageSizeChange(size: number) {
 								}}
 							>
 								<SelectTrigger class="w-full">
-									{USER_ROLES[inviteRole]?.label ?? 'Selecione a função'}
+									{USER_ROLES[inviteRole]?.label ?? 'Selecione o setor'}
 								</SelectTrigger>
 								<SelectContent>
 									{#each Object.entries(USER_ROLES) as [roleKey, config]}
@@ -688,6 +730,16 @@ function handlePageSizeChange(size: number) {
 									{/each}
 								</SelectContent>
 							</Select>
+						</div>
+
+						<div class="space-y-2">
+							<Label for="invite-position">Cargo/Posição (opcional)</Label>
+							<Input
+								id="invite-position"
+								type="text"
+								placeholder="Ex: Gerente, Analista, Técnico"
+								bind:value={invitePosition}
+							/>
 						</div>
 
 						<div class="space-y-2">

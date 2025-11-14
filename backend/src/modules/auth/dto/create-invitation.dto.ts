@@ -7,6 +7,10 @@ export class CreateInvitationDto {
   role: UserRole;
 
   @IsOptional()
+  @IsString()
+  position?: string;
+
+  @IsOptional()
   @IsEmail()
   email?: string;
 

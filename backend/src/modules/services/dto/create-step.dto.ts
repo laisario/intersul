@@ -38,6 +38,10 @@ export class CreateStepDto {
   @IsOptional()
   responsable_client?: string;
 
+  @IsString()
+  @IsOptional()
+  reason_cancellament?: string;
+
   @IsNumber()
   @IsOptional()
   service_id?: number;

@@ -12,16 +12,17 @@ import { Client } from '../../clients/entities/client.entity';
 import { ClientCopyMachine } from '../../copy-machines/entities/client-copy-machine.entity';
 import { Category } from './category.entity';
 import { Step } from './step.entity';
+import { ServiceStatus } from '../../../common/enums/service-status.enum';
 
 @Entity('services')
 export class Service {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ nullable: true })
   client_id: number;
 
-  @Column()
+  @Column({ nullable: true })
   category_id: number;
 
   @Column({ nullable: true })
@@ -29,6 +30,19 @@ export class Service {
 
   @Column({ type: 'text', nullable: true })
   description: string;
+
+  @Column({
+    type: 'enum',
+    enum: ServiceStatus,
+    default: ServiceStatus.PENDING,
+  })
+  status: ServiceStatus;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  priority: string;
+
+  @Column({ type: 'text', nullable: true })
+  reason_cancellament: string;
 
   @CreateDateColumn()
   created_at: Date;

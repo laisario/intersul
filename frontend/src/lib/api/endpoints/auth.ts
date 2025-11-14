@@ -56,7 +56,14 @@ export const authApi = {
    * Retrieve invitation details by token
    */
   getInvitation: (token: string): Promise<InvitationDetails> =>
-    axios.get(`/auth/invitations/${token}`).then(res => res.data),
+    axios.get(`/auth/invitations/${token}`).then(res => {
+      const data = res.data;
+      // Ensure used field is explicitly boolean (only true if explicitly true, otherwise false)
+      return {
+        ...data,
+        used: data.used === true,
+      };
+    }),
 
   /**
    * Complete user registration via invitation

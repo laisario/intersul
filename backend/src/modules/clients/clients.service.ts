@@ -50,6 +50,12 @@ export class ClientsService {
     await this.clientsRepository.remove(client);
   }
 
+  async toggleActive(id: number): Promise<Client> {
+    const client = await this.findOne(id);
+    client.active = !client.active;
+    return this.clientsRepository.save(client);
+  }
+
   async getStats(): Promise<{
     total: number;
     newThisMonth: number;

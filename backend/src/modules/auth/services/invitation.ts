@@ -25,9 +25,11 @@ export class InvitationService {
     const invitation = this.invitationRepository.create({
       token,
       role: createDto.role,
+      position: createDto.position,
       email: createDto.email?.toLowerCase(),
       expires_at: expiresAt,
       created_by_id: createdById,
+      used: false, // Explicitly set to false
     });
 
     const savedInvitation = await this.invitationRepository.save(invitation);
@@ -82,6 +84,7 @@ export class InvitationService {
       email: payload.email,
       password: payload.password,
       role: invitation.role as UserRole,
+      position: payload.position || invitation.position,
     });
 
     invitation.used = true;
@@ -100,9 +103,18 @@ export class InvitationService {
   }
 
   private normalizeInvitation(invitation: UserInvitation) {
-    const { createdBy, ...rest } = invitation;
+    const { createdBy, expires_at, used_at, created_at, updated_at, ...rest } = invitation;
     return {
-      ...rest,
+      id: invitation.id,
+      token: invitation.token,
+      role: invitation.role,
+      position: invitation.position ?? null,
+      email: invitation.email ?? null,
+      expiresAt: expires_at ? expires_at.toISOString() : null,
+      used: invitation.used ?? false,
+      usedAt: used_at ? used_at.toISOString() : null,
+      createdAt: created_at.toISOString(),
+      updatedAt: updated_at.toISOString(),
       createdBy: createdBy
         ? {
             id: createdBy.id,

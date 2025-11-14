@@ -66,33 +66,134 @@ export const USER_ROLES = {
 // Client status configuration (removed - not used in current implementation)
 
 // Service status configuration
+// Supports both backend format (uppercase) and frontend format (lowercase)
 export const SERVICE_STATUS = {
+  // Backend format (uppercase)
+  'PENDING': {
+    label: 'Pendente',
+    color: 'yellow',
+    description: 'Aguardando início',
+    variant: 'outline' as const,
+  },
+  'IN_PROGRESS': {
+    label: 'Em Andamento',
+    color: 'blue',
+    description: 'Serviço em execução',
+    variant: 'secondary' as const,
+  },
+  'CONCLUDED': {
+    label: 'Concluído',
+    color: 'green',
+    description: 'Serviço finalizado',
+    variant: 'default' as const,
+  },
+  'CANCELLED': {
+    label: 'Cancelado',
+    color: 'red',
+    description: 'Serviço cancelado',
+    variant: 'destructive' as const,
+  },
+  // Frontend format (lowercase) - for compatibility
+  'pending': {
+    label: 'Pendente',
+    color: 'yellow',
+    description: 'Aguardando início',
+    variant: 'outline' as const,
+  },
+  'in_progress': {
+    label: 'Em Andamento',
+    color: 'blue',
+    description: 'Serviço em execução',
+    variant: 'secondary' as const,
+  },
+  'concluded': {
+    label: 'Concluído',
+    color: 'green',
+    description: 'Serviço finalizado',
+    variant: 'default' as const,
+  },
+  'cancelled': {
+    label: 'Cancelado',
+    color: 'red',
+    description: 'Serviço cancelado',
+    variant: 'destructive' as const,
+  },
+  // Legacy support
   [ServiceStatus.PENDING]: {
     label: 'Pendente',
     color: 'yellow',
     description: 'Aguardando início',
+    variant: 'outline' as const,
   },
   [ServiceStatus.IN_PROGRESS]: {
     label: 'Em Andamento',
     color: 'blue',
     description: 'Serviço em execução',
+    variant: 'secondary' as const,
   },
   [ServiceStatus.COMPLETED]: {
     label: 'Concluído',
     color: 'green',
     description: 'Serviço finalizado',
+    variant: 'default' as const,
   },
   [ServiceStatus.CANCELLED]: {
     label: 'Cancelado',
     color: 'red',
     description: 'Serviço cancelado',
+    variant: 'destructive' as const,
   },
   [ServiceStatus.ON_HOLD]: {
     label: 'Em Espera',
     color: 'orange',
     description: 'Serviço pausado',
+    variant: 'outline' as const,
   },
 } as const;
+
+/**
+ * Get service status label in Portuguese
+ */
+export function getServiceStatusLabel(status?: string | null): string {
+  if (!status) return 'Não informado';
+  // Try uppercase first (backend format)
+  const upperStatus = status.toUpperCase();
+  if (SERVICE_STATUS[upperStatus as keyof typeof SERVICE_STATUS]) {
+    return SERVICE_STATUS[upperStatus as keyof typeof SERVICE_STATUS].label;
+  }
+  // Try lowercase (frontend format)
+  const lowerStatus = status.toLowerCase();
+  if (SERVICE_STATUS[lowerStatus as keyof typeof SERVICE_STATUS]) {
+    return SERVICE_STATUS[lowerStatus as keyof typeof SERVICE_STATUS].label;
+  }
+  // Try original format
+  if (SERVICE_STATUS[status as keyof typeof SERVICE_STATUS]) {
+    return SERVICE_STATUS[status as keyof typeof SERVICE_STATUS].label;
+  }
+  return status;
+}
+
+/**
+ * Get service status badge variant
+ */
+export function getServiceStatusVariant(status?: string | null): 'default' | 'secondary' | 'destructive' | 'outline' {
+  if (!status) return 'outline';
+  // Try uppercase first (backend format)
+  const upperStatus = status.toUpperCase();
+  if (SERVICE_STATUS[upperStatus as keyof typeof SERVICE_STATUS]) {
+    return SERVICE_STATUS[upperStatus as keyof typeof SERVICE_STATUS].variant;
+  }
+  // Try lowercase (frontend format)
+  const lowerStatus = status.toLowerCase();
+  if (SERVICE_STATUS[lowerStatus as keyof typeof SERVICE_STATUS]) {
+    return SERVICE_STATUS[lowerStatus as keyof typeof SERVICE_STATUS].variant;
+  }
+  // Try original format
+  if (SERVICE_STATUS[status as keyof typeof SERVICE_STATUS]) {
+    return SERVICE_STATUS[status as keyof typeof SERVICE_STATUS].variant;
+  }
+  return 'outline';
+}
 
 // Service priority configuration
 export const SERVICE_PRIORITY = {

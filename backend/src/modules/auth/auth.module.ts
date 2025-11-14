@@ -14,10 +14,11 @@ import { UserController } from './controllers/user';
 import { InvitationService } from './services/invitation';
 import { UserInvitationController } from './controllers/invitation';
 import { RolesGuard } from './guards/roles.guard';
+import { Step } from '../services/entities/step.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, UserInvitation]),
+    TypeOrmModule.forFeature([User, UserInvitation, Step]),
     PassportModule,
     JwtModule.register({
       secret: jwtConfig.secret,

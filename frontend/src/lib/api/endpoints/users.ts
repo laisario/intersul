@@ -2,7 +2,6 @@ import { axios } from '../client.js';
 import type { User } from '../types/auth.types.js';
 import type {
 	CreateUserPayload,
-	UpdateUserPayload,
 	UserInvitation,
 	UserQueryParams,
 	UserStats,
@@ -18,9 +17,6 @@ export const usersApi = {
 
   create: (data: CreateUserPayload): Promise<User> =>
     axios.post('/users', data).then(res => res.data),
-
-  update: (id: number, data: UpdateUserPayload): Promise<User> =>
-    axios.patch(`/users/${id}`, data).then(res => res.data),
 
   delete: (id: number): Promise<void> =>
     axios.delete(`/users/${id}`).then(() => undefined),

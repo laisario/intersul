@@ -15,7 +15,7 @@ export interface UpdateUserPayload {
 	role?: UserRole;
 	sector?: string;
 	position?: string;
-	isActive?: boolean;
+	active?: boolean;
 	avatar?: string;
 	phone?: string;
 }
@@ -38,6 +38,7 @@ export interface UserStats {
 
 export interface CreateUserInvitationPayload {
 	role: UserRole;
+	position?: string;
 	email?: string;
 	expiresInHours?: number;
 	note?: string;
@@ -47,6 +48,7 @@ export interface UserInvitation {
 	id: number;
 	token: string;
 	role: UserRole;
+	position?: string | null;
 	email?: string | null;
 	expiresAt?: string | null;
 	used: boolean;

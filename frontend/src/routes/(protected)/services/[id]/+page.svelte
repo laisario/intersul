@@ -1,15 +1,17 @@
 
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { useService, useServices } from '$lib/hooks/queries/use-services.svelte.js';
+	import { useService, useServices, useUpdateService } from '$lib/hooks/queries/use-services.svelte.js';
 	import { formatDate, formatCurrency } from '$lib/utils/formatting.js';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
-	import { ArrowLeft, CheckCircle, Clock, User, Printer, MapPin, Phone, Mail, Calendar, FileText } from 'lucide-svelte';
+	import { ArrowLeft, CheckCircle, Clock, User, Printer, MapPin, Phone, Mail, Calendar, FileText, XCircle, Loader2 } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
-	import { ACQUISITION_TYPE } from '$lib/utils/constants.js';
+	import { ACQUISITION_TYPE, SERVICE_STATUS, SERVICE_PRIORITY, getServiceStatusLabel, getServiceStatusVariant } from '$lib/utils/constants.js';
+	import { successToast, errorToast } from '$lib/utils/toast.js';
+	import ConfirmationDialog from '$lib/components/confirmation-dialog.svelte';
 	import type { AcquisitionType, ClientCopyMachine } from '$lib/api/types/copy-machine.types.js';
 	import type { Client } from '$lib/api/types/client.types.js';
 	import type { ServiceQueryParams } from '$lib/api/types/service.types.js';
@@ -18,7 +20,13 @@
 	const serviceQuery = useService(serviceId);
 	const service = $derived(serviceQuery.data);
 	const isLoading = $derived(serviceQuery.isLoading);
+	const updateServiceMutation = useUpdateService();
 	let machineHistoryFilters = $state<ServiceQueryParams | undefined>(undefined);
+	let showCancelDialog = $state(false);
+	let showConcludeDialog = $state(false);
+	let cancelReason = $state('');
+	let isConcluding = $state(false);
+	let isCancelling = $state(false);
 
 	const machineServicesQuery = useServices(() => machineHistoryFilters);
 	const machineServices = $derived(
@@ -27,10 +35,19 @@
 	const machineServicesLoading = $derived(machineServicesQuery.isLoading);
 
 	const STEP_STATUS_LABELS: Record<string, string> = {
-		pending: 'Pendente',
-		in_progress: 'Em andamento',
-		completed: 'Concluído',
-		skipped: 'Ignorado'
+		// Backend format (uppercase)
+		'PENDING': 'Pendente',
+		'IN_PROGRESS': 'Em Andamento',
+		'CONCLUDED': 'Concluído',
+		'CANCELLED': 'Cancelado',
+		// Frontend format (lowercase) - for compatibility
+		'pending': 'Pendente',
+		'in_progress': 'Em Andamento',
+		'concluded': 'Concluído',
+		'cancelled': 'Cancelado',
+		// Legacy format
+		'completed': 'Concluído',
+		'skipped': 'Ignorado'
 	};
 
 	function goBack() {
@@ -38,10 +55,12 @@
 	}
 
 	function getStepStatusIcon(status: string) {
-		switch (status) {
-			case 'completed':
+		const normalizedStatus = status.toUpperCase();
+		switch (normalizedStatus) {
+			case 'CONCLUDED':
+			case 'COMPLETED':
 				return CheckCircle;
-			case 'in_progress':
+			case 'IN_PROGRESS':
 				return Clock;
 			default:
 				return Clock;
@@ -49,10 +68,12 @@
 	}
 
 	function getStepStatusColor(status: string) {
-		switch (status) {
-			case 'completed':
+		const normalizedStatus = status.toUpperCase();
+		switch (normalizedStatus) {
+			case 'CONCLUDED':
+			case 'COMPLETED':
 				return 'text-green-600';
-			case 'in_progress':
+			case 'IN_PROGRESS':
 				return 'text-blue-600';
 			default:
 				return 'text-gray-600';
@@ -61,7 +82,21 @@
 
 	function formatStepStatus(status?: string) {
 		if (!status) return 'Pendente';
-		return STEP_STATUS_LABELS[status] ?? status;
+		// Try original format first
+		if (STEP_STATUS_LABELS[status]) {
+			return STEP_STATUS_LABELS[status];
+		}
+		// Try uppercase (backend format)
+		const upperStatus = status.toUpperCase();
+		if (STEP_STATUS_LABELS[upperStatus]) {
+			return STEP_STATUS_LABELS[upperStatus];
+		}
+		// Try lowercase (frontend format)
+		const lowerStatus = status.toLowerCase();
+		if (STEP_STATUS_LABELS[lowerStatus]) {
+			return STEP_STATUS_LABELS[lowerStatus];
+		}
+		return status;
 	}
 
 	function formatClientAddress(client?: Client) {
@@ -121,6 +156,75 @@
 			machineHistoryFilters = undefined;
 		}
 	});
+
+	function checkAllStepsConcluded(): boolean {
+		if (!service?.steps || service.steps.length === 0) {
+			return true; // No steps means we can conclude
+		}
+		// Check if all steps are concluded
+		return service.steps.every(step => {
+			const status = step.status?.toUpperCase();
+			return status === 'CONCLUDED' || status === 'COMPLETED';
+		});
+	}
+
+	function openConcludeDialog() {
+		const allStepsConcluded = checkAllStepsConcluded();
+		if (allStepsConcluded) {
+			// If all steps are concluded, proceed directly
+			handleConclude();
+		} else {
+			// If not all steps are concluded, show confirmation dialog
+			showConcludeDialog = true;
+		}
+	}
+
+	async function handleConclude() {
+		if (!service) return;
+		isConcluding = true;
+		try {
+			await updateServiceMutation.mutateAsync({
+				id: service.id,
+				data: { status: 'CONCLUDED' } as any
+			});
+			successToast.updated('serviço');
+			showConcludeDialog = false;
+			serviceQuery.refetch();
+		} catch (error: any) {
+			errorToast.update('serviço');
+			console.error('Error concluding service:', error);
+		} finally {
+			isConcluding = false;
+		}
+	}
+
+	async function handleCancel() {
+		if (!service) return;
+		if (!cancelReason.trim()) {
+			return; // Don't proceed if reason is empty
+		}
+		isCancelling = true;
+		try {
+			await updateServiceMutation.mutateAsync({
+				id: service.id,
+				data: { status: 'CANCELLED', reason_cancellament: cancelReason.trim() } as any
+			});
+			successToast.updated('serviço');
+			showCancelDialog = false;
+			cancelReason = '';
+			serviceQuery.refetch();
+		} catch (error: any) {
+			errorToast.update('serviço');
+			console.error('Error cancelling service:', error);
+		} finally {
+			isCancelling = false;
+		}
+	}
+
+	function closeCancelDialog() {
+		showCancelDialog = false;
+		cancelReason = '';
+	}
 </script>
 
 <svelte:head>
@@ -187,7 +291,7 @@
 				<div>
 					<h1 class="text-3xl font-bold">Serviço #{service.id}</h1>
 					<p class="text-muted-foreground">
-						Cliente: {service.client?.name || '-'} • Categoria: {service.category?.name || '-'} • Criado em: {formatDate(service.createdAt)}
+						Cliente: {service.client?.name || '-'} • Categoria: {service.category?.name || '-'} • Criado em: {formatDate(service.created_at || service.createdAt)}
 					</p>
 				</div>
 			</div>
@@ -209,9 +313,13 @@
 						{#if service.steps && service.steps.length > 0}
 							<div class="space-y-4">
 								{#each service.steps as step, index}
-									{@const status = step?.status ?? 'pending'}
+									{@const status = step?.status ?? 'PENDING'}
 									{@const StatusIcon = getStepStatusIcon(status)}
-									<div class="flex items-start space-x-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+									{@const normalizedStatus = status.toUpperCase()}
+									<div 
+										class="flex items-start space-x-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+										onclick={() => step.id && goto(`/steps/${step.id}`)}
+									>
 										<div class="flex-shrink-0">
 											<div class="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
 												<span class="text-sm font-medium">{index + 1}</span>
@@ -222,7 +330,12 @@
 												<h4 class="font-medium">{step.name || `Passo ${index + 1}`}</h4>
 												<div class="flex items-center space-x-2">
 													<StatusIcon class="w-4 h-4 {getStepStatusColor(status)}" />
-													<Badge variant={status === 'completed' ? 'default' : status === 'in_progress' ? 'secondary' : 'outline'}>
+													<Badge variant={
+														normalizedStatus === 'CONCLUDED' || normalizedStatus === 'COMPLETED' ? 'default' :
+														normalizedStatus === 'IN_PROGRESS' ? 'secondary' :
+														normalizedStatus === 'CANCELLED' ? 'destructive' :
+														'outline'
+													}>
 														{formatStepStatus(status)}
 													</Badge>
 												</div>
@@ -338,6 +451,39 @@
 						</div>
 
 						<div>
+							<span class="font-medium text-muted-foreground block">Prioridade</span>
+							<span class="mt-1 block">
+								{#if service.priority}
+									<Badge 
+										variant={
+											service.priority === 'URGENT' || service.priority === 'urgent' ? 'destructive' :
+											service.priority === 'HIGH' || service.priority === 'high' ? 'default' :
+											service.priority === 'MEDIUM' || service.priority === 'medium' ? 'secondary' :
+											'outline'
+										}
+									>
+										{SERVICE_PRIORITY[service.priority.toUpperCase() as keyof typeof SERVICE_PRIORITY]?.label || service.priority}
+									</Badge>
+								{:else}
+									<span class="text-muted-foreground">Não informado</span>
+								{/if}
+							</span>
+						</div>
+
+						<div>
+							<span class="font-medium text-muted-foreground block">Status</span>
+							<span class="mt-1 block">
+								{#if service.status}
+									<Badge variant={getServiceStatusVariant(service.status)}>
+										{getServiceStatusLabel(service.status)}
+									</Badge>
+								{:else}
+									<span class="text-muted-foreground">Não informado</span>
+								{/if}
+							</span>
+						</div>
+
+						<div>
 							<span class="font-medium text-muted-foreground block">Descrição</span>
 							<p class="mt-1 text-sm whitespace-pre-line">
 								{service.description || 'Nenhuma descrição fornecida.'}
@@ -346,56 +492,91 @@
 
 						<div>
 							<span class="font-medium text-muted-foreground block">Criado em</span>
-							<span class="mt-1 block">{service.createdAt ? formatDate(service.createdAt) : '-'}</span>
+							<span class="mt-1 block">{formatDate(service.created_at || service.createdAt)}</span>
 						</div>
 
 						<div>
 							<span class="font-medium text-muted-foreground block">Atualizado em</span>
-							<span class="mt-1 block">{service.updatedAt ? formatDate(service.updatedAt) : '-'}</span>
+							<span class="mt-1 block">{formatDate(service.updated_at || service.updatedAt)}</span>
 						</div>
 					</CardContent>
 				</Card>
 
-				<!-- Client Info -->
-				<Card>
-					<CardHeader>
-						<CardTitle>Informações do Cliente</CardTitle>
-					</CardHeader>
-					<CardContent class="space-y-4 text-sm">
-						<div>
-							<span class="font-medium text-muted-foreground block">Nome</span>
-							<span class="mt-1 block">{service.client?.name || 'Não informado'}</span>
-						</div>
+				<!-- Actions Card (only if status is IN_PROGRESS) -->
+				{#if service.status === 'IN_PROGRESS' || service.status === 'in_progress'}
+					<Card>
+						<CardHeader>
+							<CardTitle>Ações</CardTitle>
+						</CardHeader>
+						<CardContent class="space-y-3">
+							<Button
+								variant="default"
+								class="w-full"
+								onclick={openConcludeDialog}
+								disabled={isConcluding || isCancelling}
+							>
+								{#if isConcluding}
+									<Loader2 class="w-4 h-4 mr-2 animate-spin" />
+								{:else}
+									<CheckCircle class="w-4 h-4 mr-2" />
+								{/if}
+								Concluir Serviço
+							</Button>
+							<Button
+								variant="destructive"
+								class="w-full"
+								onclick={() => showCancelDialog = true}
+								disabled={isConcluding || isCancelling}
+							>
+								<XCircle class="w-4 h-4 mr-2" />
+								Cancelar Serviço
+							</Button>
+						</CardContent>
+					</Card>
+				{/if}
 
-						{#if service.client?.email}
-							<div class="flex items-center gap-2">
-								<Mail class="w-4 h-4 text-muted-foreground" />
-								<span>{service.client.email}</span>
-							</div>
-						{/if}
-
-						{#if service.client?.phone}
-							<div class="flex items-center gap-2">
-								<Phone class="w-4 h-4 text-muted-foreground" />
-								<span>{service.client.phone}</span>
-							</div>
-						{/if}
-
-						<div class="flex items-start gap-2">
-							<MapPin class="w-4 h-4 text-muted-foreground mt-1" />
-							<span>{formatClientAddress(service.client)}</span>
-						</div>
-
-						{#if service.client?.address?.postal_code}
+				<!-- Client Info (only if client exists) -->
+				{#if service.client}
+					<Card>
+						<CardHeader>
+							<CardTitle>Informações do Cliente</CardTitle>
+						</CardHeader>
+						<CardContent class="space-y-4 text-sm">
 							<div>
-								<span class="font-medium text-muted-foreground block">CEP</span>
-								<span class="mt-1 block">{service.client.address.postal_code}</span>
+								<span class="font-medium text-muted-foreground block">Nome</span>
+								<span class="mt-1 block">{service.client.name}</span>
 							</div>
-						{/if}
-					</CardContent>
-				</Card>
 
-				<!-- Machine Info (if linked) -->
+							{#if service.client.email}
+								<div class="flex items-center gap-2">
+									<Mail class="w-4 h-4 text-muted-foreground" />
+									<span>{service.client.email}</span>
+								</div>
+							{/if}
+
+							{#if service.client.phone}
+								<div class="flex items-center gap-2">
+									<Phone class="w-4 h-4 text-muted-foreground" />
+									<span>{service.client.phone}</span>
+								</div>
+							{/if}
+
+							<div class="flex items-start gap-2">
+								<MapPin class="w-4 h-4 text-muted-foreground mt-1" />
+								<span>{formatClientAddress(service.client)}</span>
+							</div>
+
+							{#if service.client.address?.postal_code}
+								<div>
+									<span class="font-medium text-muted-foreground block">CEP</span>
+									<span class="mt-1 block">{service.client.address.postal_code}</span>
+								</div>
+							{/if}
+						</CardContent>
+					</Card>
+				{/if}
+
+				<!-- Machine Info (only if linked) -->
 				{#if service.clientCopyMachine}
 					<Card>
 						<CardHeader>
@@ -437,18 +618,6 @@
 							{/if}
 						</CardContent>
 					</Card>
-				{:else}
-					<Card>
-						<CardHeader>
-							<CardTitle class="flex items-center">
-								<Printer class="w-5 h-5 mr-2" />
-								Máquina Associada
-							</CardTitle>
-						</CardHeader>
-						<CardContent class="text-sm text-muted-foreground">
-							Nenhum equipamento associado a este serviço.
-						</CardContent>
-					</Card>
 				{/if}
 			</div>
 		</div>
@@ -465,4 +634,63 @@
 		</div>
 	</div>
 {/if}
+
+<!-- Conclude Service Dialog -->
+<ConfirmationDialog
+	bind:open={showConcludeDialog}
+	title="Concluir Serviço"
+	description="Nem todas as etapas deste serviço foram concluídas. Deseja realmente concluir o serviço mesmo assim?"
+	confirmText="Sim, Concluir Serviço"
+	cancelText="Cancelar"
+	variant="default"
+	icon="warning"
+	loading={isConcluding}
+	onConfirm={handleConclude}
+	onCancel={() => showConcludeDialog = false}
+>
+	<div class="mt-4">
+		<p class="text-sm text-muted-foreground mb-2">Etapas do serviço:</p>
+		<ul class="list-disc list-inside space-y-1 text-sm">
+			{#if service?.steps && service.steps.length > 0}
+				{#each service.steps as step}
+					{@const status = step.status?.toUpperCase()}
+					{@const isConcluded = status === 'CONCLUDED' || status === 'COMPLETED'}
+					<li class={isConcluded ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'}>
+						{step.name} - {isConcluded ? '✓ Concluída' : '⏳ ' + getServiceStatusLabel(step.status)}
+					</li>
+				{/each}
+			{:else}
+				<li class="text-muted-foreground">Nenhuma etapa cadastrada</li>
+			{/if}
+		</ul>
+	</div>
+</ConfirmationDialog>
+
+<!-- Cancel Service Dialog -->
+<ConfirmationDialog
+	bind:open={showCancelDialog}
+	title="Cancelar Serviço"
+	description="Tem certeza que deseja cancelar este serviço? Esta ação requer um motivo."
+	confirmText="Cancelar Serviço"
+	cancelText="Voltar"
+	variant="destructive"
+	icon="warning"
+	loading={isCancelling}
+	onConfirm={handleCancel}
+	onCancel={closeCancelDialog}
+>
+	<div class="space-y-2 mt-4">
+		<label for="cancel-reason" class="text-sm font-medium">Motivo do cancelamento *</label>
+		<textarea
+			id="cancel-reason"
+			bind:value={cancelReason}
+			placeholder="Descreva o motivo do cancelamento..."
+			rows="4"
+			class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+		></textarea>
+		{#if !cancelReason.trim() && isCancelling}
+			<p class="text-xs text-red-500">O motivo é obrigatório</p>
+		{/if}
+	</div>
+</ConfirmationDialog>
 

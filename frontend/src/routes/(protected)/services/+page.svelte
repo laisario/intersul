@@ -11,7 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "$
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "$lib/components/ui/tabs/index.js";
 import { Select, SelectTrigger, SelectContent, SelectItem } from "$lib/components/ui/select/index.js";
 import { Label } from "$lib/components/ui/label/index.js";
-import { Plus, Edit, Trash2, Wrench, FolderOpen } from "lucide-svelte";
+import { Plus, Edit, Trash2, Wrench, FolderOpen, MoreVertical } from "lucide-svelte";
+import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
 import type { Service } from "$lib/api/types/service.types.js";
 import type { Category } from "$lib/api/types/service.types.js";
 import type { ServiceQueryParams } from "$lib/api/types/service.types.js";
@@ -22,7 +23,7 @@ import CategoryPreviewDialog from "$lib/components/category-preview-dialog.svelt
 import ServiceFormDialog from "$lib/components/service-form-dialog.svelte";
 import PaginationControls from "$lib/components/pagination-controls.svelte";
 import { showError, successToast } from "$lib/utils/toast.js";
-import { ACQUISITION_TYPE, PAGINATION } from "$lib/utils/constants.js";
+import { ACQUISITION_TYPE, PAGINATION, SERVICE_STATUS, SERVICE_PRIORITY, getServiceStatusLabel, getServiceStatusVariant } from "$lib/utils/constants.js";
 import type { AcquisitionType } from "$lib/api/types/copy-machine.types.js";
 import { goto } from "$app/navigation";
 
@@ -409,11 +410,12 @@ function handleEditService(service: Service) {
 							<Table>
 								<TableHeader>
 									<TableRow>
+										<TableHead>ID</TableHead>
 										<TableHead>Cliente</TableHead>
 										<TableHead>Cidade</TableHead>
 										<TableHead>Categoria</TableHead>
-										<TableHead>Descrição</TableHead>
-										<TableHead>Máquina</TableHead>
+										<TableHead>Prioridade</TableHead>
+										<TableHead>Status</TableHead>
 										<TableHead>Data de Criação</TableHead>
 										<TableHead class="w-[100px]">Ações</TableHead>
 									</TableRow>
@@ -424,48 +426,72 @@ function handleEditService(service: Service) {
 											class="hover:bg-muted/50 cursor-pointer"
 											onclick={() => handleRowClick(service.id)}
 										>
+											<TableCell class="font-medium">#{service.id}</TableCell>
 											<TableCell>{service.client?.name || '-'}</TableCell>
-											<TableCell class="font-medium">{`${service?.client?.address?.neighborhood?.city?.name} - ${service?.client?.address?.neighborhood?.name}` || '-'}</TableCell>
+											<TableCell class="font-medium">
+												{service?.client?.address?.neighborhood?.city?.name || '-'}
+											</TableCell>
 											<TableCell>
 												<Badge variant="outline">
 													{service?.category?.name || '-'}
 												</Badge>
 											</TableCell>
-											<TableCell class="max-w-[200px] truncate">
-												{service.description || '-'}
-											</TableCell>
-											<TableCell class="text-sm text-muted-foreground">
-												{service.clientCopyMachine
-													? `${service.clientCopyMachine.serial_number} - ${
-															ACQUISITION_TYPE[
-																service.clientCopyMachine.acquisition_type as AcquisitionType
-															]?.label ?? ''
-														}`
-													: '-'}
-											</TableCell>
-											<TableCell>{formatDate(service.createdAt)}</TableCell>
 											<TableCell>
-												<div class="flex items-center gap-2">
-													<Button
-														variant="ghost"
-														size="sm"
-														onclick={(event) => {
-															event.stopPropagation();
-															handleEditService(service);
-														}}
+												{#if service.priority}
+													<Badge 
+														variant={
+															service.priority === 'URGENT' || service.priority === 'urgent' ? 'destructive' :
+															service.priority === 'HIGH' || service.priority === 'high' ? 'default' :
+															service.priority === 'MEDIUM' || service.priority === 'medium' ? 'secondary' :
+															'outline'
+														}
 													>
-														<Edit class="w-4 h-4" />
-													</Button>
-													<Button 
-														variant="ghost" 
-														size="sm"
-														onclick={(event) => {
-															event.stopPropagation();
-															handleDeleteService(service);
-														}}
-													>
-														<Trash2 class="w-4 h-4 text-red-600" />
-													</Button>
+														{SERVICE_PRIORITY[service.priority.toUpperCase() as keyof typeof SERVICE_PRIORITY]?.label || service.priority}
+													</Badge>
+												{:else}
+													<span class="text-muted-foreground text-sm">-</span>
+												{/if}
+											</TableCell>
+											<TableCell>
+												{#if service.status}
+													<Badge variant={getServiceStatusVariant(service.status)}>
+														{getServiceStatusLabel(service.status)}
+													</Badge>
+												{:else}
+													<span class="text-muted-foreground text-sm">-</span>
+												{/if}
+											</TableCell>
+											<TableCell>{formatDate(service.created_at)}</TableCell>
+											<TableCell>
+												<div class="flex items-center justify-center">
+													<DropdownMenu.Root>
+														<DropdownMenu.Trigger>
+															<Button variant="ghost" size="sm" class="px-2">
+																<MoreVertical class="w-4 h-4" />
+															</Button>
+														</DropdownMenu.Trigger>
+														<DropdownMenu.Content align="end">
+															<DropdownMenu.Item onclick={(event) => {
+																event.stopPropagation();
+																handleEditService(service);
+															}}>
+																<Edit class="w-4 h-4 mr-2" />
+																Editar
+															</DropdownMenu.Item>
+															<DropdownMenu.Separator />
+															<DropdownMenu.Item
+																variant="destructive"
+																onclick={(event) => {
+																	event.stopPropagation();
+																	handleDeleteService(service);
+																}}
+																disabled={deleteServiceMutation.isPending}
+															>
+																<Trash2 class="w-4 h-4 mr-2" />
+																Excluir
+															</DropdownMenu.Item>
+														</DropdownMenu.Content>
+													</DropdownMenu.Root>
 												</div>
 											</TableCell>
 										</TableRow>

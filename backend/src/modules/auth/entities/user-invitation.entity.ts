@@ -25,6 +25,9 @@ export class UserInvitation {
   role: UserRole;
 
   @Column({ nullable: true })
+  position?: string;
+
+  @Column({ nullable: true })
   email?: string;
 
   @Column({ type: 'timestamp', nullable: true })
