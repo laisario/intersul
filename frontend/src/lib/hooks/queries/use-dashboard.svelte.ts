@@ -3,16 +3,12 @@
  */
 
 import { createQuery } from '@tanstack/svelte-query';
-import { useClientStats } from './use-clients.svelte.js';
-import { useServiceStats } from './use-services.svelte.js';
-import { useUserStats } from './use-users.svelte.js';
+import { axios } from '$lib/api/client.js';
+import { browser } from '$app/environment';
 
 export interface DashboardStats {
   clients: {
     total: number;
-    active: number;
-    inactive: number;
-    suspended: number;
     newThisMonth: number;
   };
   services: {
@@ -21,107 +17,134 @@ export interface DashboardStats {
     inProgress: number;
     completed: number;
     cancelled: number;
-    overdue: number;
     thisWeek: number;
     thisMonth: number;
   };
-  users: {
-    total: number;
-    active: number;
-    inactive: number;
-    byRole: Record<string, number>;
-    newThisMonth: number;
-  };
-  copyMachines: {
-    totalMachines: number;
-    activeMachines: number;
-    maintenanceRequired: number;
-    totalClients: number;
-    averageMachinesPerClient: number;
-  };
 }
 
-export interface DashboardActivity {
-  id: string;
-  type: 'client' | 'service' | 'user' | 'machine';
-  action: 'created' | 'updated' | 'deleted' | 'completed';
-  description: string;
-  timestamp: string;
-  user: string;
+const STORAGE_KEY = 'dashboard_stats';
+const STORAGE_TIMESTAMP_KEY = 'dashboard_stats_timestamp';
+
+/**
+ * Validate if cached stats still make sense
+ * Returns true if stats are valid, false if they should be recalculated
+ */
+function validateStats(stats: DashboardStats | null): boolean {
+  if (!stats) return false;
+
+  // Check if totals are non-negative
+  if (stats.clients.total < 0 || stats.services.total < 0) return false;
+
+  // Check if service statuses add up correctly (allow some tolerance for real-time changes)
+  const serviceStatusSum = 
+    stats.services.pending + 
+    stats.services.inProgress + 
+    stats.services.completed + 
+    stats.services.cancelled;
+  
+  // Services statuses should not exceed total by more than 10% (allowing for concurrent updates)
+  if (serviceStatusSum > stats.services.total * 1.1) return false;
+
+  // Check if new clients this month doesn't exceed total
+  if (stats.clients.newThisMonth > stats.clients.total) return false;
+
+  // Check if this month services doesn't exceed total
+  if (stats.services.thisMonth > stats.services.total) return false;
+
+  return true;
+}
+
+/**
+ * Load stats from localStorage
+ */
+function loadCachedStats(): DashboardStats | null {
+  if (!browser) return null;
+
+  try {
+    const cached = localStorage.getItem(STORAGE_KEY);
+    const timestamp = localStorage.getItem(STORAGE_TIMESTAMP_KEY);
+    
+    if (!cached || !timestamp) return null;
+
+    const stats = JSON.parse(cached) as DashboardStats;
+    const cacheDate = new Date(timestamp);
+    const now = new Date();
+
+    // Check if cache is from current month (don't use old month's data)
+    if (
+      cacheDate.getFullYear() !== now.getFullYear() ||
+      cacheDate.getMonth() !== now.getMonth()
+    ) {
+      return null;
+    }
+
+    // Validate stats make sense
+    if (!validateStats(stats)) {
+      return null;
+    }
+
+    return stats;
+  } catch (error) {
+    console.error('Failed to load cached stats:', error);
+    return null;
+  }
+}
+
+/**
+ * Save stats to localStorage
+ */
+function saveCachedStats(stats: DashboardStats): void {
+  if (!browser) return;
+
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(stats));
+    localStorage.setItem(STORAGE_TIMESTAMP_KEY, new Date().toISOString());
+  } catch (error) {
+    console.error('Failed to save cached stats:', error);
+  }
 }
 
 /**
  * Get dashboard statistics
+ * Loads from cache first, then fetches from API if needed
  */
 export const useDashboardStats = () => {
-  const clientStats = useClientStats();
-  const serviceStats = useServiceStats();
-  const userStats = useUserStats();
+  // Load initial data from cache
+  const initialData = loadCachedStats();
 
   return createQuery(() => ({
     queryKey: ['dashboard', 'stats'],
     queryFn: async (): Promise<DashboardStats> => {
-      // Combine all stats into a single dashboard object
-      const [clients, services, users] = await Promise.all([
-        clientStats.queryFn(),
-        serviceStats.queryFn(),
-        userStats.queryFn(),
-      ]);
-
-      return {
-        clients,
-        services,
-        users,
-        copyMachines: {
-          totalMachines: 0, // TODO: Implement when copy machine stats are available
-          activeMachines: 0,
-          maintenanceRequired: 0,
-          totalClients: clients.total,
-          averageMachinesPerClient: 0,
-        },
-      };
+      const response = await axios.get('/dashboard/stats');
+      const stats = response.data;
+      
+      // Save to cache after fetching
+      saveCachedStats(stats);
+      
+      return stats;
     },
-    enabled: clientStats.isSuccess && serviceStats.isSuccess && userStats.isSuccess,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    initialData,
+    enabled: false, // Only fetch when manually triggered
+    staleTime: 0, // Always consider stale to force refetch on button click
   }));
 };
 
 /**
- * Get dashboard activity feed
+ * Force recalculation of stats
  */
-export const useDashboardActivity = () => {
+export const useForceRecalculateStats = () => {
   return createQuery(() => ({
-    queryKey: ['dashboard', 'activity'],
-    queryFn: async (): Promise<DashboardActivity[]> => {
-      // TODO: Implement activity feed endpoint
-      // For now, return mock data
-      return [
-        {
-          id: '1',
-          type: 'client',
-          action: 'created',
-          description: 'Novo cliente cadastrado',
-          timestamp: new Date().toISOString(),
-          user: 'Admin',
-        },
-        {
-          id: '2',
-          type: 'service',
-          action: 'completed',
-          description: 'Serviço de manutenção concluído',
-          timestamp: new Date(Date.now() - 3600000).toISOString(),
-          user: 'Técnico',
-        },
-        {
-          id: '3',
-          type: 'service',
-          action: 'created',
-          description: 'Novo serviço agendado',
-          timestamp: new Date(Date.now() - 7200000).toISOString(),
-          user: 'Gerente',
-        },
-      ];
+    queryKey: ['dashboard', 'stats', 'force'],
+    queryFn: async (): Promise<DashboardStats> => {
+      const response = await axios.get('/dashboard/stats?force=true');
+      const stats = response.data;
+      
+      // Save to cache after fetching
+      saveCachedStats(stats);
+      
+      return stats;
     },
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    enabled: false, // Only fetch when manually triggered
+    staleTime: 0,
   }));
 };

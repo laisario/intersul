@@ -11,6 +11,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { ClientsModule } from './modules/clients/clients.module';
 import { CopyMachinesModule } from './modules/copy-machines/copy-machines.module';
 import { ServicesModule } from './modules/services/services.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { ServicesModule } from './modules/services/services.module';
     ClientsModule,
     CopyMachinesModule,
     ServicesModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [

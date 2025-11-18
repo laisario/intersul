@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { Printer, Building } from 'lucide-svelte';
 	import DashboardIcon from "@tabler/icons-svelte/icons/dashboard";
 	import DatabaseIcon from "@tabler/icons-svelte/icons/database";
 	import FileAiIcon from "@tabler/icons-svelte/icons/file-ai";
@@ -19,6 +18,8 @@
 	import * as Sidebar from "$lib/components/ui/sidebar/index.js";
 	import type { ComponentProps } from "svelte";
 	import ListCheckIcon from "@tabler/icons-svelte/icons/list-check";
+	import { userRole } from "$lib/stores/auth.svelte";
+	import { UserRole } from "$lib/api/types/auth.types.js";
 
 	const data = {
 		navMain: [
@@ -91,6 +92,60 @@
 		],
 	};
 
+	type NavAccessRule = {
+		main: 'ALL' | string[];
+		admin: 'ALL' | string[];
+	};
+
+	const NAV_ACCESS: Record<UserRole, NavAccessRule> = {
+		[UserRole.ADMIN]: { main: 'ALL', admin: 'ALL' },
+		[UserRole.MANAGER]: {
+			main: 'ALL',
+			admin: ['/franchises'],
+		},
+		[UserRole.COMMERCIAL]: {
+			main: ['/dashboard', '/services', '/clients', '/machines'],
+			admin: ['/franchises'],
+		},
+		[UserRole.TECHNICIAN]: {
+			main: ['/dashboard', '/services', '/clients'],
+			admin: [],
+		},
+	};
+
+	let currentRole = $state<UserRole | null>(null);
+	$effect(() => {
+		const unsubscribe = userRole.subscribe((role) => {
+			currentRole = role ?? null;
+		});
+		return unsubscribe;
+	});
+
+	function filterNavItems(
+		items: { title: string; url: string; icon?: typeof DashboardIcon }[],
+		rule: 'ALL' | string[],
+	) {
+		if (rule === 'ALL') return items;
+		return items.filter((item) => rule.includes(item.url));
+	}
+
+	function getAccess(): NavAccessRule {
+		if (!currentRole) {
+			return NAV_ACCESS[UserRole.MANAGER];
+		}
+		return NAV_ACCESS[currentRole];
+	}
+
+	const navMainItems = $derived(() => {
+		const access = getAccess();
+		return filterNavItems(data.navMain, access.main);
+	});
+
+	const navAdminItems = $derived(() => {
+		const access = getAccess();
+		return filterNavItems(data.navAdmin, access.admin);
+	});
+
 	let { ...restProps }: ComponentProps<typeof Sidebar.Root> = $props();
 </script>
 
@@ -100,7 +155,7 @@
 			<Sidebar.MenuItem>
 				<Sidebar.MenuButton class="data-[slot=sidebar-menu-button]:!p-1.5">
 					{#snippet child({ props })}
-						<a href="/" {...props}>
+						<a href="/dashboard" {...props}>
 							<PrinterIcon class="!size-5 text-red-600" />
 							<span class="text-base font-semibold">Intersul cópias - Gestão</span>
 						</a>
@@ -110,7 +165,11 @@
 		</Sidebar.Menu>
 	</Sidebar.Header>
 	<Sidebar.Content>
-		<NavMain items={data.navMain} />
-		<NavMain items={data.navAdmin} />
+		{#if navMainItems().length}
+			<NavMain items={navMainItems()} />
+		{/if}
+		{#if navAdminItems().length}
+			<NavMain items={navAdminItems()} />
+		{/if}
 	</Sidebar.Content>
 </Sidebar.Root>

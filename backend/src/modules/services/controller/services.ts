@@ -16,11 +16,14 @@ import { Service } from '../entities/service.entity';
 import { CreateServiceDto } from '../dto/create-service.dto';
 import { UpdateServiceDto } from '../dto/update-service.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../auth/guards/roles.guard';
+import { Roles } from '../../../common/decorators/roles.decorator';
+import { UserRole } from '../../../common/enums/user-role.enum';
 import { AcquisitionType } from '../../../common/enums/acquisition-type.enum';
 
 @ApiTags('Services')
 @Controller('services')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class ServicesController {
   constructor(private readonly servicesService: ServicesService) {}
@@ -72,6 +75,7 @@ export class ServicesController {
   }
 
   @Post()
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @ApiOperation({ summary: 'Create a new service' })
   @ApiResponse({ status: 201, description: 'Service created successfully', type: Service })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
@@ -88,6 +92,7 @@ export class ServicesController {
   }
 
   @Patch(':id')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @ApiOperation({ summary: 'Update service' })
   @ApiResponse({ status: 200, description: 'Service updated successfully', type: Service })
   @ApiResponse({ status: 404, description: 'Service not found' })
@@ -99,6 +104,7 @@ export class ServicesController {
   }
 
   @Delete(':id')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @ApiOperation({ summary: 'Delete service' })
   @ApiResponse({ status: 200, description: 'Service deleted successfully' })
   @ApiResponse({ status: 404, description: 'Service not found' })

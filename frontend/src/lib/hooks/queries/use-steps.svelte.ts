@@ -5,12 +5,29 @@ import type { Step } from '$lib/api/types/service.types.js';
 import type { Image } from '$lib/api/types/service.types.js';
 import type { UpdateStepDto } from '$lib/api/endpoints/steps.js';
 
-export const useMySteps = (filter?: 'created_today' | 'expires_today') => {
-  return createQuery(() => ({
-    queryKey: ['steps', 'my-steps', filter],
-    queryFn: (): Promise<Step[]> => stepsApi.getMySteps(filter),
-    staleTime: 2 * 60 * 1000, // 2 minutes
-  }));
+type StepsFilter = 'created_today' | 'expires_today';
+type StepsFilterInput = StepsFilter | (() => StepsFilter | undefined) | undefined;
+type StepsQueryOptions = {
+  enabled?: boolean | (() => boolean);
+};
+
+export const useMySteps = (
+  filter?: StepsFilterInput,
+  options?: StepsQueryOptions,
+) => {
+  return createQuery(() => {
+    const resolvedFilter = typeof filter === 'function' ? filter() : filter;
+    const enabledOption = options?.enabled;
+    const resolvedEnabled =
+      typeof enabledOption === 'function' ? enabledOption() : enabledOption;
+
+    return {
+      queryKey: ['steps', 'my-steps', resolvedFilter],
+      queryFn: (): Promise<Step[]> => stepsApi.getMySteps(resolvedFilter),
+      staleTime: 2 * 60 * 1000, // 2 minutes
+      enabled: resolvedEnabled ?? true,
+    };
+  });
 };
 
 export const useStep = (id: number) => {

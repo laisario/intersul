@@ -1,31 +1,32 @@
 <script lang="ts">
-import { useServices, useDeleteService } from "$lib/hooks/queries/use-services.svelte.js";
-import { useCategories, useDeleteCategory } from "$lib/hooks/queries/use-categories.svelte.js";
-import { useClients } from "$lib/hooks/queries/use-clients.svelte.js";
-import { formatDate } from "$lib/utils/formatting.js";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "$lib/components/ui/card/index.js";
-import { Badge } from "$lib/components/ui/badge/index.js";
-import { Button } from "$lib/components/ui/button/index.js";
-import { Skeleton } from "$lib/components/ui/skeleton/index.js";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "$lib/components/ui/table/index.js";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "$lib/components/ui/tabs/index.js";
-import { Select, SelectTrigger, SelectContent, SelectItem } from "$lib/components/ui/select/index.js";
-import { Label } from "$lib/components/ui/label/index.js";
-import { Plus, Edit, Trash2, Wrench, FolderOpen, MoreVertical } from "lucide-svelte";
-import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
-import type { Service } from "$lib/api/types/service.types.js";
-import type { Category } from "$lib/api/types/service.types.js";
-import type { ServiceQueryParams } from "$lib/api/types/service.types.js";
-import type { City } from "$lib/api/types/address.types.js";
-import ConfirmationDialog from "$lib/components/confirmation-dialog.svelte";
-import CategoryFormDialog from "$lib/components/category-form-dialog.svelte";
-import CategoryPreviewDialog from "$lib/components/category-preview-dialog.svelte";
-import ServiceFormDialog from "$lib/components/service-form-dialog.svelte";
-import PaginationControls from "$lib/components/pagination-controls.svelte";
-import { showError, successToast } from "$lib/utils/toast.js";
-import { ACQUISITION_TYPE, PAGINATION, SERVICE_STATUS, SERVICE_PRIORITY, getServiceStatusLabel, getServiceStatusVariant } from "$lib/utils/constants.js";
-import type { AcquisitionType } from "$lib/api/types/copy-machine.types.js";
-import { goto } from "$app/navigation";
+	import { useServices, useDeleteService } from "$lib/hooks/queries/use-services.svelte.js";
+	import { useCategories, useDeleteCategory } from "$lib/hooks/queries/use-categories.svelte.js";
+	import { useClients } from "$lib/hooks/queries/use-clients.svelte.js";
+	import { formatDate } from "$lib/utils/formatting.js";
+	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "$lib/components/ui/card/index.js";
+	import { Badge } from "$lib/components/ui/badge/index.js";
+	import { Button } from "$lib/components/ui/button/index.js";
+	import { Skeleton } from "$lib/components/ui/skeleton/index.js";
+	import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "$lib/components/ui/table/index.js";
+	import { Tabs, TabsContent, TabsList, TabsTrigger } from "$lib/components/ui/tabs/index.js";
+	import { Select, SelectTrigger, SelectContent, SelectItem } from "$lib/components/ui/select/index.js";
+	import { Label } from "$lib/components/ui/label/index.js";
+	import { Plus, Edit, Trash2, Wrench, FolderOpen, MoreVertical } from "lucide-svelte";
+	import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
+	import type { Service } from "$lib/api/types/service.types.js";
+	import type { Category } from "$lib/api/types/service.types.js";
+	import type { ServiceQueryParams } from "$lib/api/types/service.types.js";
+	import type { City } from "$lib/api/types/address.types.js";
+	import ConfirmationDialog from "$lib/components/confirmation-dialog.svelte";
+	import CategoryFormDialog from "$lib/components/category-form-dialog.svelte";
+	import CategoryPreviewDialog from "$lib/components/category-preview-dialog.svelte";
+	import ServiceFormDialog from "$lib/components/service-form-dialog.svelte";
+	import PaginationControls from "$lib/components/pagination-controls.svelte";
+	import { showError, successToast } from "$lib/utils/toast.js";
+	import { ACQUISITION_TYPE, PAGINATION, SERVICE_STATUS, SERVICE_PRIORITY, getServiceStatusLabel, getServiceStatusVariant } from "$lib/utils/constants.js";
+	import type { AcquisitionType } from "$lib/api/types/copy-machine.types.js";
+	import { goto } from "$app/navigation";
+	import { canManageServices } from "$lib/stores/auth.svelte";
 
 	// Services
 	let serviceFilters = $state<ServiceQueryParams>({ page: 1, limit: PAGINATION.DEFAULT_PAGE_SIZE });
@@ -104,9 +105,18 @@ import { goto } from "$app/navigation";
 	let previewCategory = $state<Category | null>(null);
 
 // Service form dialog
-	let showServiceFormDialog = $state(false);
-	let editingService = $state<Service | null>(null);
-	let editingServiceId = $state<number | null>(null);
+let showServiceFormDialog = $state(false);
+let editingService = $state<Service | null>(null);
+let editingServiceId = $state<number | null>(null);
+
+// Permissions
+let userCanManageServices = $state(false);
+$effect(() => {
+	const unsubscribe = canManageServices.subscribe((value) => {
+		userCanManageServices = !!value;
+	});
+	return unsubscribe;
+});
 
 $effect(() => {
 	if (!showServiceFormDialog) {
@@ -257,10 +267,12 @@ function handleEditService(service: Service) {
 					<Wrench class="w-4 h-4 mr-2" />
 					Serviços
 				</TabsTrigger>
-				<TabsTrigger value="categories">
-					<FolderOpen class="w-4 h-4 mr-2" />
-					Categorias
-				</TabsTrigger>
+				{#if userCanManageServices}
+					<TabsTrigger value="categories">
+						<FolderOpen class="w-4 h-4 mr-2" />
+						Categorias
+					</TabsTrigger>
+				{/if}
 			</TabsList>
 			
 			<!-- Services Tab -->
@@ -274,10 +286,12 @@ function handleEditService(service: Service) {
 									Gerencie todos os serviços do sistema
 								</CardDescription>
 							</div>
-							<Button onclick={handleCreateService}>
-								<Plus class="w-4 h-4 mr-2" />
-								Novo Serviço
-							</Button>
+							{#if userCanManageServices}
+								<Button onclick={handleCreateService}>
+									<Plus class="w-4 h-4 mr-2" />
+									Novo Serviço
+								</Button>
+							{/if}
 						</div>
 					</CardHeader>
 					<CardContent>
@@ -417,7 +431,9 @@ function handleEditService(service: Service) {
 										<TableHead>Prioridade</TableHead>
 										<TableHead>Status</TableHead>
 										<TableHead>Data de Criação</TableHead>
-										<TableHead class="w-[100px]">Ações</TableHead>
+										{#if userCanManageServices}
+											<TableHead class="w-[100px] text-center">Ações</TableHead>
+										{/if}
 									</TableRow>
 								</TableHeader>
 								<TableBody>
@@ -462,38 +478,40 @@ function handleEditService(service: Service) {
 												{/if}
 											</TableCell>
 											<TableCell>{formatDate(service.created_at)}</TableCell>
-											<TableCell>
-												<div class="flex items-center justify-center">
-													<DropdownMenu.Root>
-														<DropdownMenu.Trigger>
-															<Button variant="ghost" size="sm" class="px-2">
-																<MoreVertical class="w-4 h-4" />
-															</Button>
-														</DropdownMenu.Trigger>
-														<DropdownMenu.Content align="end">
-															<DropdownMenu.Item onclick={(event) => {
-																event.stopPropagation();
-																handleEditService(service);
-															}}>
-																<Edit class="w-4 h-4 mr-2" />
-																Editar
-															</DropdownMenu.Item>
-															<DropdownMenu.Separator />
-															<DropdownMenu.Item
-																variant="destructive"
-																onclick={(event) => {
+											{#if userCanManageServices}
+												<TableCell>
+													<div class="flex items-center justify-center">
+														<DropdownMenu.Root>
+															<DropdownMenu.Trigger>
+																<Button variant="ghost" size="sm" class="px-2">
+																	<MoreVertical class="w-4 h-4" />
+																</Button>
+															</DropdownMenu.Trigger>
+															<DropdownMenu.Content align="end">
+																<DropdownMenu.Item onclick={(event) => {
 																	event.stopPropagation();
-																	handleDeleteService(service);
-																}}
-																disabled={deleteServiceMutation.isPending}
-															>
-																<Trash2 class="w-4 h-4 mr-2" />
-																Excluir
-															</DropdownMenu.Item>
-														</DropdownMenu.Content>
-													</DropdownMenu.Root>
-												</div>
-											</TableCell>
+																	handleEditService(service);
+																}}>
+																	<Edit class="w-4 h-4 mr-2" />
+																	Editar
+																</DropdownMenu.Item>
+																<DropdownMenu.Separator />
+																<DropdownMenu.Item
+																	variant="destructive"
+																	onclick={(event) => {
+																		event.stopPropagation();
+																		handleDeleteService(service);
+																	}}
+																	disabled={deleteServiceMutation.isPending}
+																>
+																	<Trash2 class="w-4 h-4 mr-2" />
+																	Excluir
+																</DropdownMenu.Item>
+															</DropdownMenu.Content>
+														</DropdownMenu.Root>
+													</div>
+												</TableCell>
+											{/if}
 										</TableRow>
 									{/each}
 								</TableBody>
@@ -516,138 +534,142 @@ function handleEditService(service: Service) {
 				/>
 			</TabsContent>
 			
-			<!-- Categories Tab -->
-			<TabsContent value="categories" class="mt-6">
-				<Card>
-					<CardHeader>
-						<div class="flex items-center justify-between">
-							<div>
-								<CardTitle>Lista de Categorias</CardTitle>
-								<CardDescription>
-									Gerencie as categorias de serviços e suas etapas template
-								</CardDescription>
+			{#if userCanManageServices}
+				<!-- Categories Tab -->
+				<TabsContent value="categories" class="mt-6">
+					<Card>
+						<CardHeader>
+							<div class="flex items-center justify-between">
+								<div>
+									<CardTitle>Lista de Categorias</CardTitle>
+									<CardDescription>
+										Gerencie as categorias de serviços e suas etapas template
+									</CardDescription>
+								</div>
+								<Button onclick={handleCreateCategory}>
+									<Plus class="w-4 h-4 mr-2" />
+									Nova Categoria
+								</Button>
 							</div>
-							<Button onclick={handleCreateCategory}>
-								<Plus class="w-4 h-4 mr-2" />
-								Nova Categoria
-							</Button>
-						</div>
-					</CardHeader>
-					<CardContent>
-						{#if isLoadingCategories}
-							<div class="space-y-3">
-								{#each Array(5) as _}
-									<Skeleton class="h-16 w-full" />
-								{/each}
-							</div>
-						{:else if categories.length === 0}
-							<div class="text-center py-12">
-								<FolderOpen class="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-								<p class="text-sm text-muted-foreground font-medium">
-									Nenhuma categoria encontrada
-								</p>
-								<p class="text-xs text-muted-foreground mt-1">
-									Crie sua primeira categoria para começar
-								</p>
-							</div>
-						{:else}
-							<Table>
-								<TableHeader>
-									<TableRow>
-										<TableHead>Nome</TableHead>
-										<TableHead>Descrição</TableHead>
-										<TableHead>Etapas</TableHead>
-										<TableHead>Data de Criação</TableHead>
-										<TableHead class="w-[100px]">Ações</TableHead>
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									{#each categories as category}
-										<TableRow
-											class="hover:bg-muted/50 cursor-pointer"
-											onclick={() => handlePreviewCategory(category)}
-										>
-											<TableCell class="font-medium">{category.name}</TableCell>
-											<TableCell class="text-muted-foreground">
-												{category.description || '-'}
-											</TableCell>
-											<TableCell>
-												<Badge variant="outline">
-													{category.steps?.length || 0} {category.steps?.length === 1 ? 'etapa' : 'etapas'}
-												</Badge>
-											</TableCell>
-											<TableCell>{formatDate(category.createdAt)}</TableCell>
-											<TableCell>
-												<div class="flex items-center gap-2">
-													<Button
-														variant="ghost" 
-														size="sm"
-														onclick={(e) => { e.stopPropagation(); handleEditCategory(category); }}
-													>
-														<Edit class="w-4 h-4" />
-													</Button>
-													<Button
-														variant="ghost" 
-														size="sm"
-														onclick={(e) => { e.stopPropagation(); handleDeleteCategory(category); }}
-													>
-														<Trash2 class="w-4 h-4 text-red-600" />
-													</Button>
-												</div>
-											</TableCell>
-										</TableRow>
+						</CardHeader>
+						<CardContent>
+							{#if isLoadingCategories}
+								<div class="space-y-3">
+									{#each Array(5) as _}
+										<Skeleton class="h-16 w-full" />
 									{/each}
-								</TableBody>
-							</Table>
-						{/if}
-					</CardContent>
-				</Card>
-			</TabsContent>
+								</div>
+							{:else if categories.length === 0}
+								<div class="text-center py-12">
+									<FolderOpen class="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+									<p class="text-sm text-muted-foreground font-medium">
+										Nenhuma categoria encontrada
+									</p>
+									<p class="text-xs text-muted-foreground mt-1">
+										Crie sua primeira categoria para começar
+									</p>
+								</div>
+							{:else}
+								<Table>
+									<TableHeader>
+										<TableRow>
+											<TableHead>Nome</TableHead>
+											<TableHead>Descrição</TableHead>
+											<TableHead>Etapas</TableHead>
+											<TableHead>Data de Criação</TableHead>
+											<TableHead class="w-[100px]">Ações</TableHead>
+										</TableRow>
+									</TableHeader>
+									<TableBody>
+										{#each categories as category}
+											<TableRow
+												class="hover:bg-muted/50 cursor-pointer"
+												onclick={() => handlePreviewCategory(category)}
+											>
+												<TableCell class="font-medium">{category.name}</TableCell>
+												<TableCell class="text-muted-foreground">
+													{category.description || '-'}
+												</TableCell>
+												<TableCell>
+													<Badge variant="outline">
+														{category.steps?.length || 0} {category.steps?.length === 1 ? 'etapa' : 'etapas'}
+													</Badge>
+												</TableCell>
+												<TableCell>{formatDate(category.createdAt)}</TableCell>
+												<TableCell>
+													<div class="flex items-center gap-2">
+														<Button
+															variant="ghost" 
+															size="sm"
+															onclick={(e) => { e.stopPropagation(); handleEditCategory(category); }}
+														>
+															<Edit class="w-4 h-4" />
+														</Button>
+														<Button
+															variant="ghost" 
+															size="sm"
+															onclick={(e) => { e.stopPropagation(); handleDeleteCategory(category); }}
+														>
+															<Trash2 class="w-4 h-4 text-red-600" />
+														</Button>
+													</div>
+												</TableCell>
+											</TableRow>
+										{/each}
+									</TableBody>
+								</Table>
+							{/if}
+						</CardContent>
+					</Card>
+				</TabsContent>
+			{/if}
 		</Tabs>
 	</div>
 </div>
 
-<!-- Delete Service Confirmation -->
-<ConfirmationDialog
-	bind:open={showDeleteServiceConfirmation}
-	title="Excluir Serviço"
-	description="Tem certeza que deseja excluir este serviço? Esta ação não pode ser desfeita."
-	confirmText="Excluir"
-	cancelText="Cancelar"
-	variant="destructive"
-	icon="trash"
-	loading={deleteServiceMutation.isPending}
-	onConfirm={confirmDeleteService}
-	onCancel={() => {
-		showDeleteServiceConfirmation = false;
-		serviceToDelete = null;
-	}}
-/>
+{#if userCanManageServices}
+	<!-- Delete Service Confirmation -->
+	<ConfirmationDialog
+		bind:open={showDeleteServiceConfirmation}
+		title="Excluir Serviço"
+		description="Tem certeza que deseja excluir este serviço? Esta ação não pode ser desfeita."
+		confirmText="Excluir"
+		cancelText="Cancelar"
+		variant="destructive"
+		icon="trash"
+		loading={deleteServiceMutation.isPending}
+		onConfirm={confirmDeleteService}
+		onCancel={() => {
+			showDeleteServiceConfirmation = false;
+			serviceToDelete = null;
+		}}
+	/>
 
-<!-- Service Form Dialog -->
-<ServiceFormDialog
-	bind:open={showServiceFormDialog}
-	service={editingService}
-	serviceId={editingServiceId}
-	onSuccess={handleServiceSuccess}
-/>
+	<!-- Service Form Dialog -->
+	<ServiceFormDialog
+		bind:open={showServiceFormDialog}
+		service={editingService}
+		serviceId={editingServiceId}
+		onSuccess={handleServiceSuccess}
+	/>
 
-<!-- Category Form Dialog -->
-<CategoryFormDialog
-	bind:open={showCategoryFormDialog}
-	category={editingCategory}
-	onSuccess={handleCategorySuccess}
-/>
+	<!-- Category Form Dialog -->
+	<CategoryFormDialog
+		bind:open={showCategoryFormDialog}
+		category={editingCategory}
+		onSuccess={handleCategorySuccess}
+	/>
 
-<!-- Category Preview Dialog -->
-<CategoryPreviewDialog
-	bind:open={showCategoryPreviewDialog}
-	category={previewCategory}
-	onClose={() => {
-		showCategoryPreviewDialog = false;
-		previewCategory = null;
-	}}
-/>
+	<!-- Category Preview Dialog -->
+	<CategoryPreviewDialog
+		bind:open={showCategoryPreviewDialog}
+		category={previewCategory}
+		onClose={() => {
+			showCategoryPreviewDialog = false;
+			previewCategory = null;
+		}}
+	/>
+{/if}
 
 <!-- Delete Category Confirmation -->
 <ConfirmationDialog

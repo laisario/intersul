@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, Repository } from 'typeorm';
+import { Between, DeepPartial, Repository } from 'typeorm';
 import { Service } from '../entities/service.entity';
 import { Category } from '../entities/category.entity';
 import { Step } from '../entities/step.entity';
@@ -133,7 +133,7 @@ export class ServicesService {
     }
 
     // Remove undefined values to avoid DEFAULT insertion
-    const cleanServiceData: any = {};
+    const cleanServiceData: DeepPartial<Service> = {};
     if (serviceData.client_id !== undefined) cleanServiceData.client_id = serviceData.client_id;
     if (serviceData.category_id !== undefined) cleanServiceData.category_id = serviceData.category_id;
     if (serviceData.client_copy_machine_id !== undefined) cleanServiceData.client_copy_machine_id = serviceData.client_copy_machine_id;
@@ -141,7 +141,7 @@ export class ServicesService {
     if (serviceData.priority !== undefined) cleanServiceData.priority = serviceData.priority;
 
     const service = this.servicesRepository.create(cleanServiceData);
-    const savedService = await this.servicesRepository.save(service);
+    const savedService: Service = await this.servicesRepository.save(service);
 
     if (steps && steps.length > 0) {
       const stepEntities = steps.map(step => this.stepsRepository.create({
