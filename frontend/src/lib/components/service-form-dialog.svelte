@@ -23,10 +23,8 @@
 	import { useClientCopyMachines } from '$lib/hooks/queries/use-copy-machines.svelte.js';
 	import type {
 		Service,
-		CreateServiceDto,
 		CreateServiceStepDto,
 		Step,
-		Category
 	} from '$lib/api/types/service.types.js';
 
 	interface Props {
@@ -56,6 +54,7 @@
 	let initialized = $state(false);
 
 	let formData = $state({
+		is_internal: false,
 		client_id: 0,
 		category_id: 0,
 		client_copy_machine_id: undefined as number | undefined,
@@ -80,6 +79,7 @@
 
 	function resetForm() {
 		formData = {
+			is_internal: false,
 			client_id: 0,
 			category_id: 0,
 			client_copy_machine_id: undefined,
@@ -91,7 +91,8 @@
 	}
 
 	function fillFromService(serviceData: Service) {
-		formData.client_id = serviceData.client_id;
+		formData.is_internal = serviceData.is_internal ?? false;
+		formData.client_id = serviceData.client_id || 0;
 		formData.category_id = serviceData.category_id;
 		formData.client_copy_machine_id = serviceData.client_copy_machine_id ?? undefined;
 		formData.description = serviceData.description || '';
@@ -174,9 +175,6 @@
 	function validateForm() {
 		errors = {};
 
-		// Cliente e categoria não são mais obrigatórios
-		// Validação removida
-
 		const invalidStep = steps.some((step) => !step.name.trim() || !step.description.trim());
 		if (invalidStep) {
 			errors.steps = 'Todas as etapas devem ter nome e descrição preenchidos';
@@ -193,16 +191,20 @@
 
 		const payload: any = {};
 		
-		if (formData.client_id > 0) {
-			payload.client_id = formData.client_id;
+		payload.is_internal = formData.is_internal;
+		
+		if (!formData.is_internal) {
+			if (formData.client_id > 0) {
+				payload.client_id = formData.client_id;
+			}
+			
+			if (formData.client_copy_machine_id) {
+				payload.client_copy_machine_id = formData.client_copy_machine_id;
+			}
 		}
 		
 		if (formData.category_id > 0) {
 			payload.category_id = formData.category_id;
-		}
-		
-		if (formData.client_copy_machine_id) {
-			payload.client_copy_machine_id = formData.client_copy_machine_id;
 		}
 		
 		if (formData.description?.trim()) {
@@ -269,48 +271,126 @@
 					<CardDescription>Defina o cliente, categoria e descrição do serviço.</CardDescription>
 				</CardHeader>
 				<CardContent class="space-y-4">
-					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-						<div class="space-y-2">
-							<Label>Cliente</Label>
-							<Select
-								type="single"
-								value={formData.client_id ? formData.client_id.toString() : ''}
-								onValueChange={(value: string) => {
-									formData.client_id = value ? parseInt(value) : 0;
+					<div class="space-y-2">
+						<Label>Tipo de Serviço *</Label>
+						<Select
+							type="single"
+							value={formData.is_internal ? 'internal' : 'external'}
+							onValueChange={(value: string) => {
+								formData.is_internal = value === 'internal';
+								if (formData.is_internal) {
+									formData.client_id = 0;
 									formData.client_copy_machine_id = undefined;
-								}}
-							>
-								<SelectTrigger>
-									{formData.client_id
-										? clients.find((client) => client.id === formData.client_id)?.name || 'Selecione um cliente'
-										: 'Selecione um cliente'}
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="">
-										<span class="text-muted-foreground">Sem cliente (serviço interno)</span>
-									</SelectItem>
-									{#if clientsQuery.isLoading}
-										<SelectItem value="" disabled>Carregando clientes...</SelectItem>
-									{:else if clientsQuery.error}
-										<SelectItem value="" disabled>Erro ao carregar clientes</SelectItem>
-									{:else}
-										{#each clients as client (client.id)}
-											<SelectItem value={client.id.toString()}>
-												{client.name}
-											</SelectItem>
-										{/each}
-									{/if}
-								</SelectContent>
-							</Select>
-							<p class="text-xs text-muted-foreground">Para serviços internos (ex: lavar carro), deixe em branco.</p>
-						</div>
+								}
+							}}
+						>
+							<SelectTrigger>
+								{formData.is_internal ? 'Interno' : 'Externo'}
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="external">Externo</SelectItem>
+								<SelectItem value="internal">Interno</SelectItem>
+							</SelectContent>
+						</Select>
+						<p class="text-xs text-muted-foreground">
+							Serviços internos não requerem cliente ou equipamento associado
+						</p>
+					</div>
 
+					{#if !formData.is_internal}
+						<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+							<div class="space-y-2">
+								<Label>Cliente *</Label>
+								<Select
+									type="single"
+									value={formData.client_id ? formData.client_id.toString() : ''}
+									onValueChange={(value: string) => {
+										formData.client_id = value ? parseInt(value) : 0;
+										formData.client_copy_machine_id = undefined;
+									}}
+								>
+									<SelectTrigger>
+										{formData.client_id
+											? clients.find((client) => client.id === formData.client_id)?.name || 'Selecione um cliente'
+											: 'Selecione um cliente'}
+									</SelectTrigger>
+									<SelectContent>
+										{#if clientsQuery.isLoading}
+											<SelectItem value="" disabled>Carregando clientes...</SelectItem>
+										{:else if clientsQuery.error}
+											<SelectItem value="" disabled>Erro ao carregar clientes</SelectItem>
+										{:else}
+											{#each clients as client (client.id)}
+												<SelectItem value={client.id.toString()}>
+													{client.name}
+												</SelectItem>
+											{/each}
+										{/if}
+									</SelectContent>
+								</Select>
+							</div>
+
+							<div class="space-y-2">
+								<Label>Equipamento do Cliente</Label>
+								<Select
+									type="single"
+									value={formData.client_copy_machine_id ? formData.client_copy_machine_id.toString() : ''}
+									onValueChange={(value: string) => formData.client_copy_machine_id = value ? parseInt(value) : undefined}
+									disabled={!formData.client_id}
+								>
+									<SelectTrigger class={!formData.client_id ? 'opacity-60 cursor-not-allowed' : ''}>
+										{#if !formData.client_id}
+											Selecione um cliente primeiro
+										{:else if clientCopyMachinesQuery?.isLoading}
+											Carregando equipamentos...
+										{:else if clientCopyMachinesQuery?.error}
+											Erro ao carregar equipamentos
+										{:else if !clientCopyMachines.length}
+											Nenhum equipamento cadastrado
+										{:else if selectedClientCopyMachine}
+											{selectedClientCopyMachine.catalogCopyMachine?.model ?? selectedClientCopyMachine.external_model ?? 'Equipamento'} - {selectedClientCopyMachine.serial_number}
+										{:else}
+											Selecione um equipamento
+										{/if}
+									</SelectTrigger>
+									<SelectContent>
+										{#if clientCopyMachinesQuery?.isLoading}
+											<SelectItem value="" disabled>Carregando equipamentos...</SelectItem>
+										{:else if clientCopyMachinesQuery?.error}
+											<SelectItem value="" disabled>Erro ao carregar equipamentos</SelectItem>
+										{:else if !clientCopyMachines.length}
+											<SelectItem value="" disabled>Nenhum equipamento cadastrado</SelectItem>
+										{:else}
+											<SelectItem value="">
+												<span class="text-muted-foreground">Sem equipamento</span>
+											</SelectItem>
+											{#each clientCopyMachines as machine (machine.id)}
+												<SelectItem value={machine.id.toString()}>
+													{machine.catalogCopyMachine?.model ?? machine.external_model ?? 'Equipamento'} - {machine.serial_number}
+												</SelectItem>
+											{/each}
+										{/if}
+									</SelectContent>
+								</Select>
+								<p class="text-xs text-muted-foreground">Se este serviço envolver máquina, escolha uma.</p>
+							</div>
+						</div>
+					{/if}
+
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 						<div class="space-y-2">
 							<Label>Categoria</Label>
 							<Select
 								type="single"
 								value={formData.category_id ? formData.category_id.toString() : ''}
-								onValueChange={(value: string) => formData.category_id = value ? parseInt(value) : 0}
+								onValueChange={(value: string) => {
+									formData.category_id = value ? parseInt(value) : 0;
+									// Auto-set priority to HIGH for "Cobrança" category
+									const selectedCategory = categories.find((cat) => cat.id === (value ? parseInt(value) : 0));
+									if (selectedCategory && selectedCategory.name.toLowerCase().includes('cobrança')) {
+										formData.priority = 'high';
+									}
+								}}
 							>
 								<SelectTrigger>
 									{formData.category_id
@@ -335,51 +415,6 @@
 								</SelectContent>
 							</Select>
 							<p class="text-xs text-muted-foreground">Ideal preencher, mas não é obrigatório.</p>
-						</div>
-
-						<div class="space-y-2">
-							<Label>Equipamento do Cliente</Label>
-							<Select
-								type="single"
-								value={formData.client_copy_machine_id ? formData.client_copy_machine_id.toString() : ''}
-								onValueChange={(value: string) => formData.client_copy_machine_id = value ? parseInt(value) : undefined}
-								disabled={!formData.client_id}
-							>
-								<SelectTrigger class={!formData.client_id ? 'opacity-60 cursor-not-allowed' : ''}>
-									{#if !formData.client_id}
-										Selecione um cliente primeiro
-									{:else if clientCopyMachinesQuery?.isLoading}
-										Carregando equipamentos...
-									{:else if clientCopyMachinesQuery?.error}
-										Erro ao carregar equipamentos
-									{:else if !clientCopyMachines.length}
-										Nenhum equipamento cadastrado
-									{:else if selectedClientCopyMachine}
-										{selectedClientCopyMachine.catalogCopyMachine?.model ?? selectedClientCopyMachine.external_model ?? 'Equipamento'} - {selectedClientCopyMachine.serial_number}
-									{:else}
-										Selecione um equipamento
-									{/if}
-								</SelectTrigger>
-								<SelectContent>
-									{#if clientCopyMachinesQuery?.isLoading}
-										<SelectItem value="" disabled>Carregando equipamentos...</SelectItem>
-									{:else if clientCopyMachinesQuery?.error}
-										<SelectItem value="" disabled>Erro ao carregar equipamentos</SelectItem>
-									{:else if !clientCopyMachines.length}
-										<SelectItem value="" disabled>Nenhum equipamento cadastrado</SelectItem>
-									{:else}
-										<SelectItem value="">
-											<span class="text-muted-foreground">Sem equipamento</span>
-										</SelectItem>
-										{#each clientCopyMachines as machine (machine.id)}
-											<SelectItem value={machine.id.toString()}>
-												{machine.catalogCopyMachine?.model ?? machine.external_model ?? 'Equipamento'} - {machine.serial_number}
-											</SelectItem>
-										{/each}
-									{/if}
-								</SelectContent>
-							</Select>
-							<p class="text-xs text-muted-foreground">Se este serviço envolver máquina, escolha uma.</p>
 						</div>
 
 						<div class="space-y-2">

@@ -8,9 +8,11 @@ export const databaseConfig: TypeOrmModuleOptions = {
   password: process.env.DB_PASSWORD || 'password',
   database: process.env.DB_DATABASE || 'intersul',
   entities: [__dirname + '/../modules/**/*.entity{.ts,.js}'],
-  synchronize: process.env.NODE_ENV === 'development',
-  logging: process.env.NODE_ENV === 'development',
+  synchronize: false,
+  logging: false,
   migrations: [__dirname + '/../migrations/*{.ts,.js}'],
   migrationsRun: false,
+  migrationsTableName: 'migrations',
+  migrationsTransactionMode: 'all',
   autoLoadEntities: true,
 };

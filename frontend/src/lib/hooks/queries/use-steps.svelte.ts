@@ -5,7 +5,7 @@ import type { Step } from '$lib/api/types/service.types.js';
 import type { Image } from '$lib/api/types/service.types.js';
 import type { UpdateStepDto } from '$lib/api/endpoints/steps.js';
 
-type StepsFilter = 'created_today' | 'expires_today';
+type StepsFilter = 'created_today' | 'expires_today' | 'expired';
 type StepsFilterInput = StepsFilter | (() => StepsFilter | undefined) | undefined;
 type StepsQueryOptions = {
   enabled?: boolean | (() => boolean);
@@ -30,6 +30,26 @@ export const useMySteps = (
   });
 };
 
+export const useStepsByUserId = (
+  userId: number,
+  filter?: StepsFilterInput,
+  options?: StepsQueryOptions,
+) => {
+  return createQuery(() => {
+    const resolvedFilter = typeof filter === 'function' ? filter() : filter;
+    const enabledOption = options?.enabled;
+    const resolvedEnabled =
+      typeof enabledOption === 'function' ? enabledOption() : enabledOption;
+
+    return {
+      queryKey: ['steps', 'user', userId, resolvedFilter],
+      queryFn: (): Promise<Step[]> => stepsApi.getStepsByUserId(userId, resolvedFilter),
+      staleTime: 2 * 60 * 1000, // 2 minutes
+      enabled: (resolvedEnabled ?? true) && !!userId,
+    };
+  });
+};
+
 export const useStep = (id: number) => {
   return createQuery(() => ({
     queryKey: ['steps', id],
@@ -44,8 +64,14 @@ export const useUpdateStep = () => {
     mutationFn: ({ id, data }: { id: number; data: UpdateStepDto }): Promise<Step> =>
       stepsApi.update(id, data),
     onSuccess: (data) => {
+      console.log('AAAAAAAAAAAAAAA', data);
       queryClient.setQueryData(['steps', data.id], data);
+      queryClient.invalidateQueries({ queryKey: ['steps', data.id] });
       queryClient.invalidateQueries({ queryKey: ['steps'] });
+      if (data.service_id) {
+        queryClient.invalidateQueries({ queryKey: ['services', data.service_id] });
+      }
+      queryClient.invalidateQueries({ queryKey: ['services'] });
     },
     onError: (error) => {
       console.error('Update step failed:', error);

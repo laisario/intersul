@@ -32,7 +32,7 @@ export class CreateStepDto {
 
   @IsNumber()
   @IsOptional()
-  responsable_id?: number;
+  responsable_id?: number | null;
 
   @IsString()
   @IsOptional()

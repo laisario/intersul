@@ -1,25 +1,28 @@
-import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between } from 'typeorm';
+import { Repository, Between, LessThan } from 'typeorm';
 import { Step } from '../entities/step.entity';
 import { UpdateStepDto } from '../dto/update-step.dto';
 import { StepStatus } from '../../../common/enums/step-status.enum';
 import { ServicesService } from './services';
+import { User } from '../../auth/entities/user.entity';
 
 @Injectable()
 export class StepService {
   constructor(
     @InjectRepository(Step)
     private stepsRepository: Repository<Step>,
+    @InjectRepository(User)
+    private usersRepository: Repository<User>,
     @Inject(forwardRef(() => ServicesService))
     private servicesService: ServicesService,
   ) {}
 
-  async findMySteps(userId: number, filter?: 'created_today' | 'expires_today'): Promise<Step[]> {
-    const where: any = { responsable_id: userId };
+  async findMySteps(userId: number, filter?: 'created_today' | 'expires_today' | 'expired'): Promise<Step[]> {
+    const where: any = { responsable: { id: userId } };
 
     // Apply date filters
-    if (filter === 'created_today' || filter === 'expires_today') {
+    if (filter === 'created_today' || filter === 'expires_today' || filter === 'expired') {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const tomorrow = new Date(today);
@@ -29,12 +32,43 @@ export class StepService {
         where.created_at = Between(today, tomorrow);
       } else if (filter === 'expires_today') {
         where.datetime_expiration = Between(today, tomorrow);
+      } else if (filter === 'expired') {
+        // Filter for steps that have already expired (datetime_expiration < today)
+        where.datetime_expiration = LessThan(today);
       }
     }
 
     return this.stepsRepository.find({
       where,
-      relations: ['service', 'service.client', 'category', 'responsable', 'images'],
+      relations: ['service', 'service.client', 'category', 'responsable', 'images', 'billing', 'billing.copyMachine', 'billing.copyMachine.franchise', 'billing.client', 'billing.responsibleUser'],
+      order: { created_at: 'DESC' },
+    });
+  }
+
+  async findStepsByUserId(userId: number, filter?: 'created_today' | 'expires_today' | 'expired'): Promise<Step[]> {
+    // This method allows admins/managers to view steps for any user
+    const where: any = { responsable: { id: userId } };
+
+    // Apply date filters
+    if (filter === 'created_today' || filter === 'expires_today' || filter === 'expired') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      if (filter === 'created_today') {
+        where.created_at = Between(today, tomorrow);
+      } else if (filter === 'expires_today') {
+        where.datetime_expiration = Between(today, tomorrow);
+      } else if (filter === 'expired') {
+        // Filter for steps that have already expired (datetime_expiration < today)
+        where.datetime_expiration = LessThan(today);
+      }
+    }
+
+    return this.stepsRepository.find({
+      where,
+      relations: ['service', 'service.client', 'category', 'responsable', 'images', 'billing', 'billing.copyMachine', 'billing.copyMachine.franchise', 'billing.client', 'billing.responsibleUser'],
       order: { created_at: 'DESC' },
     });
   }
@@ -43,7 +77,7 @@ export class StepService {
     // First, try to find the step by ID (without responsable_id check)
     const step = await this.stepsRepository.findOne({
       where: { id },
-      relations: ['service', 'service.client', 'category', 'responsable', 'images'],
+      relations: ['service', 'service.client', 'category', 'responsable', 'images', 'billing', 'billing.copyMachine', 'billing.copyMachine.franchise', 'billing.client', 'billing.responsibleUser'],
     });
 
     if (!step) {
@@ -56,15 +90,39 @@ export class StepService {
     return step;
   }
 
-  async update(id: number, userId: number, updateStepDto: UpdateStepDto): Promise<Step> {
-    // For update, we need to check if user is the responsable
+  async update(id: number, userId: number, updateStepDto: UpdateStepDto, userRole?: string): Promise<Step> {
     const step = await this.stepsRepository.findOne({
-      where: { id, responsable_id: userId },
-      relations: ['service', 'service.client', 'category', 'responsable', 'images'],
+      where: { id },
+      relations: ['responsable'], 
     });
-
+    
     if (!step) {
+      throw new NotFoundException(`Step with ID ${id} not found`);
+    }
+
+    const isAdminOrManager = userRole === 'ADMIN' || userRole === 'MANAGER';
+    const isResponsable = step.responsable?.id === userId;
+
+    if (!isAdminOrManager && !isResponsable) {
       throw new NotFoundException(`Step with ID ${id} not found or you are not responsible for it`);
+    }
+
+    if (updateStepDto.responsable_id !== undefined) {
+      if (!isAdminOrManager) {
+        throw new ForbiddenException('Only admins and managers can update the responsible user');
+      }
+      
+      if (updateStepDto.responsable_id === null) {
+        step.responsable = null;
+      } else {
+        const newResponsable = await this.usersRepository.findOne({
+          where: { id: updateStepDto.responsable_id },
+        });
+        if (!newResponsable) {
+          throw new BadRequestException(`User with ID ${updateStepDto.responsable_id} not found`);
+        }
+        step.responsable = newResponsable;
+      }
     }
 
     if (updateStepDto.observation !== undefined) {
@@ -74,14 +132,15 @@ export class StepService {
       step.responsable_client = updateStepDto.responsable_client;
     }
 
-    return this.stepsRepository.save(step);
+    const savedStep = await this.stepsRepository.save(step);
+    return savedStep;
   }
 
   async startStep(id: number, userId: number): Promise<Step> {
     // First, find the step by ID
     const step = await this.stepsRepository.findOne({
       where: { id },
-      relations: ['service', 'service.client', 'category', 'responsable', 'images'],
+      relations: ['service', 'service.client', 'category', 'responsable', 'images', 'billing', 'billing.copyMachine', 'billing.copyMachine.franchise', 'billing.client', 'billing.responsibleUser'],
     });
 
     if (!step) {
@@ -89,7 +148,7 @@ export class StepService {
     }
 
     // Explicit validation: only the responsable can start the step
-    if (step.responsable_id !== userId) {
+    if (step.responsable?.id !== userId) {
       throw new BadRequestException('Only the responsable assigned to this step can start it');
     }
 
@@ -114,7 +173,7 @@ export class StepService {
     // First, find the step by ID
     const step = await this.stepsRepository.findOne({
       where: { id },
-      relations: ['service', 'service.client', 'category', 'responsable', 'images'],
+      relations: ['service', 'service.client', 'category', 'responsable', 'images', 'billing', 'billing.copyMachine', 'billing.copyMachine.franchise', 'billing.client', 'billing.responsibleUser'],
     });
 
     if (!step) {
@@ -122,7 +181,7 @@ export class StepService {
     }
 
     // Explicit validation: only the responsable can conclude the step
-    if (step.responsable_id !== userId) {
+    if (step.responsable?.id !== userId) {
       throw new BadRequestException('Only the responsable assigned to this step can conclude it');
     }
 
@@ -147,7 +206,7 @@ export class StepService {
     // First, find the step by ID
     const step = await this.stepsRepository.findOne({
       where: { id },
-      relations: ['service', 'service.client', 'category', 'responsable', 'images'],
+      relations: ['service', 'service.client', 'category', 'responsable', 'images', 'billing', 'billing.copyMachine', 'billing.copyMachine.franchise', 'billing.client', 'billing.responsibleUser'],
     });
 
     if (!step) {
@@ -155,7 +214,7 @@ export class StepService {
     }
 
     // Explicit validation: only the responsable can cancel the step
-    if (step.responsable_id !== userId) {
+    if (step.responsable?.id !== userId) {
       throw new BadRequestException('Only the responsable assigned to this step can cancel it');
     }
 

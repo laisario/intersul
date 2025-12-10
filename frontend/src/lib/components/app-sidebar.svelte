@@ -18,14 +18,15 @@
 	import * as Sidebar from "$lib/components/ui/sidebar/index.js";
 	import type { ComponentProps } from "svelte";
 	import ListCheckIcon from "@tabler/icons-svelte/icons/list-check";
+	import ReceiptIcon from "@tabler/icons-svelte/icons/receipt";
 	import { userRole } from "$lib/stores/auth.svelte";
 	import { UserRole } from "$lib/api/types/auth.types.js";
 
 	const data = {
 		navMain: [
 			{
-				title: "Dashboard",
-				url: "/dashboard",
+				title: "Página Inicial",
+				url: "/",
 				icon: DashboardIcon,
 			},
 			{
@@ -54,6 +55,11 @@
 				title: "Franquias",
 				url: "/franchises",
 				icon: FolderIcon,
+			},
+			{
+				title: "Fechamentos",
+				url: "/billings",
+				icon: ReceiptIcon,
 			},
 		],
 		navSecondary: [
@@ -101,14 +107,14 @@
 		[UserRole.ADMIN]: { main: 'ALL', admin: 'ALL' },
 		[UserRole.MANAGER]: {
 			main: 'ALL',
-			admin: ['/franchises'],
+			admin: ['/admin/users', '/franchises', '/billings'],
 		},
 		[UserRole.COMMERCIAL]: {
-			main: ['/dashboard', '/services', '/clients', '/machines'],
+			main: ['/', '/services', '/clients', '/machines'],
 			admin: ['/franchises'],
 		},
 		[UserRole.TECHNICIAN]: {
-			main: ['/dashboard', '/services', '/clients'],
+			main: ['/', '/services', '/clients'],
 			admin: [],
 		},
 	};
@@ -138,7 +144,16 @@
 
 	const navMainItems = $derived(() => {
 		const access = getAccess();
-		return filterNavItems(data.navMain, access.main);
+		const items = filterNavItems(data.navMain, access.main);
+		return items.map((item) => {
+			if (item.url === '/') {
+				return {
+					...item,
+					title: currentRole === UserRole.ADMIN ? 'Página Inicial' : 'Minhas Etapas',
+				};
+			}
+			return item;
+		});
 	});
 
 	const navAdminItems = $derived(() => {
@@ -155,7 +170,7 @@
 			<Sidebar.MenuItem>
 				<Sidebar.MenuButton class="data-[slot=sidebar-menu-button]:!p-1.5">
 					{#snippet child({ props })}
-						<a href="/dashboard" {...props}>
+						<a href="/" {...props}>
 							<PrinterIcon class="!size-5 text-red-600" />
 							<span class="text-base font-semibold">Intersul cópias - Gestão</span>
 						</a>

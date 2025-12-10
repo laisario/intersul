@@ -2,32 +2,32 @@
 	import { useCopyMachines, useCreateCopyMachine, useUpdateCopyMachine, useDeleteCopyMachine } from '$lib/hooks/queries/use-copy-machines.svelte.js';
 	import { errorToast, successToast, showError } from '$lib/utils/toast.js';
 	import { formatDate, formatCurrency } from '$lib/utils/formatting.js';
-import { Button } from '$lib/components/ui/button/index.js';
-import { Input } from '$lib/components/ui/input/index.js';
-import { Label } from '$lib/components/ui/label/index.js';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card/index.js';
-import { Badge } from '$lib/components/ui/badge/index.js';
-import { Skeleton } from '$lib/components/ui/skeleton/index.js';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '$lib/components/ui/sheet/index.js';
-import { Plus, Edit, Trash2, Eye, Search, Printer, User, Loader2 } from 'lucide-svelte';
-import { goto } from '$app/navigation';
-import type { CopyMachineCatalog } from '$lib/api/types/copy-machine.types.js';
-import ConfirmationDialog from '$lib/components/confirmation-dialog.svelte';
-import ImageUpload from '$lib/components/image-upload.svelte';
-import { copyMachinesApi } from '$lib/api/endpoints/copy-machines';
-import PaginationControls from '$lib/components/pagination-controls.svelte';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import { Label } from '$lib/components/ui/label/index.js';
+	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card/index.js';
+	import { Badge } from '$lib/components/ui/badge/index.js';
+	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
+	import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '$lib/components/ui/sheet/index.js';
+	import { Tabs, TabsContent, TabsList, TabsTrigger } from '$lib/components/ui/tabs/index.js';
+	import { Plus, Edit, Trash2, Search, Loader2 } from 'lucide-svelte';
+	import type { CopyMachineCatalog } from '$lib/api/types/copy-machine.types.js';
+	import ConfirmationDialog from '$lib/components/confirmation-dialog.svelte';
+	import ImageUpload from '$lib/components/image-upload.svelte';
+	import PaginationControls from '$lib/components/pagination-controls.svelte';
+	import RentMachinesList from '$lib/components/machines/rent-machines-list.svelte';
+	import SoldMachinesList from '$lib/components/machines/sold-machines-list.svelte';
+	import ExternalMachinesList from '$lib/components/machines/external-machines-list.svelte';
 
 	let searchTerm = $state('');
 	let showNewMachineModal = $state(false);
 	let showEditMachineModal = $state(false);
 	let currentPage = $state(1);
 	let pageSize = $state(6);
-const pageSizeOptions = [6, 12, 24, 48];
-	let selectedMachine = $state<CopyMachineCatalog | null>(null);
+    const pageSizeOptions = [6, 12, 24, 48];
 	let editingMachine = $state<CopyMachineCatalog | null>(null);
 	let isSubmitting = $state(false);
 	
-	// Confirmation dialog state
 	let showDeleteConfirmation = $state(false);
 	let machineToDelete = $state<{ id: number; model: string } | null>(null);
 
@@ -80,11 +80,11 @@ const pageSizeOptions = [6, 12, 24, 48];
 		}
 	}
 
-function handlePageSizeChange(size: number) {
-	if (pageSize === size) return;
-	pageSize = size;
-	currentPage = 1;
-}
+	function handlePageSizeChange(size: number) {
+		if (pageSize === size) return;
+		pageSize = size;
+		currentPage = 1;
+	}
 
 	function openDeleteConfirmation(machineId: number, machineModel: string) {
 		machineToDelete = { id: machineId, model: machineModel };
@@ -119,7 +119,6 @@ function handlePageSizeChange(size: number) {
 	function closeModals() {
 		showNewMachineModal = false;
 		showEditMachineModal = false;
-		selectedMachine = null;
 		editingMachine = null;
 		resetForm();
 	}
@@ -142,20 +141,6 @@ function handlePageSizeChange(size: number) {
 
 	function removeFeature(index: number) {
 		formData.features = formData.features.filter((_, i) => i !== index);
-	}
-
-	function logFormData(fd: FormData) {
-		const rows: Array<Record<string, any>> = [];
-		fd.forEach((value, key) => {
-			if (value instanceof File) {
-				rows.push({ key, type: 'File', name: value.name, mime: value.type, size: value.size });
-			} else {
-				rows.push({ key, value: String(value) });
-			}
-		});
-		console.group('[Machines] Outgoing FormData');
-		console.table(rows);
-		console.groupEnd();
 	}
 
 	async function handleSubmit() {
@@ -228,9 +213,6 @@ function handlePageSizeChange(size: number) {
 		showNewMachineModal = true;
 	}
 
-	$effect(() => {
-		console.log(formData);
-	});
 </script>
 
 <svelte:head>
@@ -252,24 +234,34 @@ function handlePageSizeChange(size: number) {
 		</div>
 	</div>
 
-	<!-- Search -->
-	<div class="flex items-center justify-between">
-		<div class="flex items-center space-x-2">
-			<div class="relative flex-1 max-w-sm">
-				<Search class="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-				<Input
-					type="text"
-					placeholder="Buscar máquinas..."
-					bind:value={searchTerm}
-					oninput={handleSearch}
-					class="pl-10"
-				/>
-			</div>
-		</div>
-		
-	</div>
+	<!-- Tabs Navigation -->
+	<Tabs value="catalog" class="w-full">
+		<TabsList class="grid w-full grid-cols-2 md:grid-cols-4 gap-1">
+			<TabsTrigger value="catalog" class="text-xs sm:text-sm">Catálogo</TabsTrigger>
+			<TabsTrigger value="rent" class="text-xs sm:text-sm">Máquinas Alugadas</TabsTrigger>
+			<TabsTrigger value="sold" class="text-xs sm:text-sm">Máquinas Vendidas</TabsTrigger>
+			<TabsTrigger value="external" class="text-xs sm:text-sm">Máquinas Externas</TabsTrigger>
+		</TabsList>
 
-	<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+		<!-- Catalog Tab -->
+		<TabsContent value="catalog" class="space-y-6 mt-6">
+			<!-- Search -->
+			<div class="flex items-center justify-between">
+				<div class="flex items-center space-x-2">
+					<div class="relative flex-1 max-w-sm">
+						<Search class="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+						<Input
+							type="text"
+							placeholder="Buscar máquinas..."
+							bind:value={searchTerm}
+							oninput={handleSearch}
+							class="pl-10"
+						/>
+					</div>
+				</div>
+			</div>
+
+			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 		{#if catalogLoading || catalogFetching || !catalogMachines}
 			{#each Array(6) as _}
 				<Card>
@@ -358,7 +350,7 @@ function handlePageSizeChange(size: number) {
 								{/if}
 								<div class="flex items-center justify-between text-sm">
 									<span class="text-muted-foreground">Adicionada em:</span>
-									<span>{formatDate(machine.created_at)}</span>
+									<span>{formatDate(machine.createdAt)}</span>
 								</div>
 							</div>
 						</div>
@@ -382,29 +374,46 @@ function handlePageSizeChange(size: number) {
 						</div>
 					</CardContent>
 				</Card>
-			{/each}
+				{/each}
+			{/if}
+		</div>
+		
+		{#if totalPages > 0}
+			<PaginationControls
+				page={currentPage}
+				totalPages={totalPages}
+				totalItems={totalItems}
+				pageSize={pageSize}
+				label="máquinas"
+				pageSizeOptions={pageSizeOptions}
+				onPrevious={() => previousPage()}
+				onNext={() => nextPage()}
+				onSelectPage={(page) => goToPage(page)}
+				onPageSizeChange={(size) => handlePageSizeChange(size)}
+			/>
 		{/if}
-	</div>
-	
-{#if totalPages > 0}
-	<PaginationControls
-		page={currentPage}
-		totalPages={totalPages}
-		totalItems={totalItems}
-		pageSize={pageSize}
-		label="máquinas"
-		pageSizeOptions={pageSizeOptions}
-		onPrevious={() => previousPage()}
-		onNext={() => nextPage()}
-		onSelectPage={(page) => goToPage(page)}
-		onPageSizeChange={(size) => handlePageSizeChange(size)}
-	/>
-{/if}
+		</TabsContent>
+
+		<!-- Rent Machines Tab -->
+		<TabsContent value="rent" class="mt-6">
+			<RentMachinesList />
+		</TabsContent>
+
+		<!-- Sold Machines Tab -->
+		<TabsContent value="sold" class="mt-6">
+			<SoldMachinesList />
+		</TabsContent>
+
+		<!-- External Machines Tab -->
+		<TabsContent value="external" class="mt-6">
+			<ExternalMachinesList />
+		</TabsContent>
+	</Tabs>
 </div>
 
 <!-- New Machine Modal -->
 <Sheet bind:open={showNewMachineModal}>
-	<SheetContent class="sm:max-w-[600px] h-[90vh] flex flex-col">
+	<SheetContent class="sm:max-w-[800px] overflow-y-auto">
 		<SheetHeader class="flex-shrink-0">
 			<SheetTitle>{editingMachine ? 'Editar Máquina' : 'Nova Máquina'}</SheetTitle>
 			<SheetDescription>
@@ -414,7 +423,7 @@ function handlePageSizeChange(size: number) {
 		<div class="flex-1 flex flex-col min-h-0">
 			<form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }} class="flex-1 flex flex-col min-h-0">
 				<div class="flex-1 overflow-y-auto p-6 space-y-6 min-h-0 max-h-full">
-				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+				<!-- <div class="grid grid-cols-1 md:grid-cols-2 gap-4"> -->
 					<div class="space-y-2">
 						<Label for="model">Modelo *</Label>
 						<Input
@@ -433,7 +442,7 @@ function handlePageSizeChange(size: number) {
 							required
 						/>
 					</div>
-				</div>
+				<!-- </div> -->
 
 				<div class="space-y-2">
 					<Label for="description">Descrição</Label>

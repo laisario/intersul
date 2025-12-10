@@ -121,10 +121,6 @@
 	let dialogOpen = $state(false);
 	let selectedService = $state<Schema | null>(null);
 	
-	// Use $effect to log when dialogOpen changes
-	$effect(() => {
-		console.log('dialogOpen', dialogOpen);
-	});
 
 	const table = createSvelteTable({
 		get data() {

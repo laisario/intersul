@@ -15,6 +15,7 @@ import { Category } from './category.entity';
 import { Service } from './service.entity';
 import { Approval } from '../../common/entities/approval.entity';
 import { Image } from '../../common/entities/image.entity';
+import { Billing } from '../../billings/entities/billing.entity';
 
 @Entity('steps')
 export class Step {
@@ -45,31 +46,40 @@ export class Step {
     default: StepStatus.PENDING,
   })
   status: StepStatus;
-
-  @Column({ nullable: true })
-  responsable_id: number;
-
+  
   @Column({ nullable: true })
   responsable_client: string;
-
+  
   @Column({ type: 'text', nullable: true })
   reason_cancellament: string;
-
+  
   @Column({ nullable: true })
   category_id: number;
-
+  
   @Column({ nullable: true })
   service_id: number;
-
+  
+  @Column({ default: false })
+  is_billing: boolean;
+  
   @CreateDateColumn()
   created_at: Date;
-
+  
   @UpdateDateColumn()
   updated_at: Date;
+  
+
+  // @Column({ nullable: true })
+  // responsable_id: number;
 
   @ManyToOne(() => User, (user) => user.assignedSteps)
   @JoinColumn({ name: 'responsable_id' })
   responsable: User;
+
+  // Getter for backward compatibility with frontend
+  get responsable_id(): number | undefined {
+    return this.responsable?.id;
+  }
 
   @ManyToOne(() => Category, (category) => category.steps, {
     onDelete: 'CASCADE'
@@ -86,4 +96,7 @@ export class Step {
 
   @OneToMany(() => Image, (image) => image.step)
   images: Image[];
+
+  @OneToOne(() => Billing, (billing) => billing.step)
+  billing: Billing;
 }

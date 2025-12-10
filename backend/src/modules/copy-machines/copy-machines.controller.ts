@@ -153,6 +153,51 @@ export class CopyMachinesController {
     return this.copyMachinesService.removeCatalog(id);
   }
 
+  @Get('rent')
+  @ApiOperation({ summary: 'Obter máquinas alugadas (RENT)' })
+  @ApiResponse({ status: 200, description: 'Lista paginada de máquinas alugadas' })
+  async findRentMachines(
+    @Query('clientId') clientId?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ): Promise<{ data: ClientCopyMachine[]; total: number; page: number; limit: number; totalPages: number }> {
+    const filters: { clientId?: number; page?: number; limit?: number } = {};
+    if (clientId) filters.clientId = parseInt(clientId, 10);
+    if (page) filters.page = parseInt(page, 10);
+    if (limit) filters.limit = parseInt(limit, 10);
+    return this.copyMachinesService.findRentMachines(filters);
+  }
+
+  @Get('sold')
+  @ApiOperation({ summary: 'Obter máquinas vendidas (SOLD)' })
+  @ApiResponse({ status: 200, description: 'Lista paginada de máquinas vendidas' })
+  async findSoldMachines(
+    @Query('clientId') clientId?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ): Promise<{ data: ClientCopyMachine[]; total: number; page: number; limit: number; totalPages: number }> {
+    const filters: { clientId?: number; page?: number; limit?: number } = {};
+    if (clientId) filters.clientId = parseInt(clientId, 10);
+    if (page) filters.page = parseInt(page, 10);
+    if (limit) filters.limit = parseInt(limit, 10);
+    return this.copyMachinesService.findSoldMachines(filters);
+  }
+
+  @Get('external')
+  @ApiOperation({ summary: 'Obter máquinas externas (sem catálogo)' })
+  @ApiResponse({ status: 200, description: 'Lista paginada de máquinas externas' })
+  async findExternalMachines(
+    @Query('clientId') clientId?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ): Promise<{ data: ClientCopyMachine[]; total: number; page: number; limit: number; totalPages: number }> {
+    const filters: { clientId?: number; page?: number; limit?: number } = {};
+    if (clientId) filters.clientId = parseInt(clientId, 10);
+    if (page) filters.page = parseInt(page, 10);
+    if (limit) filters.limit = parseInt(limit, 10);
+    return this.copyMachinesService.findExternalMachines(filters);
+  }
+
   // Client Copy Machine endpoints
   @Post('client')
   @ApiOperation({ summary: 'Criar uma nova máquina copiadora do cliente' })

@@ -56,9 +56,26 @@ export class DashboardService {
       },
     };
 
-    // Save to cache (upsert)
-    await this.statsRepository.upsert(
-      {
+    // Save to cache (upsert - find existing or create new)
+    let existingStats = await this.statsRepository.findOne({
+      where: { year, month },
+    });
+
+    if (existingStats) {
+      // Update existing record
+      existingStats.clients_total = statsData.clients.total;
+      existingStats.clients_new_this_month = statsData.clients.newThisMonth;
+      existingStats.services_total = statsData.services.total;
+      existingStats.services_pending = statsData.services.pending;
+      existingStats.services_in_progress = statsData.services.inProgress;
+      existingStats.services_completed = statsData.services.completed;
+      existingStats.services_cancelled = statsData.services.cancelled;
+      existingStats.services_this_week = statsData.services.thisWeek;
+      existingStats.services_this_month = statsData.services.thisMonth;
+      await this.statsRepository.save(existingStats);
+    } else {
+      // Create new record
+      const newStats = this.statsRepository.create({
         year,
         month,
         clients_total: statsData.clients.total,
@@ -70,9 +87,9 @@ export class DashboardService {
         services_cancelled: statsData.services.cancelled,
         services_this_week: statsData.services.thisWeek,
         services_this_month: statsData.services.thisMonth,
-      },
-      ['year', 'month'],
-    );
+      });
+      await this.statsRepository.save(newStats);
+    }
 
     return statsData;
   }

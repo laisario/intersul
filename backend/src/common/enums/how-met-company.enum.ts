@@ -1,0 +1,8 @@
+export enum HowMetCompanyEnum {
+  SOCIAL_MEDIA = 'SOCIAL_MEDIA',
+  REFERRAL = 'REFERRAL',
+  GOOGLE_SEARCH = 'GOOGLE_SEARCH',
+  WALK_IN = 'WALK_IN',
+  OTHER = 'OTHER',
+}
+

@@ -37,10 +37,11 @@ const createAxiosInstance = ({ file = false } = {}) => {
       return response;
     },
     (error) => {
-      // Handle 401 Unauthorized
+      // Handle 401 Unauthorized - but don't redirect if we're already on login page
       if (error.response?.status === 401) {
         localStorage.removeItem('token');
-        if (typeof window !== 'undefined') {
+        const isOnLoginPage = typeof window !== 'undefined' && window.location.pathname === '/login';
+        if (!isOnLoginPage && typeof window !== 'undefined') {
           window.location.href = '/login';
         }
       }
@@ -50,10 +51,16 @@ const createAxiosInstance = ({ file = false } = {}) => {
         error.message = 'Network error. Please check your connection.';
       }
 
+      // Transform error response data while preserving all error properties
       if (error.response?.data && error.response?.headers?.['content-type'] === 'application/json') {
-        const newError = { response: { data: {} } };
-        newError.response.data = humps.camelizeKeys(error.response.data);
-        return Promise.reject(newError);
+        const transformedError = {
+          ...error,
+          response: {
+            ...error.response,
+            data: humps.camelizeKeys(error.response.data)
+          }
+        };
+        return Promise.reject(transformedError);
       }
       return Promise.reject(error);
     }

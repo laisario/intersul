@@ -1,12 +1,10 @@
-<!--
-  Steps table component for user's assigned steps
--->
-
 <script lang="ts">
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '$lib/components/ui/table/index.js';
 	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
 	import type { Step } from '$lib/api/types/service.types.js';
+	import { daysUntilExpiration, getExpirationBadgeClasses } from '$lib/utils/formatting';
+	import { getServicePriorityLabel, getServicePriorityVariant } from '$lib/utils/constants.js';
 
 	let {
 		steps = [],
@@ -21,13 +19,16 @@
 	function getStatusBadgeVariant(status?: string) {
 		switch (status) {
 			case 'PENDING':
-				return 'outline';
+				return 'pending';
 			case 'IN_PROGRESS':
-				return 'secondary';
+				return 'in-progress';
 			case 'CONCLUDED':
-				return 'default';
+			case 'COMPLETED':
+				return 'concluded';
 			case 'CANCELLED':
 				return 'destructive';
+			case 'ON_HOLD':
+				return 'on-hold';
 			default:
 				return 'outline';
 		}
@@ -47,6 +48,11 @@
 				return status || 'Desconhecido';
 		}
 	}
+
+	function getDays(stepDatetimeExpiration: string): number {
+		return daysUntilExpiration(stepDatetimeExpiration);
+	}
+
 </script>
 
 <div class="space-y-4">
@@ -56,7 +62,9 @@
 				<TableHead>Etapa</TableHead>
 				<TableHead>Serviço</TableHead>
 				<TableHead>Cliente</TableHead>
+				<TableHead>Prioridade</TableHead>
 				<TableHead>Status</TableHead>
+				<TableHead>Vencimento</TableHead>
 			</TableRow>
 		</TableHeader>
 		<TableBody>
@@ -67,11 +75,13 @@
 						<TableCell><Skeleton class="h-4 w-24" /></TableCell>
 						<TableCell><Skeleton class="h-4 w-32" /></TableCell>
 						<TableCell><Skeleton class="h-4 w-20" /></TableCell>
+						<TableCell><Skeleton class="h-4 w-20" /></TableCell>
+						<TableCell><Skeleton class="h-4 w-20" /></TableCell>
 					</TableRow>
 				{/each}
 			{:else if steps.length === 0}
 				<TableRow>
-					<TableCell colspan="4" class="text-center py-8 text-muted-foreground">
+					<TableCell colspan={6} class="text-center py-8 text-muted-foreground">
 						Nenhuma etapa encontrada
 					</TableCell>
 				</TableRow>
@@ -104,9 +114,30 @@
 							{/if}
 						</TableCell>
 						<TableCell>
+							{#if step.service?.priority}
+								<Badge variant={getServicePriorityVariant(step.service.priority)}>
+									{getServicePriorityLabel(step.service.priority)}
+								</Badge>
+							{:else}
+								<span class="text-muted-foreground text-sm">-</span>
+							{/if}
+						</TableCell>
+						<TableCell>
 							<Badge variant={getStatusBadgeVariant(step.status)}>
 								{getStatusLabel(step.status)}
 							</Badge>
+						</TableCell>
+						<TableCell>
+							{#if step.datetime_expiration}
+								{@const days = getDays(step.datetime_expiration)}
+								<span 
+									class={`text-sm px-2 py-1 rounded-md inline-flex items-center justify-center font-medium ${getExpirationBadgeClasses(days)}`}
+								>
+									{days} dia{days > 1 ? 's' : ''}
+								</span>
+							{:else}
+								<span class="text-muted-foreground text-sm">-</span>
+							{/if}
 						</TableCell>
 					</TableRow>
 				{/each}

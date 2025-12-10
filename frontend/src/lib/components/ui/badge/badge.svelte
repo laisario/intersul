@@ -12,13 +12,29 @@
 				destructive:
 					"bg-destructive [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/70 border-transparent text-white",
 				outline: "text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
+				concluded:
+					"bg-status-concluded text-status-concluded-foreground [a&]:hover:bg-status-concluded/90 border-transparent",
+				pending:
+					"bg-status-pending text-status-pending-foreground [a&]:hover:bg-status-pending/90 border-transparent",
+				"in-progress":
+					"bg-status-in-progress text-status-in-progress-foreground [a&]:hover:bg-status-in-progress/90 border-transparent",
+				"on-hold":
+					"bg-status-on-hold text-status-on-hold-foreground [a&]:hover:bg-status-on-hold/90 border-transparent",
+				"priority-low":
+					"bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 border-gray-300 dark:border-gray-600",
+				"priority-medium":
+					"bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-blue-300 dark:border-blue-700",
+				"priority-high":
+					"bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300 border-orange-300 dark:border-orange-700",
+				"priority-urgent":
+					"bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 border-red-300 dark:border-red-700",
 			},
 		},
 		defaultVariants: {
 			variant: "default",
 		},
 	});
-
+	
 	export type BadgeVariant = VariantProps<typeof badgeVariants>["variant"];
 </script>
 

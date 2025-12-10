@@ -43,6 +43,37 @@ export const copyMachinesApi = {
       axios.delete(`/copy-machines/catalog/${id}`).then(() => undefined),
   },
 
+  // Filtered client copy machines endpoints
+  rent: {
+    getAll: async (clientId?: number, page: number = 1, limit: number = 10): Promise<PaginatedResponse<ClientCopyMachine>> => {
+      const params: any = { page, limit };
+      if (clientId) params.clientId = clientId;
+      
+      const response = await axios.get('/copy-machines/rent', { params });
+      return response.data;
+    },
+  },
+
+  sold: {
+    getAll: async (clientId?: number, page: number = 1, limit: number = 10): Promise<PaginatedResponse<ClientCopyMachine>> => {
+      const params: any = { page, limit };
+      if (clientId) params.clientId = clientId;
+      
+      const response = await axios.get('/copy-machines/sold', { params });
+      return response.data;
+    },
+  },
+
+  external: {
+    getAll: async (clientId?: number, page: number = 1, limit: number = 10): Promise<PaginatedResponse<ClientCopyMachine>> => {
+      const params: any = { page, limit };
+      if (clientId) params.clientId = clientId;
+      
+      const response = await axios.get('/copy-machines/external', { params });
+      return response.data;
+    },
+  },
+
   // Client copy machines endpoints
   client: {
     /**

@@ -136,6 +136,42 @@ export const useDeleteCopyMachine = () => {
   }));
 };
 
+export const useRentMachines = (clientId?: number, page: number = 1, limit: number = 10) => {
+  return createQuery(() => ({
+    queryKey: ['rent-machines', clientId, page, limit],
+    queryFn: () => copyMachinesApi.rent.getAll(clientId, page, limit),
+    enabled: true,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  }));
+};
+
+export const useSoldMachines = (clientId?: number, page: number = 1, limit: number = 10) => {
+  return createQuery(() => ({
+    queryKey: ['sold-machines', clientId, page, limit],
+    queryFn: () => copyMachinesApi.sold.getAll(clientId, page, limit),
+    enabled: true,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  }));
+};
+
+export const useExternalMachines = (clientId?: number, page: number = 1, limit: number = 10) => {
+  return createQuery(() => ({
+    queryKey: ['external-machines', clientId, page, limit],
+    queryFn: () => copyMachinesApi.external.getAll(clientId, page, limit),
+    enabled: true,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  }));
+};
+
 export const useClientCopyMachines = (clientId: number) => {
   return createQuery(() => ({
     queryKey: ['client-copy-machines', clientId],

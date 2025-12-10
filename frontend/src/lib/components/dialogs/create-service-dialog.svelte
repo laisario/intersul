@@ -34,6 +34,7 @@
 
 	// Form data
 	let formData = $state({
+		isInternal: false,
 		title: '',
 		description: '',
 		clientId: 0,
@@ -74,6 +75,7 @@
 
 	function resetForm() {
 		formData = {
+			isInternal: false,
 			title: '',
 			description: '',
 			clientId: 0,
@@ -85,17 +87,23 @@
 	}
 
 	function handleSubmit() {
-		if (!formData.title || !formData.clientId || !formData.categoryId) {
+		if (!formData.title || !formData.categoryId) {
 			errorToast.validation('Preencha todos os campos obrigatórios');
+			return;
+		}
+
+		if (!formData.isInternal && !formData.clientId) {
+			errorToast.validation('Selecione um cliente para serviços externos');
 			return;
 		}
 
 		const serviceData: CreateServiceDto = {
 			title: formData.title,
 			description: formData.description || undefined,
-			clientId: formData.clientId,
+			clientId: formData.isInternal ? undefined : formData.clientId,
 			categoryId: formData.categoryId,
-			clientCopyMachineId: formData.clientCopyMachineId || undefined,
+			clientCopyMachineId: formData.isInternal ? undefined : (formData.clientCopyMachineId || undefined),
+			is_internal: formData.isInternal,
 			steps: formData.steps.length > 0 ? formData.steps : undefined
 		};
 
@@ -146,6 +154,33 @@
 				</CardHeader>
 				<CardContent class="space-y-4">
 					<div>
+						<Label for="serviceType">Tipo de Serviço *</Label>
+						<Select 
+							value={formData.isInternal ? 'internal' : 'external'}
+							onValueChange={(value) => {
+								formData.isInternal = value === 'internal';
+								if (formData.isInternal) {
+									formData.clientId = 0;
+									formData.clientCopyMachineId = 0;
+								}
+							}}
+						>
+							<SelectTrigger>
+								<span class="text-muted-foreground">
+									{formData.isInternal ? 'Interno' : 'Externo'}
+								</span>
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="external">Externo</SelectItem>
+								<SelectItem value="internal">Interno</SelectItem>
+							</SelectContent>
+						</Select>
+						<p class="text-xs text-muted-foreground mt-1">
+							Serviços internos não requerem cliente ou máquina associada
+						</p>
+					</div>
+
+					<div>
 						<Label for="title">Título *</Label>
 						<Input
 							id="title"
@@ -164,60 +199,62 @@
 						/>
 					</div>
 
-					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-						<div>
-							<Label for="client">Cliente *</Label>
-							<Select bind:value={formData.clientId}>
-								<SelectTrigger>
-									<span class="text-muted-foreground">
-										{clientsLoading ? 'Carregando...' : 'Selecione um cliente'}
-									</span>
-								</SelectTrigger>
-								<SelectContent>
-									{#each clients?.data || [] as client}
-										<SelectItem value={client.id}>{client.name}</SelectItem>
-									{/each}
-								</SelectContent>
-							</Select>
-						</div>
-
-						<div>
-							<Label for="category">Categoria *</Label>
-							<Select bind:value={formData.categoryId}>
-								<SelectTrigger>
-									<span class="text-muted-foreground">
-										{categoriesLoading ? 'Carregando...' : 'Selecione uma categoria'}
-									</span>
-								</SelectTrigger>
-								<SelectContent>
-									{#each categories || [] as category}
-										<SelectItem value={category.id}>
-											<div class="flex items-center space-x-2">
-												<div class="w-3 h-3 rounded-full" style="background-color: {category.color || '#3b82f6'}"></div>
-												<span>{category.name}</span>
-											</div>
-										</SelectItem>
-									{/each}
-								</SelectContent>
-							</Select>
-						</div>
-					</div>
-
 					<div>
-						<Label for="machine">Máquina (Opcional)</Label>
-						<Select bind:value={formData.clientCopyMachineId}>
+						<Label for="category">Categoria *</Label>
+						<Select bind:value={formData.categoryId}>
 							<SelectTrigger>
 								<span class="text-muted-foreground">
-									{machinesLoading ? 'Carregando...' : 'Selecione uma máquina'}
+									{categoriesLoading ? 'Carregando...' : 'Selecione uma categoria'}
 								</span>
 							</SelectTrigger>
 							<SelectContent>
-								{#each filteredMachines as machine}
-									<SelectItem value={machine.id}>{machine.model}</SelectItem>
+								{#each categories || [] as category}
+									<SelectItem value={category.id}>
+										<div class="flex items-center space-x-2">
+											<div class="w-3 h-3 rounded-full" style="background-color: {category.color || '#3b82f6'}"></div>
+											<span>{category.name}</span>
+										</div>
+									</SelectItem>
 								{/each}
 							</SelectContent>
 						</Select>
 					</div>
+
+					{#if !formData.isInternal}
+						<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+							<div>
+								<Label for="client">Cliente *</Label>
+								<Select bind:value={formData.clientId}>
+									<SelectTrigger>
+										<span class="text-muted-foreground">
+											{clientsLoading ? 'Carregando...' : 'Selecione um cliente'}
+										</span>
+									</SelectTrigger>
+									<SelectContent>
+										{#each clients?.data || [] as client}
+											<SelectItem value={client.id}>{client.name}</SelectItem>
+										{/each}
+									</SelectContent>
+								</Select>
+							</div>
+
+							<div>
+								<Label for="machine">Máquina (Opcional)</Label>
+								<Select bind:value={formData.clientCopyMachineId}>
+									<SelectTrigger>
+										<span class="text-muted-foreground">
+											{machinesLoading ? 'Carregando...' : 'Selecione uma máquina'}
+										</span>
+									</SelectTrigger>
+									<SelectContent>
+										{#each filteredMachines as machine}
+											<SelectItem value={machine.id}>{machine.model}</SelectItem>
+										{/each}
+									</SelectContent>
+								</Select>
+							</div>
+						</div>
+					{/if}
 				</CardContent>
 			</Card>
 

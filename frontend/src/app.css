@@ -20,7 +20,7 @@
   --muted-foreground: oklch(0.556 0 0);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
+  --destructive: oklch(0.55 0.22 25);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
@@ -38,6 +38,15 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  /* Status colors */
+  --status-concluded: oklch(0.65 0.15 145);
+  --status-concluded-foreground: oklch(0.985 0 0);
+  --status-pending: oklch(0.85 0.15 85);
+  --status-pending-foreground: oklch(0.2 0 0);
+  --status-in-progress: oklch(0.6 0.15 250);
+  --status-in-progress-foreground: oklch(0.985 0 0);
+  --status-on-hold: oklch(0.7 0.15 60);
+  --status-on-hold-foreground: oklch(0.985 0 0);
 }
 
 .dark {
@@ -72,6 +81,15 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  /* Status colors */
+  --status-concluded: oklch(0.7 0.15 145);
+  --status-concluded-foreground: oklch(0.985 0 0);
+  --status-pending: oklch(0.75 0.15 85);
+  --status-pending-foreground: oklch(0.985 0 0);
+  --status-in-progress: oklch(0.65 0.15 250);
+  --status-in-progress-foreground: oklch(0.985 0 0);
+  --status-on-hold: oklch(0.75 0.15 60);
+  --status-on-hold-foreground: oklch(0.985 0 0);
 }
 
 @theme inline {
@@ -110,6 +128,14 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-status-concluded: var(--status-concluded);
+  --color-status-concluded-foreground: var(--status-concluded-foreground);
+  --color-status-pending: var(--status-pending);
+  --color-status-pending-foreground: var(--status-pending-foreground);
+  --color-status-in-progress: var(--status-in-progress);
+  --color-status-in-progress-foreground: var(--status-in-progress-foreground);
+  --color-status-on-hold: var(--status-on-hold);
+  --color-status-on-hold-foreground: var(--status-on-hold-foreground);
 }
 
 @layer base {

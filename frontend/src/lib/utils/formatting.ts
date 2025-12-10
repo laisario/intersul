@@ -3,13 +3,14 @@
  */
 
 import { UserRole } from '$lib/api/types/auth.types.js';
-import { ServiceStatus, ServicePriority } from '$lib/api/types/service.types.js';
-import { getServiceStatusLabel } from './constants.js';
+import { ServiceStatus } from '$lib/api/types/service.types.js';
+import { getServiceStatusLabel, getServicePriorityLabel } from './constants.js';
 import type {
-  UserRole as UserRoleValue,
   ServiceStatus as ServiceStatusValue,
   ServicePriority as ServicePriorityValue
 } from '$lib/api/types/service.types.js';
+
+type UserRoleValue = UserRole;
 
 // Date formatting
 export function formatDate(date: string | Date | null | undefined, options?: Intl.DateTimeFormatOptions): string {
@@ -31,6 +32,37 @@ export function formatDate(date: string | Date | null | undefined, options?: Int
   };
   
   return new Intl.DateTimeFormat('pt-BR', { ...defaultOptions, ...options }).format(dateObj);
+}
+
+export function daysUntilExpiration(date: string | Date): number {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  const now = new Date();
+  const diffInMs = dateObj.getTime() - now.getTime();
+  return Math.ceil(diffInMs / (1000 * 60 * 60 * 24));
+}
+
+export function getExpirationColor(days: number): string {
+  if (days < 3) {
+    return 'red';
+  } else if (days < 7) {
+    return 'orange';
+  } else if (days < 14) {
+    return 'yellow';
+  } else {
+    return 'green';
+  }
+}
+
+export function getExpirationBadgeClasses(days: number): string {
+  if (days < 3) {
+    return 'border border-rose-200 bg-rose-100 text-rose-800 dark:border-rose-900/40 dark:bg-rose-900/20 dark:text-rose-200';
+  } else if (days < 7) {
+    return 'border border-amber-200 bg-amber-100 text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200';
+  } else if (days < 14) {
+    return 'border border-yellow-200 bg-yellow-100 text-yellow-800 dark:border-yellow-900/40 dark:bg-yellow-900/20 dark:text-yellow-200';
+  } else {
+    return 'border border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-200';
+  }
 }
 
 export function formatDateTime(date: string | Date): string {
@@ -118,14 +150,7 @@ export function formatServiceStatus(status: ServiceStatusValue | string | null |
 }
 
 export function formatServicePriority(priority: ServicePriorityValue): string {
-  const priorityMap = {
-    [ServicePriority.LOW]: 'Baixa',
-    [ServicePriority.MEDIUM]: 'Média',
-    [ServicePriority.HIGH]: 'Alta',
-    [ServicePriority.URGENT]: 'Urgente',
-  };
-  
-  return priorityMap[priority] || priority;
+  return getServicePriorityLabel(priority);
 }
 
 export function formatUserRole(role: UserRoleValue): string {

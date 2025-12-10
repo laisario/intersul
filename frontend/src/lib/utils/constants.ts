@@ -73,19 +73,19 @@ export const SERVICE_STATUS = {
     label: 'Pendente',
     color: 'yellow',
     description: 'Aguardando início',
-    variant: 'outline' as const,
+    variant: 'pending' as const,
   },
   'IN_PROGRESS': {
     label: 'Em Andamento',
     color: 'blue',
     description: 'Serviço em execução',
-    variant: 'secondary' as const,
+    variant: 'in-progress' as const,
   },
   'CONCLUDED': {
     label: 'Concluído',
     color: 'green',
     description: 'Serviço finalizado',
-    variant: 'default' as const,
+    variant: 'concluded' as const,
   },
   'CANCELLED': {
     label: 'Cancelado',
@@ -98,19 +98,19 @@ export const SERVICE_STATUS = {
     label: 'Pendente',
     color: 'yellow',
     description: 'Aguardando início',
-    variant: 'outline' as const,
+    variant: 'pending' as const,
   },
   'in_progress': {
     label: 'Em Andamento',
     color: 'blue',
     description: 'Serviço em execução',
-    variant: 'secondary' as const,
+    variant: 'in-progress' as const,
   },
   'concluded': {
     label: 'Concluído',
     color: 'green',
     description: 'Serviço finalizado',
-    variant: 'default' as const,
+    variant: 'concluded' as const,
   },
   'cancelled': {
     label: 'Cancelado',
@@ -119,35 +119,17 @@ export const SERVICE_STATUS = {
     variant: 'destructive' as const,
   },
   // Legacy support
-  [ServiceStatus.PENDING]: {
-    label: 'Pendente',
-    color: 'yellow',
-    description: 'Aguardando início',
-    variant: 'outline' as const,
-  },
-  [ServiceStatus.IN_PROGRESS]: {
-    label: 'Em Andamento',
-    color: 'blue',
-    description: 'Serviço em execução',
-    variant: 'secondary' as const,
-  },
   [ServiceStatus.COMPLETED]: {
     label: 'Concluído',
     color: 'green',
     description: 'Serviço finalizado',
-    variant: 'default' as const,
-  },
-  [ServiceStatus.CANCELLED]: {
-    label: 'Cancelado',
-    color: 'red',
-    description: 'Serviço cancelado',
-    variant: 'destructive' as const,
+    variant: 'concluded' as const,
   },
   [ServiceStatus.ON_HOLD]: {
     label: 'Em Espera',
     color: 'orange',
     description: 'Serviço pausado',
-    variant: 'outline' as const,
+    variant: 'on-hold' as const,
   },
 } as const;
 
@@ -176,7 +158,7 @@ export function getServiceStatusLabel(status?: string | null): string {
 /**
  * Get service status badge variant
  */
-export function getServiceStatusVariant(status?: string | null): 'default' | 'secondary' | 'destructive' | 'outline' {
+export function getServiceStatusVariant(status?: string | null): 'default' | 'secondary' | 'destructive' | 'outline' | 'concluded' | 'pending' | 'in-progress' | 'on-hold' {
   if (!status) return 'outline';
   // Try uppercase first (backend format)
   const upperStatus = status.toUpperCase();
@@ -194,6 +176,7 @@ export function getServiceStatusVariant(status?: string | null): 'default' | 'se
   }
   return 'outline';
 }
+
 
 // Service priority configuration
 export const SERVICE_PRIORITY = {
@@ -219,6 +202,49 @@ export const SERVICE_PRIORITY = {
   },
 } as const;
 
+export function getServicePriorityLabel(priority?: string | null): string {
+  if (!priority) return 'Não informado';
+
+  const upperPriority = priority.toUpperCase();
+  if (SERVICE_PRIORITY[upperPriority as keyof typeof SERVICE_PRIORITY]) {
+    return SERVICE_PRIORITY[upperPriority as keyof typeof SERVICE_PRIORITY].label;
+  }
+
+  const lowerPriority = priority.toLowerCase();
+  if (SERVICE_PRIORITY[lowerPriority as keyof typeof SERVICE_PRIORITY]) {
+    return SERVICE_PRIORITY[lowerPriority as keyof typeof SERVICE_PRIORITY].label;
+  }
+
+  if (SERVICE_PRIORITY[priority as keyof typeof SERVICE_PRIORITY]) {
+    return SERVICE_PRIORITY[priority as keyof typeof SERVICE_PRIORITY].label;
+  }
+
+  return priority;
+}
+
+/**
+ * Get service priority badge variant
+ */
+export function getServicePriorityVariant(priority?: string | null): 'priority-low' | 'priority-medium' | 'priority-high' | 'priority-urgent' | 'outline' {
+  if (!priority) return 'outline';
+
+  const lowerPriority = priority.toLowerCase();
+  
+  if (lowerPriority === 'low') return 'priority-low';
+  if (lowerPriority === 'medium') return 'priority-medium';
+  if (lowerPriority === 'high') return 'priority-high';
+  if (lowerPriority === 'urgent') return 'priority-urgent';
+
+  // Try uppercase
+  const upperPriority = priority.toUpperCase();
+  if (upperPriority === 'LOW') return 'priority-low';
+  if (upperPriority === 'MEDIUM') return 'priority-medium';
+  if (upperPriority === 'HIGH') return 'priority-high';
+  if (upperPriority === 'URGENT') return 'priority-urgent';
+
+  return 'outline';
+}
+
 // Acquisition type configuration
 export const ACQUISITION_TYPE = {
   [AcquisitionType.RENT]: {
@@ -242,8 +268,8 @@ export const ACQUISITION_TYPE = {
 export const NAVIGATION = {
   MAIN: [
     {
-      title: 'Dashboard',
-      href: '/dashboard',
+      title: 'Página Inicial',
+      href: '/',
       icon: 'dashboard',
       roles: ['all'],
     },

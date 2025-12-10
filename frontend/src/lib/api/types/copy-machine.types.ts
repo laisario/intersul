@@ -28,6 +28,7 @@ export interface ClientCopyMachine extends BaseEntity {
   acquisition_type: AcquisitionType;
   value?: number;
   franchise_id?: number;
+  ultimo_contador?: number;
   client?: Client;
   catalogCopyMachine?: CopyMachineCatalog;
   franchise?: Franchise;
@@ -39,7 +40,8 @@ export interface Franchise extends BaseEntity {
   paper_type: string; 
   color: boolean;
   quantity: number;
-  unitPrice: number;
+  unitPrice?: number; // camelCase (if transformed)
+  unit_price?: number; // snake_case (from API)
 }
 
 export interface CreateCopyMachineCatalogDto {

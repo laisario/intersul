@@ -2,6 +2,8 @@
 import type { BaseEntity } from './common.types';
 import type { Address, CreateAddressDto } from './address.types';
 
+export type HowMetCompany = 'SOCIAL_MEDIA' | 'REFERRAL' | 'GOOGLE_SEARCH' | 'WALK_IN' | 'OTHER';
+
 export interface Client extends BaseEntity {
   name: string;
   cnpj?: string;
@@ -10,6 +12,7 @@ export interface Client extends BaseEntity {
   phone?: string;
   active: boolean;
   address?: Address;
+  how_met_company?: HowMetCompany;
 }
 
 export interface CreateClientDto {
@@ -19,6 +22,7 @@ export interface CreateClientDto {
   email: string;
   phone?: string;
   address?: CreateAddressDto;
+  how_met_company?: HowMetCompany;
 }
 
 export interface UpdateClientDto extends Partial<CreateClientDto> {}

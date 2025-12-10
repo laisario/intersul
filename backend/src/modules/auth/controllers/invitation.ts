@@ -16,7 +16,7 @@ export class UserInvitationController {
   constructor(private readonly invitationService: InvitationService) {}
 
   @Post()
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @ApiOperation({ summary: 'Create a new user invitation' })
   @ApiResponse({ status: 201, description: 'Invitation created successfully' })
   create(@Body() createDto: CreateInvitationDto, @CurrentUser() currentUser: CurrentUserData) {
@@ -24,7 +24,7 @@ export class UserInvitationController {
   }
 
   @Get()
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @ApiOperation({ summary: 'List user invitations' })
   @ApiResponse({ status: 200, description: 'List of invitations returned successfully' })
   findAll() {

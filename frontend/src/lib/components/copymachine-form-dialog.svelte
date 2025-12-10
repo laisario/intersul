@@ -257,10 +257,7 @@
 			formData.external_description = initialData.external_description || '';
 			formData.value = initialData.value;
 			formData.franchise_id = initialData.franchise_id;
-			
-			console.log('Form initialized - Is editing:', isEditing);
-			console.log('Machine data:', machine);
-			console.log('Form data:', formData);
+		
 		}
 	});
 	

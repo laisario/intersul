@@ -4,7 +4,7 @@
 	import { useClient } from '$lib/hooks/queries/use-clients.svelte.js';
 	import { errorToast } from '$lib/utils/toast.js';
 	import { formatDate, formatCurrency } from '$lib/utils/formatting.js';
-	import { ACQUISITION_TYPE, getServiceStatusLabel, getServiceStatusVariant } from '$lib/utils/constants.js';
+import { ACQUISITION_TYPE, getServiceStatusLabel, getServiceStatusVariant } from '$lib/utils/constants.js';
 	import { AcquisitionType } from '$lib/api/types/copy-machine.types.js';
 	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
@@ -43,6 +43,15 @@
 	import { SERVICE_STATUS } from '$lib/utils/constants.js';
 	import { ServiceStatus } from '$lib/api/types/service.types.js';
 	import { useClientServiceHistory } from '$lib/hooks/queries/use-services.svelte.js';
+	import type { HowMetCompany } from '$lib/api/types/client.types.js';
+
+	const HOW_MET_COMPANY_LABELS: Record<HowMetCompany, string> = {
+		SOCIAL_MEDIA: 'Redes Sociais',
+		REFERRAL: 'Indicação',
+		GOOGLE_SEARCH: 'Busca no Google',
+		WALK_IN: 'Visita',
+		OTHER: 'Outro'
+	};
 
 	let clientId = $derived(Number($page.params.id));
 	let showCreateCopyMachineModal = $state(false);
@@ -70,11 +79,6 @@
 	const machineServices = $derived(viewingMachine?.services ?? []);
 	const isLoadingMachineServices = $derived(isLoadingViewingMachine);
 
-	
-	$effect(() => {
-		console.log(viewingMachine);
-	});
-	
 	function getPaginatedMachines() {
 		if (!clientMachines || clientMachines.length === 0) return [];
 		const start = (currentPage - 1) * pageSize;
@@ -288,7 +292,7 @@ const isLoadingServiceHistory = $derived(serviceHistoryQuery.isLoading);
 	</div>
 {:else if client}
 	<div class="space-y-6 px-6">
-		<div class="flex items-center justify-between">
+		<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
 			<div class="flex items-center space-x-4">
 				<Button variant="ghost" size="sm" onclick={goBack}>
 					<ArrowLeft class="w-4 h-4 mr-2" />
@@ -297,18 +301,18 @@ const isLoadingServiceHistory = $derived(serviceHistoryQuery.isLoading);
 				<div>
 					<h1 class="text-3xl font-bold">{client.name}</h1>
 					<p class="text-muted-foreground">
-						Cliente desde {formatDate(client.createdAt)}
+						{#if client.createdAt || (client as any).created_at}
+							Cliente desde {formatDate(client.createdAt || (client as any).created_at)}
+						{:else}
+							Cliente desde -
+						{/if}
 					</p>
 				</div>
 			</div>
 			<div class="flex items-center gap-2">
-				<Button onclick={openCreateModal}>
+				<Button onclick={openCreateModal} class="w-full md:w-auto">
 					<Printer class="w-4 h-4 mr-2" />
 					Cadastrar Máquina
-				</Button>
-				<Button onclick={() => goto('/services/new')}>
-					<Wrench class="w-4 h-4 mr-2" />
-					Novo Serviço
 				</Button>
 			</div>
 		</div>
@@ -338,6 +342,18 @@ const isLoadingServiceHistory = $derived(serviceHistoryQuery.isLoading);
 							<div class="flex items-start space-x-3">
 								<MapPin class="w-4 h-4 text-muted-foreground mt-0.5" />
 								<span class="text-sm">{formatAddress(client.address)}</span>
+							</div>
+						{/if}
+						
+						{#if client.how_met_company}
+							<div class="flex items-center space-x-3">
+								<Info class="w-4 h-4 text-muted-foreground" />
+								<div class="text-sm">
+									<span class="text-muted-foreground">Como conheceu a empresa: </span>
+									<span class="font-medium">
+										{HOW_MET_COMPANY_LABELS[client.how_met_company] || client.how_met_company}
+									</span>
+								</div>
 							</div>
 						{/if}
 					</CardContent>
@@ -471,7 +487,9 @@ const isLoadingServiceHistory = $derived(serviceHistoryQuery.isLoading);
 										<div class="flex-1 min-w-0">
 											<div class="flex items-center justify-between">
 												<h4 class="font-medium">{service.description || service.category?.name || `Serviço #${service.id}`}</h4>
-												<Badge variant={getServiceStatusVariant(service.status)}>
+											<Badge
+												variant={getServiceStatusVariant(service.status)}
+											>
 													{getServiceStatusLabel(service.status)}
 												</Badge>
 											</div>
@@ -708,7 +726,7 @@ const isLoadingServiceHistory = $derived(serviceHistoryQuery.isLoading);
 												</div>
 												<div class="col-span-2">
 													<span class="text-muted-foreground">Preço Unitário:</span>
-													<p class="font-medium">{formatCurrency(viewingMachine.franchise.unitPrice)}</p>
+													<p class="font-medium">{formatCurrency(viewingMachine.franchise.unitPrice ?? viewingMachine.franchise.unit_price ?? 0)}</p>
 												</div>
 											</div>
 										</div>
@@ -769,7 +787,9 @@ const isLoadingServiceHistory = $derived(serviceHistoryQuery.isLoading);
 												</div>
 											</div>
 											<div class="flex items-center gap-2">
-												<Badge variant={getServiceStatusVariant(service.status)}>
+											<Badge
+												variant={getServiceStatusVariant(service.status)}
+											>
 													{getServiceStatusLabel(service.status)}
 												</Badge>
 											</div>

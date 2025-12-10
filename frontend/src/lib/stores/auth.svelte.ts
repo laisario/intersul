@@ -139,7 +139,7 @@ export const isCommercial = derived(authStore, $auth =>
 
 // Permission helpers
 export const canManageUsers = derived(authStore, $auth => 
-  $auth.user?.role === UserRole.ADMIN
+  $auth.user?.role === UserRole.ADMIN || $auth.user?.role === UserRole.MANAGER
 );
 
 export const canManageServices = derived(authStore, $auth => 

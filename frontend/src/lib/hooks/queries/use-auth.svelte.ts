@@ -121,11 +121,8 @@ export const useAcceptInvitation = () => {
     mutationFn: async (payload: AcceptInvitationPayload) => {
       return authApi.acceptInvitation(payload);
     },
-    onSuccess: (data) => {
-      if (data.access_token && data.user) {
-        authStore.setUser(data.user, data.access_token);
-        queryClient.invalidateQueries({ queryKey: ['auth', 'profile'] });
-      }
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['auth', 'profile'] });
     },
     onError: (error) => {
       console.error('Accept invitation failed:', error);

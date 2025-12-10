@@ -1,11 +1,14 @@
-import { Controller, Get, Delete, Patch, Param, ParseIntPipe, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
+import { Controller, Get, Delete, Patch, Param, ParseIntPipe, Query, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { User } from '../entities/user.entity';
 import { UserService } from '../services/user';
 import { UserRole } from '../../../common/enums/user-role.enum';
+import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 
 @ApiTags('Users')
 @Controller('users')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
@@ -34,6 +37,14 @@ export class UserController {
   @ApiResponse({ status: 200, description: 'User statistics returned successfully' })
   async getStats() {
     return this.userService.getStats();
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get user by ID' })
+  @ApiResponse({ status: 200, description: 'User found', type: User })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async findOne(@Param('id', ParseIntPipe) id: number): Promise<User> {
+    return this.userService.findOne(id);
   }
 
   @Patch(':id/toggle-active')

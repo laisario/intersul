@@ -34,7 +34,6 @@ export class ViaCepService {
       }
 
       const url = `${this.baseUrl}/${cleanCep}/json/`;
-      console.log(`Fetching address for CEP: ${cleanCep}`);
 
       const response = await axios.get<ViaCepResponse>(url, {
         timeout: 5000,

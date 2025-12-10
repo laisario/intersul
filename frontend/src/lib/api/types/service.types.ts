@@ -27,6 +27,7 @@ export interface Service extends BaseEntity {
   status?: string;
   priority?: string;
   reason_cancellament?: string;
+  is_internal?: boolean;
 }
 
 export const ServiceStatus = {
@@ -61,10 +62,12 @@ export interface Step extends BaseEntity {
   category_id?: number;
   service_id?: number;
   responsable_id?: number;
+  is_billing?: boolean;
   responsable?: User;
   service?: Service;
   category?: Category;
   images?: Image[];
+  billing?: import('./billing.types.js').Billing;
 }
 
 export interface StepTemplate {
@@ -108,6 +111,7 @@ export interface CreateServiceDto {
   description?: string;
   priority?: string;
   steps?: CreateServiceStepDto[];
+  is_internal?: boolean;
 }
 
 export interface CreateCategoryDto {

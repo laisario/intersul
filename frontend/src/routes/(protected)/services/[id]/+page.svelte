@@ -9,7 +9,7 @@
 	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
 	import { ArrowLeft, CheckCircle, Clock, User, Printer, MapPin, Phone, Mail, Calendar, FileText, XCircle, Loader2 } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
-	import { ACQUISITION_TYPE, SERVICE_STATUS, SERVICE_PRIORITY, getServiceStatusLabel, getServiceStatusVariant } from '$lib/utils/constants.js';
+	import { ACQUISITION_TYPE, getServiceStatusLabel, getServiceStatusVariant, getServicePriorityLabel, getServicePriorityVariant } from '$lib/utils/constants.js';
 	import { successToast, errorToast } from '$lib/utils/toast.js';
 	import ConfirmationDialog from '$lib/components/confirmation-dialog.svelte';
 	import type { AcquisitionType, ClientCopyMachine } from '$lib/api/types/copy-machine.types.js';
@@ -282,7 +282,7 @@
 {:else if service}
 	<div class="space-y-6 px-6">
 		<!-- Header -->
-		<div class="flex items-center justify-between">
+		<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
 			<div class="flex items-center space-x-4">
 				<Button variant="ghost" size="sm" onclick={goBack}>
 					<ArrowLeft class="w-4 h-4 mr-2" />
@@ -295,7 +295,50 @@
 					</p>
 				</div>
 			</div>
-			<div class="flex items-center space-x-2"></div>
+			{#if service.status === 'CONCLUDED' || service.status === 'concluded' || service.status === 'COMPLETED' || service.status === 'completed'}
+				<div class="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-4">
+					<div class="flex items-center gap-2">
+						<CheckCircle class="w-5 h-5 text-green-600 dark:text-green-400" />
+						<p class="text-sm font-medium text-green-800 dark:text-green-200">
+							Este serviço já foi concluído
+						</p>
+					</div>
+				</div>
+			{:else if service.status === 'CANCELLED' || service.status === 'cancelled'}
+				<div class="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg p-4">
+					<div class="flex items-center gap-2">
+						<XCircle class="w-5 h-5 text-red-600 dark:text-red-400" />
+						<p class="text-sm font-medium text-red-800 dark:text-red-200">
+							Este serviço foi cancelado
+						</p>
+					</div>
+				</div>
+			{:else if service.status === 'IN_PROGRESS' || service.status === 'in_progress'}
+				<div class="flex flex-col sm:flex-row gap-2">
+					<Button
+						variant="default"
+						onclick={openConcludeDialog}
+						disabled={isConcluding || isCancelling}
+						class="w-full sm:w-auto"
+					>
+						{#if isConcluding}
+							<Loader2 class="w-4 h-4 mr-2 animate-spin" />
+						{:else}
+							<CheckCircle class="w-4 h-4 mr-2" />
+						{/if}
+						Concluir Serviço
+					</Button>
+					<Button
+						variant="destructive"
+						onclick={() => showCancelDialog = true}
+						disabled={isConcluding || isCancelling}
+						class="w-full sm:w-auto"
+					>
+						<XCircle class="w-4 h-4 mr-2" />
+						Cancelar Serviço
+					</Button>
+				</div>
+			{/if}
 		</div>
 
 		<!-- Main Content -->
@@ -454,15 +497,8 @@
 							<span class="font-medium text-muted-foreground block">Prioridade</span>
 							<span class="mt-1 block">
 								{#if service.priority}
-									<Badge 
-										variant={
-											service.priority === 'URGENT' || service.priority === 'urgent' ? 'destructive' :
-											service.priority === 'HIGH' || service.priority === 'high' ? 'default' :
-											service.priority === 'MEDIUM' || service.priority === 'medium' ? 'secondary' :
-											'outline'
-										}
-									>
-										{SERVICE_PRIORITY[service.priority.toUpperCase() as keyof typeof SERVICE_PRIORITY]?.label || service.priority}
+									<Badge variant={getServicePriorityVariant(service.priority)}>
+										{getServicePriorityLabel(service.priority)}
 									</Badge>
 								{:else}
 									<span class="text-muted-foreground">Não informado</span>
@@ -474,7 +510,9 @@
 							<span class="font-medium text-muted-foreground block">Status</span>
 							<span class="mt-1 block">
 								{#if service.status}
-									<Badge variant={getServiceStatusVariant(service.status)}>
+								<Badge
+									variant={getServiceStatusVariant(service.status)}
+								>
 										{getServiceStatusLabel(service.status)}
 									</Badge>
 								{:else}
@@ -501,39 +539,6 @@
 						</div>
 					</CardContent>
 				</Card>
-
-				<!-- Actions Card (only if status is IN_PROGRESS) -->
-				{#if service.status === 'IN_PROGRESS' || service.status === 'in_progress'}
-					<Card>
-						<CardHeader>
-							<CardTitle>Ações</CardTitle>
-						</CardHeader>
-						<CardContent class="space-y-3">
-							<Button
-								variant="default"
-								class="w-full"
-								onclick={openConcludeDialog}
-								disabled={isConcluding || isCancelling}
-							>
-								{#if isConcluding}
-									<Loader2 class="w-4 h-4 mr-2 animate-spin" />
-								{:else}
-									<CheckCircle class="w-4 h-4 mr-2" />
-								{/if}
-								Concluir Serviço
-							</Button>
-							<Button
-								variant="destructive"
-								class="w-full"
-								onclick={() => showCancelDialog = true}
-								disabled={isConcluding || isCancelling}
-							>
-								<XCircle class="w-4 h-4 mr-2" />
-								Cancelar Serviço
-							</Button>
-						</CardContent>
-					</Card>
-				{/if}
 
 				<!-- Client Info (only if client exists) -->
 				{#if service.client}
@@ -642,7 +647,7 @@
 	description="Nem todas as etapas deste serviço foram concluídas. Deseja realmente concluir o serviço mesmo assim?"
 	confirmText="Sim, Concluir Serviço"
 	cancelText="Cancelar"
-	variant="default"
+	variant="warning"
 	icon="warning"
 	loading={isConcluding}
 	onConfirm={handleConclude}

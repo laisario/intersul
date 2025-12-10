@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { useClients, useCreateClient, useUpdateClient, useDeleteClient, useToggleClientActive } from '$lib/hooks/queries/use-clients.svelte.js';
+	import { useClients, useCreateClient, useUpdateClient, useToggleClientActive } from '$lib/hooks/queries/use-clients.svelte.js';
 	import { errorToast, successToast, showError } from '$lib/utils/toast.js';
 	import { formatDate } from '$lib/utils/formatting.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -9,15 +9,26 @@
 	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
 	import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '$lib/components/ui/sheet/index.js';
 	import { Select, SelectContent, SelectItem, SelectTrigger } from '$lib/components/ui/select/index.js';
-	import { Plus, Edit, Trash2, Eye, Search, Loader2, MoreVertical } from 'lucide-svelte';
+	import { Plus, Edit, Search, Loader2, MoreVertical } from 'lucide-svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { goto } from '$app/navigation';
-	import type { Client } from '$lib/api/types/client.types.js';
+	import type { Client, HowMetCompany } from '$lib/api/types/client.types.js';
 	import type { CreateAddressDto } from '$lib/api/types/address.types.js';
 	import ConfirmationDialog from '$lib/components/confirmation-dialog.svelte';
 	import AddressForm from '$lib/components/address-form.svelte';
 	import PaginationControls from '$lib/components/pagination-controls.svelte';
+	import CityBillingDialog from '$lib/components/city-billing-dialog.svelte';
+import BillingResponsablesDialog from '$lib/components/billing-responsables-dialog.svelte';
+import { useGenerateBillingsByCity, useDeleteBilling } from '$lib/hooks/queries/use-billings.svelte.js';
+
+	const HOW_MET_COMPANY_LABELS: Record<HowMetCompany, string> = {
+		SOCIAL_MEDIA: 'Redes Sociais',
+		REFERRAL: 'Indicação',
+		GOOGLE_SEARCH: 'Busca no Google',
+		WALK_IN: 'Visita',
+		OTHER: 'Outro'
+	};
 
 	let addressFormRef: any;
 
@@ -31,8 +42,13 @@
 	let pageSize = $state(10);
 	const pageSizeOptions = [10, 25, 50, 100];
 	
-	let showDeleteConfirmation = $state(false);
-	let clientToDelete = $state<{ id: number; name: string } | null>(null);
+	let showCityBillingDialog = $state(false);
+	let showConfirmationDialog = $state(false);
+	let showResponsablesDialog = $state(false);
+	let selectedCityId = $state<number | null>(null);
+	const generateBillingsMutation = useGenerateBillingsByCity();
+	const deleteBillingMutation = useDeleteBilling();
+	let createdBillingIds = $state<number[]>([]);
 
 	let formData = $state({
 		name: '',
@@ -40,6 +56,7 @@
 		cpf: '',
 		email: '',
 		phone: '',
+		how_met_company: undefined as HowMetCompany | undefined,
 		address: {
 			postal_code: '',
 			street: '',
@@ -52,7 +69,6 @@
 	const clientsQuery = $derived(useClients());
 	const createClientMutation = useCreateClient();
 	const updateClientMutation = useUpdateClient();
-	const deleteClientMutation = useDeleteClient();
 	const { mutate: toggleActive, isPending: isToggling } = useToggleClientActive();
 	
 	let clients = $derived(clientsQuery.data || []);
@@ -123,34 +139,6 @@ function handlePageSizeChange(size: number) {
 		currentPage = 1;
 	});
 
-	function openDeleteConfirmation(clientId: number, clientName: string) {
-		clientToDelete = { id: clientId, name: clientName };
-		showDeleteConfirmation = true;
-	}
-
-	async function handleDeleteClient() {
-		if (!clientToDelete) return;
-
-		try {
-			await deleteClientMutation.mutateAsync(clientToDelete.id);
-			successToast.deleted(`Cliente ${clientToDelete.name}`);
-			closeDeleteConfirmation();
-		} catch (err: any) {
-			console.error('Error deleting client:', err);
-			if (err.response?.data?.message) {
-				showError(err.response.data.message);
-			} else if (err.message) {
-				showError(err.message);
-			} else {
-				errorToast.unknown();
-			}
-		}
-	}
-
-	function closeDeleteConfirmation() {
-		showDeleteConfirmation = false;
-		clientToDelete = null;
-	}
 
 	function closeModal() {
 		showFormModal = false;
@@ -165,6 +153,7 @@ function handlePageSizeChange(size: number) {
 			cpf: '',
 			email: '',
 			phone: '',
+			how_met_company: undefined,
 			address: {
 				postal_code: '',
 				street: '',
@@ -219,6 +208,7 @@ function handlePageSizeChange(size: number) {
 			cnpj: formData.cnpj?.trim() || undefined,
 			cpf: formData.cpf?.trim() || undefined,
 			phone: formData.phone?.trim() || undefined,
+			how_met_company: formData.how_met_company || undefined,
 		};
 
 		if (hasAddress) {
@@ -263,6 +253,7 @@ function handlePageSizeChange(size: number) {
 			cpf: client.cpf || '',
 			email: client.email,
 			phone: client.phone || '',
+			how_met_company: client.how_met_company,
 			address: client.address ? {
 				postal_code: client.address.postal_code,
 				street: client.address.street,
@@ -294,6 +285,93 @@ function handlePageSizeChange(size: number) {
 			},
 		});
 	}
+
+	function handleCitySelected(cityId: number) {
+		selectedCityId = cityId;
+		showCityBillingDialog = false;
+		showConfirmationDialog = true;
+	}
+
+	function handleConfirmGeneration() {
+		// Clear created billing IDs when starting a new generation
+		createdBillingIds = [];
+		showConfirmationDialog = false;
+		showResponsablesDialog = true;
+	}
+
+	function handleCancelConfirmation() {
+		showConfirmationDialog = false;
+		selectedCityId = null;
+	}
+
+	function handleResponsablesSelected(machines: any[]) {
+		if (!selectedCityId) return;
+
+		generateBillingsMutation.mutate(
+			{
+				city_id: selectedCityId,
+				machines,
+			},
+			{
+				onSuccess: (response) => {
+					// Store created billing IDs
+					createdBillingIds = response.billings.map((billing) => billing.id);
+					successToast.created('Fechamentos gerados com sucesso');
+					showResponsablesDialog = false;
+					selectedCityId = null;
+					// Keep IDs in case user needs to cancel - will be cleared when dialog actually closes
+				},
+				onError: (error: any) => {
+					console.error('Error generating fechamentos:', error);
+					if (error.response?.data?.message) {
+						showError(error.response.data.message);
+					} else {
+						errorToast.unknown();
+					}
+					// Clear created billing IDs on error
+					createdBillingIds = [];
+				},
+			}
+		);
+	}
+
+	async function handleCancelBilling() {
+		// If billings were created, delete them
+		if (createdBillingIds.length > 0) {
+			try {
+				// Delete all created billings
+				await Promise.all(
+					createdBillingIds.map((billingId) => 
+						deleteBillingMutation.mutateAsync(billingId).catch((err) => {
+							console.error(`Error deleting billing ${billingId}:`, err);
+						})
+					)
+				);
+				successToast.deleted('Fechamentos criados');
+			} catch (error) {
+				console.error('Error deleting billings:', error);
+			}
+		}
+		
+		// Clear created billing IDs
+		createdBillingIds = [];
+		
+		// Close dialogs
+		showCityBillingDialog = false;
+		showConfirmationDialog = false;
+		showResponsablesDialog = false;
+		selectedCityId = null;
+	}
+	
+	// Clear created billing IDs when dialog closes successfully
+	$effect(() => {
+		if (!showResponsablesDialog && createdBillingIds.length > 0) {
+			// Dialog closed, clear IDs after a short delay to allow cancellation if needed
+			setTimeout(() => {
+				createdBillingIds = [];
+			}, 500);
+		}
+	});
 </script>
 
 <svelte:head>
@@ -301,15 +379,20 @@ function handlePageSizeChange(size: number) {
 </svelte:head>
 
 <div class="space-y-6 px-6">
-	<div class="flex justify-between items-center">
+	<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
 		<div>
 			<h1 class="text-3xl font-bold">Clientes</h1>
 			<p class="text-muted-foreground">Gerencie os clientes</p>
 		</div>
-		<Button onclick={() => showFormModal = true}>
-			<Plus class="w-4 h-4 mr-2" />
-			Novo Cliente
-		</Button>
+		<div class="flex gap-2">
+			<Button variant="outline" onclick={() => showCityBillingDialog = true} class="md:w-auto">
+				Fazer fechamento
+			</Button>
+			<Button onclick={() => showFormModal = true} class="md:w-auto">
+				<Plus class="w-4 h-4 mr-2" />
+				Novo Cliente
+			</Button>
+		</div>
 	</div>
 
 	<div class="flex items-center gap-4">
@@ -388,7 +471,10 @@ function handlePageSizeChange(size: number) {
 						</thead>
 						<tbody>
 							{#each getPaginatedClients() as client}
-								<tr class="border-b hover:bg-gray-50">
+								<tr 
+									class="border-b hover:bg-gray-50 cursor-pointer" 
+									onclick={() => handleViewClient(client.id)}
+								>
 									<td class="p-3">{client.name}</td>
 									<td class="p-3">
 										<Badge variant={client.active ? 'default' : 'secondary'}>
@@ -399,7 +485,7 @@ function handlePageSizeChange(size: number) {
 									<td class="p-3">{client.email}</td>
 									<td class="p-3">{client.address?.neighborhood?.city?.name || '-'}</td>
 									<td class="p-3">{client.address?.neighborhood?.name || '-'}</td>
-									<td class="p-3">
+									<td class="p-3" onclick={(e) => e.stopPropagation()}>
 										<div class="flex items-center justify-center">
 											<DropdownMenu.Root>
 												<DropdownMenu.Trigger>
@@ -408,10 +494,6 @@ function handlePageSizeChange(size: number) {
 													</Button>
 												</DropdownMenu.Trigger>
 												<DropdownMenu.Content align="end">
-													<DropdownMenu.Item onclick={() => handleViewClient(client.id)}>
-														<Eye class="w-4 h-4 mr-2" />
-														Visualizar
-													</DropdownMenu.Item>
 													<DropdownMenu.Item onclick={() => handleOpenEditModal(client)}>
 														<Edit class="w-4 h-4 mr-2" />
 														Editar
@@ -421,15 +503,6 @@ function handlePageSizeChange(size: number) {
 														disabled={isToggling}
 													>
 														{client.active ? 'Desativar' : 'Ativar'}
-													</DropdownMenu.Item>
-													<DropdownMenu.Separator />
-													<DropdownMenu.Item
-														variant="destructive"
-														onclick={() => openDeleteConfirmation(client.id, client.name)}
-														disabled={deleteClientMutation.isPending}
-													>
-														<Trash2 class="w-4 h-4 mr-2" />
-														Excluir
 													</DropdownMenu.Item>
 												</DropdownMenu.Content>
 											</DropdownMenu.Root>
@@ -520,6 +593,31 @@ function handlePageSizeChange(size: number) {
 			</div>
 
 			<div class="space-y-2">
+				<Label for="how_met_company">Como conheceu a empresa?</Label>
+				<Select
+					type="single"
+					value={formData.how_met_company || ''}
+					onValueChange={(value: string) => {
+						formData.how_met_company = value ? (value as HowMetCompany) : undefined;
+					}}
+				>
+					<SelectTrigger>
+						{formData.how_met_company 
+							? HOW_MET_COMPANY_LABELS[formData.how_met_company] || formData.how_met_company
+							: 'Selecione uma opção'}
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="">Nenhuma</SelectItem>
+						<SelectItem value="SOCIAL_MEDIA">Redes Sociais</SelectItem>
+						<SelectItem value="REFERRAL">Indicação</SelectItem>
+						<SelectItem value="GOOGLE_SEARCH">Busca no Google</SelectItem>
+						<SelectItem value="WALK_IN">Visita</SelectItem>
+						<SelectItem value="OTHER">Outro</SelectItem>
+					</SelectContent>
+				</Select>
+			</div>
+
+			<div class="space-y-2">
 				<h3 class="text-lg font-medium">Endereço</h3>
 				<AddressForm
 					bind:this={addressFormRef}
@@ -547,16 +645,29 @@ function handlePageSizeChange(size: number) {
 	</SheetContent>
 </Sheet>
 
+<CityBillingDialog
+	bind:open={showCityBillingDialog}
+	onConfirm={handleCitySelected}
+	onCancel={handleCancelBilling}
+/>
+
 <ConfirmationDialog
-	bind:open={showDeleteConfirmation}
-	title="Excluir Cliente"
-	description="Tem certeza que deseja excluir o cliente '{clientToDelete?.name}'? Esta ação não pode ser desfeita."
-	confirmText="Excluir"
+	bind:open={showConfirmationDialog}
+	title="Confirmar Geração de Fechamentos"
+	description="Esta ação irá criar novos serviços e fechamentos para todos os clientes da cidade selecionada que possuem máquinas RENT. Deseja continuar?"
+	confirmText="Continuar"
 	cancelText="Cancelar"
-	variant="destructive"
-	icon="trash"
-	loading={deleteClientMutation.isPending}
-	onConfirm={handleDeleteClient}
-	onCancel={closeDeleteConfirmation}
+	variant="info"
+	icon="info"
+	loading={false}
+	onConfirm={handleConfirmGeneration}
+	onCancel={handleCancelConfirmation}
+/>
+
+<BillingResponsablesDialog
+	bind:open={showResponsablesDialog}
+	cityId={selectedCityId || 0}
+	onConfirm={handleResponsablesSelected}
+	onCancel={handleCancelBilling}
 />
 

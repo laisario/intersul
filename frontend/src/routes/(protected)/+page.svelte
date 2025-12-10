@@ -9,7 +9,6 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Select, SelectTrigger, SelectContent, SelectItem } from '$lib/components/ui/select/index.js';
 	import StepsTable from '$lib/components/tables/steps-table.svelte';
-	import Breadcrumbs from '$lib/components/layout/breadcrumbs.svelte';
 	import PaginationControls from '$lib/components/pagination-controls.svelte';
 	import { 
 		Users, 
@@ -25,21 +24,8 @@
 	import { userRole } from '$lib/stores/auth.svelte';
 	import { UserRole } from '$lib/api/types/auth.types.js';
 
-	// Fetch dashboard data
-	const statsQuery = useDashboardStats();
-	const forceRecalcQuery = useForceRecalculateStats();
-	
-	// Use force recalculation query data if available, otherwise use regular query
-	const stats = $derived(forceRecalcQuery.data ?? statsQuery.data);
-	const statsLoading = $derived(forceRecalcQuery.isLoading || statsQuery.isLoading);
-	
-	// Force recalculation handler - always forces recalculation from backend
-	async function handleRefreshStats() {
-		await forceRecalcQuery.refetch();
-	}
-	
 	// Filter state
-	type FilterOption = 'all' | 'created_today' | 'expires_today';
+	type FilterOption = 'all' | 'created_today' | 'expires_today' | 'expired';
 	let filterOption = $state<FilterOption>('all');
 	let currentPage = $state(1);
 	let pageSize = $state(10);
@@ -53,17 +39,41 @@
 		return unsubscribe;
 	});
 
-	const isAdminView = $derived(() => currentUserRole === UserRole.ADMIN);
-	const shouldFetchSteps = $derived(() => currentUserRole !== UserRole.ADMIN);
+const isAdminView = $derived(() => currentUserRole === UserRole.ADMIN);
+const shouldFetchSteps = $derived(() => currentUserRole !== UserRole.ADMIN && currentUserRole !== undefined);
+let hasFetchedStats = $state(false);
 
-	// Fetch user's steps with filter (skip for admins)
-	const myStepsQuery = useMySteps(() => 
-		filterOption === 'all' ? undefined : filterOption,
-		{ enabled: () => shouldFetchSteps() }
-	);
+// Fetch dashboard data (manual trigger to avoid double fetching)
+const statsQuery = useDashboardStats();
+const forceRecalcQuery = useForceRecalculateStats();
+	
+	// Use force recalculation query data if available, otherwise use regular query
+	const stats = $derived(forceRecalcQuery.data ?? statsQuery.data);
+	const statsLoading = $derived(forceRecalcQuery.isLoading || statsQuery.isLoading);
+	
+	// Force recalculation handler - always forces recalculation from backend
+	async function handleRefreshStats() {
+		await forceRecalcQuery.refetch();
+		await statsQuery.refetch();
+	}
+
+// Fetch user's steps with filter (manual trigger based on role)
+const myStepsQuery = useMySteps(() => 
+	filterOption === 'all' ? undefined : filterOption,
+	{ enabled: () => shouldFetchSteps() }
+);
 	const mySteps = $derived(() => myStepsQuery.data ?? []);
 	const stepsLoading = $derived(() => myStepsQuery.isLoading && !myStepsQuery.data);
-	const refetchSteps = myStepsQuery.refetch;
+const refetchSteps = myStepsQuery.refetch;
+
+$effect(() => {
+	if (isAdminView() && !hasFetchedStats) {
+		hasFetchedStats = true;
+		statsQuery.refetch();
+	} else if (!isAdminView()) {
+		hasFetchedStats = false;
+	}
+});
 
 	// Paginate steps (filtering is done in backend)
 	const paginatedSteps = $derived(() => {
@@ -73,7 +83,7 @@
 		return steps.slice(start, end);
 	});
 
-const totalPages = $derived(() => Math.ceil((mySteps().length || 0) / pageSize));
+	const totalPages = $derived(() => Math.ceil((mySteps().length || 0) / pageSize));
 
 	// Reset to page 1 when filter changes
 	$effect(() => {
@@ -124,18 +134,25 @@ const totalPages = $derived(() => Math.ceil((mySteps().length || 0) / pageSize))
 </script>
 
 <svelte:head>
-	<title>Dashboard - Intersul</title>
+	<title>{isAdminView() ? 'Página Inicial' : 'Minhas Etapas'} - Intersul</title>
 </svelte:head>
 
 <div class="space-y-6 px-6">
-	<!-- Breadcrumbs -->
-	<Breadcrumbs />
-
 	<!-- Header -->
-	<div class="flex justify-between items-center">
+	<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
 		<div>
-			<h1 class="text-3xl font-bold">Página Inicial</h1>
-			<p class="text-muted-foreground">Visão geral do sistema</p>
+			<h1 class="text-3xl font-bold">
+				{#if isAdminView()}
+					Página Inicial
+				{:else}
+					Minhas Etapas
+				{/if}
+			</h1>
+			{#if isAdminView()}
+				<p class="text-muted-foreground">Visão geral do sistema</p>
+			{:else}
+				<p class="text-muted-foreground">Acompanhe suas etapas em andamento</p>
+			{/if}
 		</div>
 		<div class="flex items-center space-x-2">
 			{#if isAdminView()}
@@ -143,6 +160,7 @@ const totalPages = $derived(() => Math.ceil((mySteps().length || 0) / pageSize))
 					variant="outline" 
 					onclick={handleRefreshStats}
 					disabled={statsLoading}
+					class="w-full md:w-auto"
 				>
 					<Activity class="w-4 h-4 mr-2" />
 					{statsLoading ? 'Atualizando...' : 'Atualizar'}
@@ -252,13 +270,16 @@ const totalPages = $derived(() => Math.ceil((mySteps().length || 0) / pageSize))
 											? 'Todas as tarefas' 
 											: filterOption === 'created_today' 
 											? 'Criadas hoje' 
-											: 'Expiram hoje'}
+											: filterOption === 'expires_today'
+											? 'Expiram hoje'
+											: 'Tarefas expiradas'}
 									</span>
 								</SelectTrigger>
 								<SelectContent>
 									<SelectItem value="all">Todas as tarefas</SelectItem>
 									<SelectItem value="created_today">Tarefas criadas hoje</SelectItem>
 									<SelectItem value="expires_today">Tarefas que expiram hoje</SelectItem>
+									<SelectItem value="expired">Tarefas expiradas</SelectItem>
 								</SelectContent>
 							</Select>
 						</div>

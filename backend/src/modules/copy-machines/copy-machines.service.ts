@@ -10,6 +10,7 @@ import { CreateClientCopyMachineDto } from './dto/create-client-copy-machine.dto
 import { UpdateClientCopyMachineDto } from './dto/update-client-copy-machine.dto';
 import { CreateFranchiseDto } from './dto/create-franchise.dto';
 import { UpdateFranchiseDto } from './dto/update-franchise.dto';
+import { AcquisitionType } from '../../common/enums/acquisition-type.enum';
 
 @Injectable()
 export class CopyMachinesService {
@@ -125,6 +126,78 @@ export class CopyMachinesService {
       relations: ['catalogCopyMachine', 'services', 'franchise'],
       order: { created_at: 'DESC' },
     });
+  }
+
+  async findRentMachines(
+    filters?: { clientId?: number; page?: number; limit?: number }
+  ): Promise<{ data: ClientCopyMachine[]; total: number; page: number; limit: number; totalPages: number }> {
+    const page = Math.max(filters?.page ?? 1, 1);
+    const limit = Math.max(Math.min(filters?.limit ?? 10, 100), 1);
+    const skip = (page - 1) * limit;
+
+    const query = this.clientCopyMachineRepository
+      .createQueryBuilder('machine')
+      .leftJoinAndSelect('machine.client', 'client')
+      .leftJoinAndSelect('machine.catalogCopyMachine', 'catalogCopyMachine')
+      .leftJoinAndSelect('machine.franchise', 'franchise')
+      .where('machine.acquisition_type = :acquisitionType', { acquisitionType: AcquisitionType.RENT })
+      .orderBy('machine.created_at', 'DESC');
+
+    if (filters?.clientId) {
+      query.andWhere('machine.client_id = :clientId', { clientId: filters.clientId });
+    }
+
+    const [data, total] = await query.skip(skip).take(limit).getManyAndCount();
+    const totalPages = Math.ceil(total / limit) || 1;
+
+    return { data, total, page, limit, totalPages };
+  }
+
+  async findSoldMachines(
+    filters?: { clientId?: number; page?: number; limit?: number }
+  ): Promise<{ data: ClientCopyMachine[]; total: number; page: number; limit: number; totalPages: number }> {
+    const page = Math.max(filters?.page ?? 1, 1);
+    const limit = Math.max(Math.min(filters?.limit ?? 10, 100), 1);
+    const skip = (page - 1) * limit;
+
+    const query = this.clientCopyMachineRepository
+      .createQueryBuilder('machine')
+      .leftJoinAndSelect('machine.client', 'client')
+      .leftJoinAndSelect('machine.catalogCopyMachine', 'catalogCopyMachine')
+      .where('machine.acquisition_type = :acquisitionType', { acquisitionType: AcquisitionType.SOLD })
+      .orderBy('machine.created_at', 'DESC');
+
+    if (filters?.clientId) {
+      query.andWhere('machine.client_id = :clientId', { clientId: filters.clientId });
+    }
+
+    const [data, total] = await query.skip(skip).take(limit).getManyAndCount();
+    const totalPages = Math.ceil(total / limit) || 1;
+
+    return { data, total, page, limit, totalPages };
+  }
+
+  async findExternalMachines(
+    filters?: { clientId?: number; page?: number; limit?: number }
+  ): Promise<{ data: ClientCopyMachine[]; total: number; page: number; limit: number; totalPages: number }> {
+    const page = Math.max(filters?.page ?? 1, 1);
+    const limit = Math.max(Math.min(filters?.limit ?? 10, 100), 1);
+    const skip = (page - 1) * limit;
+
+    const query = this.clientCopyMachineRepository
+      .createQueryBuilder('machine')
+      .leftJoinAndSelect('machine.client', 'client')
+      .where('machine.catalog_copy_machine_id IS NULL')
+      .orderBy('machine.created_at', 'DESC');
+
+    if (filters?.clientId) {
+      query.andWhere('machine.client_id = :clientId', { clientId: filters.clientId });
+    }
+
+    const [data, total] = await query.skip(skip).take(limit).getManyAndCount();
+    const totalPages = Math.ceil(total / limit) || 1;
+
+    return { data, total, page, limit, totalPages };
   }
 
   // Franchise methods

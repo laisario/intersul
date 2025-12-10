@@ -3,8 +3,6 @@
 	import { browser } from '$app/environment';
 	import {
 		useUsers,
-		useDeleteUser,
-		useToggleUserActive,
 		useUserInvitations,
 		useCreateUserInvitation
 	} from '$lib/hooks/queries/use-users.svelte.js';
@@ -28,13 +26,11 @@
 		TableHeader,
 		TableRow
 	} from '$lib/components/ui/table/index.js';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
-	import ConfirmationDialog from '$lib/components/confirmation-dialog.svelte';
 	import { canManageUsers } from '$lib/stores/auth.svelte.js';
-	import type { User } from '$lib/api/types/auth.types.js';
 	import { UserRole } from '$lib/api/types/auth.types.js';
 	import type { UserInvitation } from '$lib/api/types/users.types.js';
-	import { MoreVertical, Trash2, Copy } from 'lucide-svelte';
+	import { Copy } from 'lucide-svelte';
+	import { goto } from '$app/navigation';
 
 let activeTab = $state<'users' | 'invitations'>('users');
 	type RoleFilterOption = 'all' | keyof typeof USER_ROLES;
@@ -46,8 +42,6 @@ let currentPage = $state(1);
 let pageSize = $state(10);
 let invitationsCurrentPage = $state(1);
 let invitationsPageSize = $state(10);
-let showDeleteConfirmation = $state(false);
-let userToDelete = $state<User | null>(null);
 let inviteRole = $state<UserRole>(UserRole.TECHNICIAN);
 let invitePosition = $state('');
 let inviteEmail = $state('');
@@ -105,53 +99,7 @@ const paginatedInvitations = $derived(
 	)
 );
 
-	const { mutate: deleteUser, isPending: isDeleting } = useDeleteUser();
-	const { mutate: toggleActive, isPending: isToggling } = useToggleUserActive();
 	const { mutate: createInvitation, isPending: isCreatingInvitation } = useCreateUserInvitation();
-
-function requestDeleteUser(user: User) {
-	userToDelete = user;
-	showDeleteConfirmation = true;
-}
-
-function closeDeleteDialog() {
-	showDeleteConfirmation = false;
-	userToDelete = null;
-}
-
-async function confirmDeleteUser() {
-	if (!userToDelete) {
-		closeDeleteDialog();
-		return;
-	}
-
-	const user = userToDelete;
-
-	return new Promise<void>((resolve, reject) => {
-		deleteUser(user.id, {
-			onSuccess: () => {
-				successToast.deleted('Usuário');
-				closeDeleteDialog();
-				resolve();
-			},
-			onError: () => {
-				errorToast.delete('Usuário');
-				reject(new Error('delete-user-failed'));
-			},
-		});
-	});
-}
-
-	function handleToggleActive(user: User) {
-		toggleActive(user.id, {
-			onSuccess: () => {
-				successToast.updated('Usuário');
-			},
-			onError: () => {
-				errorToast.update('Usuário');
-			},
-		});
-	}
 
 function resetInvitationForm() {
 	inviteRole = UserRole.TECHNICIAN;
@@ -470,7 +418,10 @@ $effect(() => {
 				<CardContent class="p-0">
 					<div class="divide-y">
 						{#each paginatedUsers as user (user.id)}
-							<div class="p-6 flex items-center justify-between hover:bg-muted/50">
+							<div 
+								class="p-6 flex items-center justify-between hover:bg-muted/50 cursor-pointer"
+								onclick={() => goto(`/admin/users/${user.id}`)}
+							>
 								<div class="flex items-center space-x-4">
 									<div class="h-10 w-10 rounded-full bg-primary flex items-center justify-center">
 										<span class="text-sm font-medium text-primary-foreground">
@@ -499,30 +450,6 @@ $effect(() => {
 									<span class="text-sm text-muted-foreground">
 										Criado: {formatDate((user as any).created_at)}
 									</span>
-									<DropdownMenu.Root>
-										<DropdownMenu.Trigger>
-											<Button variant="ghost" size="sm" class="px-2">
-												<MoreVertical class="w-4 h-4" />
-											</Button>
-										</DropdownMenu.Trigger>
-										<DropdownMenu.Content align="end">
-											<DropdownMenu.Item
-												onclick={() => handleToggleActive(user)}
-												disabled={isToggling}
-											>
-												{user.active ? 'Desativar' : 'Ativar'}
-											</DropdownMenu.Item>
-											<DropdownMenu.Separator />
-											<DropdownMenu.Item
-												variant="destructive"
-												onclick={() => requestDeleteUser(user)}
-												disabled={isDeleting}
-											>
-												<Trash2 class="w-4 h-4" />
-												Excluir
-											</DropdownMenu.Item>
-										</DropdownMenu.Content>
-									</DropdownMenu.Root>
 								</div>
 							</div>
 						{/each}
@@ -677,19 +604,6 @@ $effect(() => {
 			</TabsContent>
 		</Tabs>
 	</div>
-
-	<ConfirmationDialog
-		bind:open={showDeleteConfirmation}
-		title="Excluir Usuário"
-		description={`Tem certeza que deseja excluir o usuário ${userToDelete?.name ?? ''}? Esta ação não pode ser desfeita.`}
-		confirmText="Excluir"
-		cancelText="Cancelar"
-		variant="destructive"
-		icon="trash"
-		loading={isDeleting}
-		onConfirm={confirmDeleteUser}
-		onCancel={closeDeleteDialog}
-	/>
 
 	<!-- Invitation Modal -->
 	{#if showNewUserModal}

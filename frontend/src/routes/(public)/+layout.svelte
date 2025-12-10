@@ -17,7 +17,7 @@
     const shouldBypassRedirect = url.pathname.startsWith('/register');
 
     if (isAuthenticated && !shouldBypassRedirect) {
-      goto('/dashboard');
+      goto('/');
     }
   });
 </script>

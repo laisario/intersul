@@ -74,6 +74,18 @@ export class UserService {
     };
   }
 
+  async findOne(id: number): Promise<User> {
+    const user = await this.usersRepository.findOne({
+      where: { id },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+
+    return user;
+  }
+
   async toggleActive(id: number): Promise<User> {
     const user = await this.usersRepository.findOne({
       where: { id },
@@ -99,8 +111,8 @@ export class UserService {
     // Set responsable_id to NULL in all steps that reference this user
     // This prevents foreign key constraint errors
     await this.stepsRepository.update(
-      { responsable_id: id },
-      { responsable_id: null },
+      { responsable: { id } },
+      { responsable: null },
     );
 
     await this.usersRepository.remove(user);

@@ -102,8 +102,11 @@ export class ServicesService {
   async create(createServiceDto: CreateServiceDto): Promise<Service> {
     const { steps, ...serviceData } = createServiceDto;
 
-    // Validate that client exists (if provided)
-    if (serviceData.client_id) {
+    // If internal service, allow client_id and client_copy_machine_id to be null
+    const isInternal = serviceData.is_internal === true;
+
+    // Validate that client exists (if provided and not internal)
+    if (!isInternal && serviceData.client_id) {
       const client = await this.clientsRepository.findOne({
         where: { id: serviceData.client_id },
       });
@@ -113,17 +116,22 @@ export class ServicesService {
     }
 
     // Validate that category exists (if provided)
+    let category = null;
     if (serviceData.category_id) {
-      const category = await this.categoriesRepository.findOne({
+      category = await this.categoriesRepository.findOne({
         where: { id: serviceData.category_id },
       });
       if (!category) {
         throw new BadRequestException(`Category with ID ${serviceData.category_id} not found`);
       }
+      // Auto-set priority to HIGH for "Cobrança" category if priority not provided
+      if (!serviceData.priority && category.name.toLowerCase().includes('cobrança')) {
+        serviceData.priority = 'high';
+      }
     }
 
-    // Validate that client copy machine exists (if provided)
-    if (serviceData.client_copy_machine_id) {
+    // Validate that client copy machine exists (if provided and not internal)
+    if (!isInternal && serviceData.client_copy_machine_id) {
       const clientCopyMachine = await this.copyMachinesRepository.findOne({
         where: { id: serviceData.client_copy_machine_id },
       });
@@ -134,11 +142,16 @@ export class ServicesService {
 
     // Remove undefined values to avoid DEFAULT insertion
     const cleanServiceData: DeepPartial<Service> = {};
-    if (serviceData.client_id !== undefined) cleanServiceData.client_id = serviceData.client_id;
+    if (serviceData.client_id !== undefined) {
+      cleanServiceData.client_id = isInternal ? null : serviceData.client_id;
+    }
     if (serviceData.category_id !== undefined) cleanServiceData.category_id = serviceData.category_id;
-    if (serviceData.client_copy_machine_id !== undefined) cleanServiceData.client_copy_machine_id = serviceData.client_copy_machine_id;
+    if (serviceData.client_copy_machine_id !== undefined) {
+      cleanServiceData.client_copy_machine_id = isInternal ? null : serviceData.client_copy_machine_id;
+    }
     if (serviceData.description !== undefined) cleanServiceData.description = serviceData.description;
     if (serviceData.priority !== undefined) cleanServiceData.priority = serviceData.priority;
+    if (serviceData.is_internal !== undefined) cleanServiceData.is_internal = serviceData.is_internal;
 
     const service = this.servicesRepository.create(cleanServiceData);
     const savedService: Service = await this.servicesRepository.save(service);

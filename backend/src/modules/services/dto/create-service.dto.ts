@@ -1,4 +1,4 @@
-import { IsNumber, IsOptional, IsString, IsArray, ValidateNested, IsEnum } from 'class-validator';
+import { IsNumber, IsOptional, IsString, IsArray, ValidateNested, IsEnum, IsBoolean } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type, Transform } from 'class-transformer';
 import { CreateStepDto } from './create-step.dto';
@@ -95,4 +95,18 @@ export class CreateServiceDto {
   @Type(() => CreateStepDto)
   @IsOptional()
   steps?: CreateStepDto[];
+
+  @ApiProperty({
+    example: false,
+    description: 'Whether this is an internal service',
+    required: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === 'true' || value === true) return true;
+    if (value === 'false' || value === false) return false;
+    return undefined;
+  })
+  is_internal?: boolean;
 }

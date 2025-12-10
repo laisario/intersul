@@ -15,8 +15,9 @@
 	import logo from "$lib/assets/logo.png";
 	import { useLogin } from "$lib/hooks/queries/use-auth.svelte.js";
 	import { loginSchema, validateForm, getFieldError } from "$lib/utils/validation.js";
-	import { errorToast, successToast } from "$lib/utils/toast.js";
+	import { errorToast, successToast, showError } from "$lib/utils/toast.js";
 	import { goto } from '$app/navigation';
+	import { Eye, EyeOff } from 'lucide-svelte';
 
 	let {
 		ref = $bindable(null),
@@ -26,6 +27,7 @@
 
 	let email = $state('');
 	let password = $state('');
+	let showPassword = $state(false);
 	let errors = $state<Record<string, string>>({});
 
 	const { mutate: loginUser, isPending: isLoading } = useLogin();
@@ -46,22 +48,32 @@
 			{
 				onSuccess: () => {
 					successToast.loggedIn();
-					goto('/dashboard');
+					goto('/');
 				},
 				onError: (error: any) => {
 					console.error('Login failed:', error);
+					console.error('Error response:', error.response);
+					console.error('Error response data:', error.response?.data);
 					
-					if (error.response?.status === 401) {
-						errorToast.unauthorized();
-					} else if (error.response?.status === 422) {
-						const serverErrors = error.response.data?.errors || {};
-						errors = serverErrors;
-					} else {
-						errorToast.unknown();
+					// Get error message from backend
+					let errorMessage = error.response?.data?.message || 
+					                   error.message || 
+					                   'Erro ao fazer login. Tente novamente.';
+					
+					// Translate common error messages to Portuguese
+					if (errorMessage.toLowerCase().includes('invalid credentials')) {
+						errorMessage = 'Email ou senha incorretos. Verifique suas credenciais e tente novamente.';
 					}
+					
+					// Show toast notification with backend error message
+					showError(errorMessage);
 				},
 			}
 		);
+	}
+
+	function togglePasswordVisibility() {
+		showPassword = !showPassword;
 	}
 </script>
 
@@ -95,17 +107,28 @@
 			
 			<Field>
 				<FieldLabel for="password">Senha</FieldLabel>
-				<Input 
-					id="password" 
-					type="password" 
-					placeholder="Digite a sua senha" 
-					bind:value={password}
-					class={getFieldError(errors, 'password') ? 'border-red-500' : ''}
-					required 
-				/>
-				{#if getFieldError(errors, 'password')}
-					<FieldError>{getFieldError(errors, 'password')}</FieldError>
-				{/if}
+				<div class="relative">
+					<Input 
+						id="password" 
+						type={showPassword ? 'text' : 'password'}
+						placeholder="Digite a sua senha" 
+						bind:value={password}
+						class="pr-10"
+						required 
+					/>
+					<button
+						type="button"
+						onclick={togglePasswordVisibility}
+						class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none"
+						aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+					>
+						{#if showPassword}
+							<EyeOff class="w-4 h-4" />
+						{:else}
+							<Eye class="w-4 h-4" />
+						{/if}
+					</button>
+				</div>
 			</Field>
 			
 			<Field>

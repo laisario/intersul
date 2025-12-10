@@ -7,6 +7,7 @@ import { Step } from './entities/step.entity';
 import { Category } from './entities/category.entity';
 import { Client } from '../clients/entities/client.entity';
 import { ClientCopyMachine } from '../copy-machines/entities/client-copy-machine.entity';
+import { User } from '../auth/entities/user.entity';
 import { ClientsModule } from '../clients/clients.module';
 import { CopyMachinesModule } from '../copy-machines/copy-machines.module';
 import { CategoryService } from './service/category';
@@ -17,7 +18,7 @@ import { CommonModule } from '../common/common.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Service, Category, Step, Client, ClientCopyMachine]),
+    TypeOrmModule.forFeature([Service, Category, Step, Client, ClientCopyMachine, User]),
     ClientsModule,
     CopyMachinesModule,
     CommonModule,

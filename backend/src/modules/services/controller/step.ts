@@ -37,13 +37,24 @@ export class StepController {
 
   @Get('my-steps')
   @ApiOperation({ summary: 'Get all steps assigned to current user' })
-  @ApiQuery({ name: 'filter', required: false, enum: ['created_today', 'expires_today'], description: 'Filter steps by date' })
+  @ApiQuery({ name: 'filter', required: false, enum: ['created_today', 'expires_today', 'expired'], description: 'Filter steps by date' })
   @ApiResponse({ status: 200, description: 'List of steps returned successfully', type: [Step] })
   async findMySteps(
     @CurrentUser() user: CurrentUserData,
-    @Query('filter') filter?: 'created_today' | 'expires_today',
+    @Query('filter') filter?: 'created_today' | 'expires_today' | 'expired',
   ): Promise<Step[]> {
     return this.stepService.findMySteps(user.id, filter);
+  }
+
+  @Get('user/:userId')
+  @ApiOperation({ summary: 'Get all steps assigned to a specific user (for admins/managers)' })
+  @ApiQuery({ name: 'filter', required: false, enum: ['created_today', 'expires_today', 'expired'], description: 'Filter steps by date' })
+  @ApiResponse({ status: 200, description: 'List of steps returned successfully', type: [Step] })
+  async findStepsByUserId(
+    @Param('userId', ParseIntPipe) userId: number,
+    @Query('filter') filter?: 'created_today' | 'expires_today' | 'expired',
+  ): Promise<Step[]> {
+    return this.stepService.findStepsByUserId(userId, filter);
   }
 
   @Get(':id')
@@ -66,7 +77,7 @@ export class StepController {
     @CurrentUser() user: CurrentUserData,
     @Body() updateStepDto: UpdateStepDto,
   ): Promise<Step> {
-    return this.stepService.update(id, user.id, updateStepDto);
+    return this.stepService.update(id, user.id, updateStepDto, user.role);
   }
 
   @Patch(':id/start')
@@ -124,7 +135,7 @@ export class StepController {
     // Verify step exists and user is the responsable (for write operations)
     const step = await this.stepService.findOne(id, user.id);
     // Additional check: user must be the responsable to upload images
-    if (step.responsable_id !== user.id) {
+    if (step.responsable?.id !== user.id) {
       throw new BadRequestException('Only the responsable can upload images to this step');
     }
 
@@ -181,7 +192,7 @@ export class StepController {
     // Verify step exists and user is the responsable (for write operations)
     const step = await this.stepService.findOne(id, user.id);
     // Additional check: user must be the responsable to delete images
-    if (step.responsable_id !== user.id) {
+    if (step.responsable?.id !== user.id) {
       throw new BadRequestException('Only the responsable can delete images from this step');
     }
 

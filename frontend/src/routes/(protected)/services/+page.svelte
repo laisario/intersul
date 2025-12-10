@@ -23,7 +23,7 @@
 	import ServiceFormDialog from "$lib/components/service-form-dialog.svelte";
 	import PaginationControls from "$lib/components/pagination-controls.svelte";
 	import { showError, successToast } from "$lib/utils/toast.js";
-	import { ACQUISITION_TYPE, PAGINATION, SERVICE_STATUS, SERVICE_PRIORITY, getServiceStatusLabel, getServiceStatusVariant } from "$lib/utils/constants.js";
+import { ACQUISITION_TYPE, PAGINATION, getServiceStatusLabel, getServiceStatusVariant, getServicePriorityLabel, getServicePriorityVariant } from "$lib/utils/constants.js";
 	import type { AcquisitionType } from "$lib/api/types/copy-machine.types.js";
 	import { goto } from "$app/navigation";
 	import { canManageServices } from "$lib/stores/auth.svelte";
@@ -104,26 +104,26 @@
 	let showCategoryPreviewDialog = $state(false);
 	let previewCategory = $state<Category | null>(null);
 
-// Service form dialog
-let showServiceFormDialog = $state(false);
-let editingService = $state<Service | null>(null);
-let editingServiceId = $state<number | null>(null);
+	// Service form dialog
+	let showServiceFormDialog = $state(false);
+	let editingService = $state<Service | null>(null);
+	let editingServiceId = $state<number | null>(null);
 
-// Permissions
-let userCanManageServices = $state(false);
-$effect(() => {
-	const unsubscribe = canManageServices.subscribe((value) => {
-		userCanManageServices = !!value;
+	// Permissions
+	let userCanManageServices = $state(false);
+	$effect(() => {
+		const unsubscribe = canManageServices.subscribe((value) => {
+			userCanManageServices = !!value;
+		});
+		return unsubscribe;
 	});
-	return unsubscribe;
-});
 
-$effect(() => {
-	if (!showServiceFormDialog) {
-		editingService = null;
-		editingServiceId = null;
-	}
-});
+	$effect(() => {
+		if (!showServiceFormDialog) {
+			editingService = null;
+			editingServiceId = null;
+		}
+	});
 	
 	// Delete confirmation states
 	let showDeleteServiceConfirmation = $state(false);
@@ -176,24 +176,24 @@ $effect(() => {
 		showDeleteServiceConfirmation = true;
 	}
 
-function handleCreateService() {
-	editingService = null;
-	editingServiceId = null;
-	showServiceFormDialog = true;
-}
+	function handleCreateService() {
+		editingService = null;
+		editingServiceId = null;
+		showServiceFormDialog = true;
+	}
 
-function handleEditService(service: Service) {
-	editingService = service;
-	editingServiceId = service.id;
-	showServiceFormDialog = true;
-}
+	function handleEditService(service: Service) {
+		editingService = service;
+		editingServiceId = service.id;
+		showServiceFormDialog = true;
+	}
 
-	function handleServiceSuccess() {
-	showServiceFormDialog = false;
-	editingService = null;
-	editingServiceId = null;
-	servicesQuery.refetch();
-}
+		function handleServiceSuccess() {
+		showServiceFormDialog = false;
+		editingService = null;
+		editingServiceId = null;
+		servicesQuery.refetch();
+	}
 
 	async function confirmDeleteService() {
 		if (!serviceToDelete) return;
@@ -279,7 +279,7 @@ function handleEditService(service: Service) {
 			<TabsContent value="services" class="mt-6">
 				<Card>
 					<CardHeader>
-						<div class="flex items-center justify-between">
+						<div class="flex items-center justify-between gap-4 md:gap-2">
 							<div>
 								<CardTitle>Lista de Serviços</CardTitle>
 								<CardDescription>
@@ -453,24 +453,19 @@ function handleEditService(service: Service) {
 												</Badge>
 											</TableCell>
 											<TableCell>
-												{#if service.priority}
-													<Badge 
-														variant={
-															service.priority === 'URGENT' || service.priority === 'urgent' ? 'destructive' :
-															service.priority === 'HIGH' || service.priority === 'high' ? 'default' :
-															service.priority === 'MEDIUM' || service.priority === 'medium' ? 'secondary' :
-															'outline'
-														}
-													>
-														{SERVICE_PRIORITY[service.priority.toUpperCase() as keyof typeof SERVICE_PRIORITY]?.label || service.priority}
-													</Badge>
-												{:else}
-													<span class="text-muted-foreground text-sm">-</span>
-												{/if}
+									{#if service.priority}
+										<Badge variant={getServicePriorityVariant(service.priority)}>
+											{getServicePriorityLabel(service.priority)}
+										</Badge>
+									{:else}
+										<span class="text-muted-foreground text-sm">-</span>
+									{/if}
 											</TableCell>
 											<TableCell>
 												{#if service.status}
-													<Badge variant={getServiceStatusVariant(service.status)}>
+												<Badge
+													variant={getServiceStatusVariant(service.status)}
+												>
 														{getServiceStatusLabel(service.status)}
 													</Badge>
 												{:else}
@@ -576,7 +571,6 @@ function handleEditService(service: Service) {
 											<TableHead>Nome</TableHead>
 											<TableHead>Descrição</TableHead>
 											<TableHead>Etapas</TableHead>
-											<TableHead>Data de Criação</TableHead>
 											<TableHead class="w-[100px]">Ações</TableHead>
 										</TableRow>
 									</TableHeader>
@@ -595,7 +589,6 @@ function handleEditService(service: Service) {
 														{category.steps?.length || 0} {category.steps?.length === 1 ? 'etapa' : 'etapas'}
 													</Badge>
 												</TableCell>
-												<TableCell>{formatDate(category.createdAt)}</TableCell>
 												<TableCell>
 													<div class="flex items-center gap-2">
 														<Button
@@ -628,7 +621,6 @@ function handleEditService(service: Service) {
 </div>
 
 {#if userCanManageServices}
-	<!-- Delete Service Confirmation -->
 	<ConfirmationDialog
 		bind:open={showDeleteServiceConfirmation}
 		title="Excluir Serviço"
@@ -645,7 +637,6 @@ function handleEditService(service: Service) {
 		}}
 	/>
 
-	<!-- Service Form Dialog -->
 	<ServiceFormDialog
 		bind:open={showServiceFormDialog}
 		service={editingService}
@@ -653,14 +644,12 @@ function handleEditService(service: Service) {
 		onSuccess={handleServiceSuccess}
 	/>
 
-	<!-- Category Form Dialog -->
 	<CategoryFormDialog
 		bind:open={showCategoryFormDialog}
 		category={editingCategory}
 		onSuccess={handleCategorySuccess}
 	/>
 
-	<!-- Category Preview Dialog -->
 	<CategoryPreviewDialog
 		bind:open={showCategoryPreviewDialog}
 		category={previewCategory}

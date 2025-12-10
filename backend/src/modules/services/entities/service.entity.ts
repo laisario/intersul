@@ -44,6 +44,9 @@ export class Service {
   @Column({ type: 'text', nullable: true })
   reason_cancellament: string;
 
+  @Column({ type: 'boolean', default: false })
+  is_internal: boolean;
+
   @CreateDateColumn()
   created_at: Date;
 

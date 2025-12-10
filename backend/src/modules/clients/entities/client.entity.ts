@@ -11,6 +11,7 @@ import {
 import { Service } from '../../services/entities/service.entity';
 import { ClientCopyMachine } from '../../copy-machines/entities/client-copy-machine.entity';
 import { Address } from '../../common/entities/address.entity';
+import { HowMetCompanyEnum } from '../../../common/enums/how-met-company.enum';
 
 @Entity('clients')
 export class Client {
@@ -38,6 +39,13 @@ export class Client {
 
   @Column({ default: true })
   active: boolean;
+
+  @Column({
+    type: 'enum',
+    enum: HowMetCompanyEnum,
+    nullable: true,
+  })
+  how_met_company?: HowMetCompanyEnum;
 
   @CreateDateColumn()
   created_at: Date;

@@ -49,6 +49,9 @@ export class ClientCopyMachine {
   @Column({ nullable: true })
   franchise_id: number;
 
+  @Column({ type: 'int', nullable: true })
+  ultimo_contador: number;
+
   @CreateDateColumn()
   created_at: Date;
 

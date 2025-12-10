@@ -178,14 +178,17 @@ $effect(() => {
 	}
 
 	function handleOpenEditModal(franchise: Franchise) {
-		editingFranchise = franchise;
+		// Populate form with franchise data first
 		formData = {
-			period: franchise.period,
-			paper_type: franchise.paper_type,
-			color: franchise.color,
-			quantity: franchise.quantity,
-		unitPrice: franchise.unitPrice.toString()
+			period: franchise.period || '',
+			paper_type: franchise.paper_type || '',
+			color: franchise.color || false,
+			quantity: franchise.quantity || 0,
+			unitPrice: ((franchise.unitPrice ?? franchise.unit_price) ?? 0).toString()
 		};
+		// Set editing franchise
+		editingFranchise = franchise;
+		// Open modal
 		showFormModal = true;
 	}
 </script>
@@ -201,7 +204,11 @@ $effect(() => {
 			<h1 class="text-3xl font-bold">Franquias</h1>
 			<p class="text-muted-foreground">Gerencie os planos de franquia</p>
 		</div>
-		<Button onclick={() => showFormModal = true}>
+		<Button onclick={() => {
+			editingFranchise = null;
+			resetForm();
+			showFormModal = true;
+		}}>
 			<Plus class="w-4 h-4 mr-2" />
 			Nova Franquia
 		</Button>
@@ -247,12 +254,12 @@ $effect(() => {
 								<th class="text-right p-3 font-medium">Quantidade</th>
 								<th class="text-right p-3 font-medium">Preço Unitário</th>
 								<th class="text-right p-3 font-medium">Valor Total</th>
-								<th class="text-center p-3 font-medium">Criado em</th>
 								<th class="text-center p-3 font-medium">Ações</th>
 							</tr>
 						</thead>
 						<tbody>
 							{#each paginatedFranchises as franchise}
+								{@const unitPrice = franchise.unitPrice ?? franchise.unit_price ?? 0}
 								<tr class="border-b hover:bg-gray-50">
 									<td class="p-3">{franchise.period}</td>
 									<td class="p-3">{franchise.paper_type}</td>
@@ -268,9 +275,8 @@ $effect(() => {
 										{/if}
 									</td>
 									<td class="p-3 text-right">{franchise.quantity.toLocaleString()}</td>
-									<td class="p-3 text-right">{formatCurrency(franchise.unitPrice)}</td>
-									<td class="p-3 text-right font-medium">{formatCurrency(franchise.quantity * franchise.unitPrice)}</td>
-									<td class="p-3 text-center text-sm text-gray-600">{formatDate(franchise.createdAt)}</td>
+									<td class="p-3 text-right">{formatCurrency(unitPrice)}</td>
+									<td class="p-3 text-right font-medium">{formatCurrency(franchise.quantity * unitPrice)}</td>
 									<td class="p-3">
 										<div class="flex items-center justify-center space-x-2">
 											<Button
@@ -314,7 +320,7 @@ $effect(() => {
 </div>
 
 <!-- Form Modal -->
-<Sheet bind:open={showFormModal}>
+<Sheet bind:open={showFormModal} key={editingFranchise?.id ?? 'new'}>
 	<SheetContent class="sm:max-w-[500px]">
 		<SheetHeader>
 			<SheetTitle>{editingFranchise ? 'Editar Franquia' : 'Nova Franquia'}</SheetTitle>

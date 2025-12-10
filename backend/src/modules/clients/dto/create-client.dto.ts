@@ -1,7 +1,8 @@
-import { IsString, IsEmail, IsOptional, MinLength, ValidateNested } from 'class-validator';
+import { IsString, IsEmail, IsOptional, MinLength, ValidateNested, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { CreateAddressDto } from '../../common/dto/create-address.dto';
+import { HowMetCompanyEnum } from '../../../common/enums/how-met-company.enum';
 
 export class CreateClientDto {
   @ApiProperty({
@@ -56,4 +57,14 @@ export class CreateClientDto {
   @IsOptional()
   @IsEmail()
   email?: string;
+
+  @ApiProperty({
+    example: HowMetCompanyEnum.GOOGLE_SEARCH,
+    description: 'How the client heard about the company',
+    enum: HowMetCompanyEnum,
+    required: false,
+  })
+  @IsEnum(HowMetCompanyEnum)
+  @IsOptional()
+  how_met_company?: HowMetCompanyEnum;
 }

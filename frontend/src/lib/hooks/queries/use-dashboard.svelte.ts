@@ -106,10 +106,10 @@ function saveCachedStats(stats: DashboardStats): void {
 
 /**
  * Get dashboard statistics
- * Loads from cache first, then fetches from API if needed
+ * Loads from cache first for instant display, then fetches from API on mount
+ * Backend already caches by month/year, so it returns the cached snapshot
  */
 export const useDashboardStats = () => {
-  // Load initial data from cache
   const initialData = loadCachedStats();
 
   return createQuery(() => ({
@@ -117,15 +117,13 @@ export const useDashboardStats = () => {
     queryFn: async (): Promise<DashboardStats> => {
       const response = await axios.get('/dashboard/stats');
       const stats = response.data;
-      
-      // Save to cache after fetching
+
       saveCachedStats(stats);
-      
       return stats;
     },
     initialData,
-    enabled: false, // Only fetch when manually triggered
-    staleTime: 0, // Always consider stale to force refetch on button click
+    enabled: false, // manual control to avoid double fetching
+    staleTime: 5 * 60 * 1000, // keep data fresh for 5 minutes
   }));
 };
 

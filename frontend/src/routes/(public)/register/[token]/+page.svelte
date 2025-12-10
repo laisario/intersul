@@ -74,8 +74,8 @@
 			},
 			{
 				onSuccess: () => {
-					showSuccess('Convite aceito com sucesso!');
-					goto('/services');
+					showSuccess('Conta criada com sucesso! Faça login para continuar.');
+					goto('/login');
 				},
 				onError: (error: any) => {
 					const message =
