@@ -6,8 +6,9 @@
 <script lang="ts">
   import { Toaster } from 'svelte-sonner';
   import { themeStore } from '$lib/stores/theme.svelte.js';
+  import type { Snippet } from 'svelte';
 
-  let { children } = $props();
+  let { children }: { children?: Snippet } = $props();
 </script>
 
 {@render children?.()}
