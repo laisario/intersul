@@ -419,8 +419,11 @@ $effect(() => {
 					<div class="divide-y">
 						{#each paginatedUsers as user (user.id)}
 							<div 
+								role="button"
+								tabindex="0"
 								class="p-6 flex items-center justify-between hover:bg-muted/50 cursor-pointer"
 								onclick={() => goto(`/admin/users/${user.id}`)}
+								onkeydown={(e) => e.key === 'Enter' || e.key === ' ' ? goto(`/admin/users/${user.id}`) : null}
 							>
 								<div class="flex items-center space-x-4">
 									<div class="h-10 w-10 rounded-full bg-primary flex items-center justify-center">

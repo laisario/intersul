@@ -907,7 +907,7 @@
 									rows="4"
 									disabled={!isFormEnabled || !isResponsable}
 									class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-								/>
+								></textarea>
 							</div>
 
 							<!-- Responsable Client -->
@@ -1009,8 +1009,11 @@
 										<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
 											{#each images as image (image.id)}
 												<div 
+													role="button"
+													tabindex="0"
 													class="relative group aspect-square rounded-lg overflow-hidden border bg-muted cursor-pointer hover:opacity-90 transition-opacity"
 													onclick={() => handleImageClick(image)}
+													onkeydown={(e) => e.key === 'Enter' || e.key === ' ' ? handleImageClick(image) : null}
 												>
 													<img
 														src={image.path.startsWith('http') ? image.path : `${env.API_URL}${image.path}`}
@@ -1061,8 +1064,11 @@
 									<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
 										{#each images as image (image.id)}
 											<div 
+												role="button"
+												tabindex="0"
 												class="relative group aspect-square rounded-lg overflow-hidden border bg-muted cursor-pointer hover:opacity-90 transition-opacity"
 												onclick={() => handleImageClick(image)}
+												onkeydown={(e) => e.key === 'Enter' || e.key === ' ' ? handleImageClick(image) : null}
 											>
 													<img
 														src={image.path.startsWith('http') ? image.path : `${env.API_URL}${image.path}`}
@@ -1249,7 +1255,7 @@
 			rows="3"
 			required
 			class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-		/>
+		></textarea>
 	</div>
 </ConfirmationDialog>
 

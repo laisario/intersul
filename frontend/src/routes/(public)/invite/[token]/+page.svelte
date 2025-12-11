@@ -12,9 +12,8 @@
 	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
 	import type { InvitationDetails } from '$lib/api/types/auth.types.js';
 
-	export let data: { token: string };
-
-	const token = data.token;
+	const props = $props<{ data: { token: string } }>();
+	const token = props.data.token;
 
 	const invitationQuery = $derived(useInvitationDetails(token));
 	const invitation = $derived(invitationQuery.data as InvitationDetails | undefined);

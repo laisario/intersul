@@ -148,8 +148,11 @@
 			{#each images as image (image.id)}
 				<div class="relative group">
 					<div 
+						role="button"
+						tabindex="0"
 						class="aspect-square rounded-lg overflow-hidden border bg-muted cursor-pointer hover:opacity-90 transition-opacity"
 						onclick={() => onImageClick(image)}
+						onkeydown={(e) => e.key === 'Enter' || e.key === ' ' ? onImageClick(image) : null}
 					>
 						<img
 							src={getImageUrl(image.path)}
