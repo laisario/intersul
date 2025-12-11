@@ -49,6 +49,6 @@ jobs:
           username: ${{ secrets.FTP_USER }}
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./frontend/build/
-          server-dir: /home2/laisar01/laisarioverdeamaral1765461206072.1952054.meusitehostgator.com.br/intersul
+          server-dir: /home2/laisar01/laisarioverdeamaral1765461206072.1952054.meusitehostgator.com.br/intersul/
           log-level: verbose
           dry-run: false
