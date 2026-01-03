@@ -37,6 +37,15 @@ jobs:
         working-directory: frontend
         run: npm run build
 
+      - name: Copy .htaccess to build
+        run: |
+          if [ -f frontend/static/.htaccess ]; then
+            cp frontend/static/.htaccess frontend/build/.htaccess
+            echo "✅ .htaccess copied to build directory"
+          else
+            echo "⚠️ .htaccess not found in static/"
+          fi
+
       - name: Upload Artifacts
         uses: actions/upload-pages-artifact@v3
         with:
@@ -51,7 +60,7 @@ jobs:
           port: 21
           protocol: ftp
           local-dir: ./frontend/build/
-          server-dir: /www/
+          server-dir: /public_html/
           log-level: verbose
           dangerous-clean-slate: false
           dry-run: false
