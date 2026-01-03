@@ -51,7 +51,7 @@ jobs:
           port: 21
           protocol: ftp
           local-dir: ./frontend/build/
-          server-dir: /home2/laisar01/
+          server-dir: /
           log-level: verbose
           dangerous-clean-slate: false
           dry-run: false
