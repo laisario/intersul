@@ -51,7 +51,7 @@ jobs:
           port: 21
           protocol: ftp
           local-dir: ./frontend/build/
-          server-dir: /home2/laisar01/laisarioverdeamaral1765461206072.1952054.meusitehostgator.com.br/intersul/
+          server-dir: /home2/laisar01
           log-level: verbose
           dangerous-clean-slate: false
           dry-run: false

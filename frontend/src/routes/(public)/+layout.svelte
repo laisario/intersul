@@ -37,4 +37,3 @@
   {/if}
 </div>
 
-<!-- Toast notifications are handled by the root layout -->

@@ -8,8 +8,6 @@ const config = {
 	preprocess: vitePreprocess(),
 
 	kit: {
-		// adapter-static: gera site estático para hospedagem compartilhada
-		// fallback: 'app.html' - modo SPA, todas as rotas servem app.html
 		adapter: adapter({
 			fallback: 'app.html',
 		}),
