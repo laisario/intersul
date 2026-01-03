@@ -51,7 +51,7 @@ jobs:
           port: 21
           protocol: ftp
           local-dir: ./frontend/build/
-          server-dir: /
+          server-dir: /www/
           log-level: verbose
           dangerous-clean-slate: false
           dry-run: false
