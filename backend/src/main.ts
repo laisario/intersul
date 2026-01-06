@@ -42,7 +42,6 @@ async function bootstrap() {
     }),
   );
 
-  // Swagger documentation
   const config = new DocumentBuilder()
     .setTitle('Intersul API')
     .setDescription('Service management system for copy machine business')
