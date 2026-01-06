@@ -39,7 +39,8 @@
     "migration:revert": "typeorm-ts-node-commonjs migration:revert -d data-source.ts",
     "migration:show": "typeorm-ts-node-commonjs migration:show -d data-source.ts",
     "schema:drop": "typeorm-ts-node-commonjs schema:drop -d data-source.ts",
-    "schema:sync": "typeorm-ts-node-commonjs schema:sync -d data-source.ts"
+    "schema:sync": "typeorm-ts-node-commonjs schema:sync -d data-source.ts",
+    "create-user": "ts-node -r tsconfig-paths/register src/scripts/create-user.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",
