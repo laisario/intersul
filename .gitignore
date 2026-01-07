@@ -20,13 +20,11 @@ backend/Dockerfile.celery
 
 frontend/.env
 frontend/node_modules
-frontend/dist
 frontend/coverage
 frontend/logs
 frontend/tmp
 frontend/temp
 frontend/uploads
-frontend/static
 frontend/public
 frontend/views
 frontend/config
