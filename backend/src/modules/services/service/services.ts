@@ -1,17 +1,19 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, DeepPartial, Repository } from 'typeorm';
+import { Between, DeepPartial, Repository, In } from 'typeorm';
 import { Service } from '../entities/service.entity';
 import { Category } from '../entities/category.entity';
 import { Step } from '../entities/step.entity';
 import { Client } from '../../clients/entities/client.entity';
 import { ClientCopyMachine } from '../../copy-machines/entities/client-copy-machine.entity';
 import { User } from '../../auth/entities/user.entity';
+import { Billing } from '../../billings/entities/billing.entity';
 import { CreateServiceDto } from '../dto/create-service.dto';
 import { UpdateServiceDto } from '../dto/update-service.dto';
 import { AcquisitionType } from '../../../common/enums/acquisition-type.enum';
 import { StepStatus } from '../../../common/enums/step-status.enum';
 import { ServiceStatus } from '../../../common/enums/service-status.enum';
+
 @Injectable()
 export class ServicesService {
   constructor(
@@ -27,6 +29,8 @@ export class ServicesService {
     private copyMachinesRepository: Repository<ClientCopyMachine>,
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    @InjectRepository(Billing)
+    private billingsRepository: Repository<Billing>,
   ) {}
 
   async findAll(filters?: {
@@ -202,15 +206,12 @@ export class ServicesService {
     await this.servicesRepository.save(service);
 
     if (steps && steps.length > 0) {
-      // Remove existing steps
       if (service.steps && service.steps.length > 0) {
         await this.stepsRepository.remove(service.steps);
       }
 
-      // Create new step entities with proper handling of responsable_id
       const stepEntities = await Promise.all(
         steps.map(async (step) => {
-          // Validate responsable_id if provided
           let responsableUser: User | null = null;
           if (step.responsable_id !== undefined) {
             if (step.responsable_id === null) {
@@ -247,7 +248,6 @@ export class ServicesService {
       await this.stepsRepository.save(stepEntities);
     }
 
-    // Update service status based on steps
     await this.updateServiceStatus(id);
 
     return this.findOne(id);
@@ -300,6 +300,23 @@ export class ServicesService {
     }
 
     if (service.steps && service.steps.length > 0) {
+      // Get all step IDs
+      const stepIds = service.steps.map(step => step.id);
+      
+      // Find and delete all billings related to these steps
+      if (stepIds.length > 0) {
+        const billings = await this.billingsRepository.find({
+          where: {
+            step_id: In(stepIds),
+          },
+        });
+        
+        if (billings.length > 0) {
+          await this.billingsRepository.remove(billings);
+        }
+      }
+      
+      // Now safe to delete the steps
       await this.stepsRepository.remove(service.steps);
     }
 

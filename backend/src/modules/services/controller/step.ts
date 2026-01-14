@@ -15,7 +15,6 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery, ApiConsumes } from '@nestjs/swagger';
-import * as fs from 'fs';
 import * as path from 'path';
 import { StepService } from '../service/step';
 import { UpdateStepDto } from '../dto/update-step.dto';
@@ -23,6 +22,7 @@ import { Step } from '../entities/step.entity';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CurrentUser, CurrentUserData } from '../../../common/decorators/current-user.decorator';
 import { ImageService } from '../../common/services/image.service';
+import { StorageService } from '../../common/services/storage.service';
 import { Image } from '../../common/entities/image.entity';
 
 @ApiTags('Steps')
@@ -33,6 +33,7 @@ export class StepController {
   constructor(
     private readonly stepService: StepService,
     private readonly imageService: ImageService,
+    private readonly storageService: StorageService,
   ) {}
 
   @Get('my-steps')
@@ -148,23 +149,20 @@ export class StepController {
       throw new BadRequestException('File must be an image');
     }
 
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = './uploads/steps';
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-
     // Generate unique filename
     const fileExtension = path.extname(file.originalname);
     const fileName = `${Date.now()}-${Math.round(Math.random() * 1E9)}${fileExtension}`;
-    const filePath = path.join(uploadsDir, fileName);
 
-    // Save file to disk
-    fs.writeFileSync(filePath, file.buffer);
+    // Upload file to R2 storage
+    const imageUrl = await this.storageService.uploadFile(
+      file.buffer,
+      fileName,
+      'steps',
+      file.mimetype,
+    );
 
-    // Save image path to database
-    const imagePath = `/uploads/steps/${fileName}`;
-    return this.imageService.create(imagePath, id);
+    // Save image URL to database
+    return this.imageService.create(imageUrl, id);
   }
 
   @Get(':id/images')
@@ -204,10 +202,16 @@ export class StepController {
       throw new BadRequestException('Image not found or does not belong to this step');
     }
 
-    // Delete file from disk
-    const filePath = `.${image.path}`;
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+    // Delete file from R2 storage
+    // Extract the key from the URL (e.g., 'steps/filename.jpg')
+    const key = this.storageService.extractKeyFromUrl(image.path);
+    if (key) {
+      try {
+        await this.storageService.deleteFile(key);
+      } catch (error) {
+        // Log error but don't fail if file doesn't exist in R2
+        console.error(`Failed to delete file from R2: ${error.message}`);
+      }
     }
 
     // Delete from database

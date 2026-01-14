@@ -15,7 +15,6 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import * as multer from 'multer';
-import * as fs from 'fs';
 import * as path from 'path';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { CopyMachinesService } from './copy-machines.service';
@@ -29,13 +28,17 @@ import { CopyMachineCatalog } from './entities/copy-machine-catalog.entity';
 import { ClientCopyMachine } from './entities/client-copy-machine.entity';
 import { Franchise } from './entities/franchise.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { StorageService } from '../common/services/storage.service';
 
 @ApiTags('Máquinas Copiadoras')
 @Controller('copy-machines')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class CopyMachinesController {
-  constructor(private readonly copyMachinesService: CopyMachinesService) {}
+  constructor(
+    private readonly copyMachinesService: CopyMachinesService,
+    private readonly storageService: StorageService,
+  ) {}
 
   private slugify(value: string): string {
     return (value || '')
@@ -76,18 +79,21 @@ export class CopyMachinesController {
   ): Promise<CopyMachineCatalog> {
   
     if (file) {
-      const uploadsDir = './uploads/copy-machines';
-      if (!fs.existsSync(uploadsDir)) {
-        fs.mkdirSync(uploadsDir, { recursive: true });
-      }
       const fileExtension = this.resolveExtension(file);
       const manufacturer = this.slugify(createCopyMachineCatalogDto.manufacturer || '');
       const model = this.slugify(createCopyMachineCatalogDto.model || '');
       const base = [manufacturer, model].filter(Boolean).join('-') || 'machine';
       const fileName = `${base}-${Date.now()}${fileExtension}`;
-      const filePath = path.join(uploadsDir, fileName);
-      fs.writeFileSync(filePath, file.buffer);
-      createCopyMachineCatalogDto.file = `http://localhost:3000/uploads/copy-machines/${fileName}`;
+      
+      // Upload file to R2 storage
+      const imageUrl = await this.storageService.uploadFile(
+        file.buffer,
+        fileName,
+        'copy-machines',
+        file.mimetype,
+      );
+      
+      createCopyMachineCatalogDto.file = imageUrl;
     }
     return this.copyMachinesService.createCatalog(createCopyMachineCatalogDto);
   }
@@ -129,18 +135,21 @@ export class CopyMachinesController {
   ): Promise<CopyMachineCatalog> {
  
     if (file) {
-      const uploadsDir = './uploads/copy-machines';
-      if (!fs.existsSync(uploadsDir)) {
-        fs.mkdirSync(uploadsDir, { recursive: true });
-      }
       const fileExtension = this.resolveExtension(file);
       const manufacturer = this.slugify(updateCopyMachineCatalogDto.manufacturer || '');
       const model = this.slugify(updateCopyMachineCatalogDto.model || '');
       const base = [manufacturer, model].filter(Boolean).join('-') || 'machine';
       const fileName = `${base}-${Date.now()}${fileExtension}`;
-      const filePath = path.join(uploadsDir, fileName);
-      fs.writeFileSync(filePath, file.buffer);
-      updateCopyMachineCatalogDto.file = `http://localhost:3000/uploads/copy-machines/${fileName}`;
+      
+      // Upload file to R2 storage
+      const imageUrl = await this.storageService.uploadFile(
+        file.buffer,
+        fileName,
+        'copy-machines',
+        file.mimetype,
+      );
+      
+      updateCopyMachineCatalogDto.file = imageUrl;
     }
     return this.copyMachinesService.updateCatalog(id, updateCopyMachineCatalogDto);
   }
@@ -294,22 +303,23 @@ export class CopyMachinesController {
       throw new BadRequestException('No image file provided');
     }
 
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = './uploads/copy-machines';
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
+    // Validate file type
+    if (!file.mimetype.startsWith('image/')) {
+      throw new BadRequestException('File must be an image');
     }
 
     // Generate unique filename
     const fileExtension = path.extname(file.originalname);
     const fileName = `${Date.now()}-${Math.round(Math.random() * 1E9)}${fileExtension}`;
-    const filePath = path.join(uploadsDir, fileName);
 
-    // Save file to disk
-    fs.writeFileSync(filePath, file.buffer);
+    // Upload file to R2 storage
+    const imageUrl = await this.storageService.uploadFile(
+      file.buffer,
+      fileName,
+      'copy-machines',
+      file.mimetype,
+    );
 
-    // Return the full URL path
-    const imageUrl = `http://localhost:3000/uploads/copy-machines/${fileName}`;
     return { imageUrl };
   }
 }
