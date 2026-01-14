@@ -8,43 +8,43 @@ export interface Country extends BaseEntity {
 export interface State extends BaseEntity {
   code: string;
   name: string;
-  country_id: number;
+  countryId: number;
   country?: Country;
 }
 
 export interface City extends BaseEntity {
   name: string;
-  state_id: number;
+  stateId: number;
   state?: State;
 }
 
 export interface Neighborhood extends BaseEntity {
   name: string;
-  city_id: number;
+  cityId: number;
   city?: City;
 }
 
 export interface Address extends BaseEntity {
-  postal_code: string;
+  postalCode: string;
   street: string;
   number: string;
   complement?: string;
-  neighborhood_id: number;
+  neighborhoodId: number;
   neighborhood?: Neighborhood;
 }
 
 export interface CreateAddressDto {
-  postal_code: string;
+  postalCode: string;
   street: string;
   number: string;
   complement?: string;
-  neighborhood_id: number;
+  neighborhoodId: number;
 }
 
 export interface UpdateAddressDto extends Partial<CreateAddressDto> {}
 
 export interface ViaCepData {
-  postal_code: string;
+  postalCode: string;
   street: string;
   neighborhood: string;
   city: string;

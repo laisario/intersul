@@ -430,8 +430,8 @@
 																class="h-6 w-6 p-0"
 																onclick={(e) => {
 																	e.stopPropagation();
-																	if (step.service_id) {
-																		goto(`/services/${step.service_id}`);
+																	if (step.serviceId) {
+																		goto(`/services/${step.serviceId}`);
 																	}
 																}}
 															>
@@ -458,22 +458,22 @@
 													</div>
 												</TableCell>
 												<TableCell>
-													{#if step.datetime_start}
-														<span class="text-sm">{formatDateTime(step.datetime_start)}</span>
+													{#if step.datetimeStart}
+														<span class="text-sm">{formatDateTime(step.datetimeStart)}</span>
 													{:else}
 														<span class="text-muted-foreground text-sm">-</span>
 													{/if}
 												</TableCell>
 												<TableCell>
-													{#if step.datetime_conclusion}
-														<span class="text-sm">{formatDateTime(step.datetime_conclusion)}</span>
+													{#if step.datetimeConclusion}
+														<span class="text-sm">{formatDateTime(step.datetimeConclusion)}</span>
 													{:else}
 														<span class="text-muted-foreground text-sm">-</span>
 													{/if}
 												</TableCell>
 												<TableCell>
-													{#if step.datetime_expiration}
-														<span class="text-sm">{formatDateTime(step.datetime_expiration)}</span>
+													{#if step.datetimeExpiration}
+														<span class="text-sm">{formatDateTime(step.datetimeExpiration)}</span>
 													{:else}
 														<span class="text-muted-foreground text-sm">-</span>
 													{/if}

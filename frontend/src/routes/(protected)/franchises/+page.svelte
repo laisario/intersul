@@ -184,7 +184,7 @@ $effect(() => {
 			paper_type: franchise.paper_type || '',
 			color: franchise.color || false,
 			quantity: franchise.quantity || 0,
-			unitPrice: ((franchise.unitPrice ?? franchise.unit_price) ?? 0).toString()
+			unitPrice: (franchise.unitPrice ?? 0).toString()
 		};
 		// Set editing franchise
 		editingFranchise = franchise;
@@ -259,10 +259,10 @@ $effect(() => {
 						</thead>
 						<tbody>
 							{#each paginatedFranchises as franchise}
-								{@const unitPrice = franchise.unitPrice ?? franchise.unit_price ?? 0}
+								{@const unitPrice = franchise.unitPrice ?? 0}
 								<tr class="border-b hover:bg-gray-50">
 									<td class="p-3">{franchise.period}</td>
-									<td class="p-3">{franchise.paper_type}</td>
+									<td class="p-3">{franchise.paperType}</td>
 									<td class="p-3 text-center">
 										{#if franchise.color}
 											<span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">

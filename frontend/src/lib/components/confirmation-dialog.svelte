@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '$lib/components/ui/dialog/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import { LoadingButton } from '$lib/components/ui/loading-button/index.js';
 	import { AlertTriangle, Trash2, X } from 'lucide-svelte';
 	import type { Snippet } from 'svelte';
 
@@ -130,25 +131,18 @@
 				<X class="w-4 h-4 mr-2" />
 				{cancelText}
 			</Button>
-			<Button
+			<LoadingButton
 				variant={confirmButtonVariant()}
 				onclick={handleConfirm}
-				disabled={loading}
+				loading={loading}
+				loadingText="Processando..."
 				class="w-full sm:w-auto"
 			>
-				{#if loading}
-					<svg class="w-4 h-4 mr-2 animate-spin" fill="none" viewBox="0 0 24 24">
-						<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-						<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-					</svg>
-					Processando...
-				{:else}
-					{#if icon === 'trash'}
-						<Trash2 class="w-4 h-4 mr-2" />
-					{/if}
-					{confirmText}
+				{#if icon === 'trash'}
+					<Trash2 class="w-4 h-4 mr-2" />
 				{/if}
-			</Button>
+				{confirmText}
+			</LoadingButton>
 		</DialogFooter>
 	</DialogContent>
 </Dialog>

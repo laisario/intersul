@@ -79,13 +79,10 @@ export const useUpdateBilling = () => {
       return billingsApi.update(id, data);
     },
     onSuccess: (data) => {
-      // Update the specific billing in cache
       queryClient.setQueryData(['billings', data.id], data);
-      // Invalidate billings list to refetch
       queryClient.invalidateQueries({ queryKey: ['billings'] });
-      // Also invalidate steps if this billing has a step
-      if (data.step_id) {
-        queryClient.invalidateQueries({ queryKey: ['steps', data.step_id] });
+      if (data.stepId) {
+        queryClient.invalidateQueries({ queryKey: ['steps', data.stepId] });
       }
     },
     onError: (error) => {

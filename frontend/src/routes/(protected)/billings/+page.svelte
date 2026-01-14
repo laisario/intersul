@@ -211,15 +211,15 @@
 									</td>
 									<td class="p-3">
 										{billing.copyMachine?.catalogCopyMachine?.model ||
-											billing.copyMachine?.external_model ||
-											billing.copyMachine?.serial_number ||
+											billing.copyMachine?.externalModel ||
+											billing.copyMachine?.serialNumber ||
 											'-'}
 									</td>
-									<td class="p-3">{billing.previous_counter ?? '-'}</td>
-									<td class="p-3">{billing.current_counter ?? '-'}</td>
-									<td class="p-3">{formatCurrency(billing.amount_to_receive)}</td>
+									<td class="p-3">{billing.previousCounter ?? '-'}</td>
+									<td class="p-3">{billing.currentCounter ?? '-'}</td>
+									<td class="p-3">{formatCurrency(billing.amountToReceive)}</td>
 									<td class="p-3">
-										{billing.is_invoiced ? 'Sim' : 'Não'}
+										{billing.isInvoiced ? 'Sim' : 'Não'}
 									</td>
 								</tr>
 							{/each}

@@ -24,8 +24,8 @@ export const useLogin = () => {
       return response;
     },
     onSuccess: (data) => {
-      if (data.access_token && data.user) {
-        authStore.setUser(data.user, data.access_token);
+      if (data.accessToken && data.user) {
+        authStore.setUser(data.user, data.accessToken);
       }
     },
     onError: (error) => {
@@ -44,8 +44,8 @@ export const useRegister = () => {
       return response;
     },
     onSuccess: (data) => {
-      if (data.access_token && data.user) {
-        authStore.setUser(data.user, data.access_token);
+      if (data.accessToken && data.user) {
+        authStore.setUser(data.user, data.accessToken);
       }
     },
     onError: (error) => {

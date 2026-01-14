@@ -4,7 +4,7 @@
 	import { showError, showSuccess } from '$lib/utils/toast.js';
 	import { formatDate } from '$lib/utils/formatting.js';
 	import { USER_ROLES } from '$lib/utils/constants.js';
-	import { Button } from '$lib/components/ui/button/index.js';
+	import { LoadingButton } from '$lib/components/ui/loading-button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
@@ -221,9 +221,9 @@
 									Convite válido até {formatDate(invitation.expiresAt)}
 								</p>
 							{/if}
-							<Button type="submit" disabled={isAccepting}>
-								{isAccepting ? 'Criando conta...' : 'Criar conta'}
-							</Button>
+							<LoadingButton type="submit" loading={isAccepting} loadingText="Criando conta...">
+								Criar conta
+							</LoadingButton>
 						</div>
 					</form>
 				{/if}

@@ -5,11 +5,8 @@
 	import { formatDate, formatCurrency } from '$lib/utils/formatting.js';
 	import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { Input } from '$lib/components/ui/input/index.js';
-	import { Label } from '$lib/components/ui/label/index.js';
-	import { Select, SelectTrigger, SelectContent, SelectItem } from '$lib/components/ui/select/index.js';
 	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
-	import { ArrowLeft, Save, Loader2 } from 'lucide-svelte';
+	import { ArrowLeft } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
 	import { errorToast, successToast, showError } from '$lib/utils/toast.js';
 
@@ -42,12 +39,12 @@
 	$effect(() => {
 		if (billing) {
 			formData = {
-				previous_counter: billing.previous_counter ?? null,
-				current_counter: billing.current_counter ?? null,
-				payment_method: billing.payment_method || '',
-				amount_to_receive: billing.amount_to_receive,
-				is_invoiced: billing.is_invoiced ?? false,
-				responsible_user_id: billing.responsible_user_id,
+				previous_counter: billing.previousCounter ?? null,
+				current_counter: billing.currentCounter ?? null,
+				payment_method: billing.paymentMethod || '',
+				amount_to_receive: billing.amountToReceive,
+				is_invoiced: billing.isInvoiced ?? false,
+				responsible_user_id: billing.responsibleUserId,
 			};
 		}
 	});
@@ -91,12 +88,12 @@
 	function handleCancel() {
 		if (billing) {
 			formData = {
-				previous_counter: billing.previous_counter ?? null,
-				current_counter: billing.current_counter ?? null,
-				payment_method: billing.payment_method || '',
-				amount_to_receive: billing.amount_to_receive,
-				is_invoiced: billing.is_invoiced ?? false,
-				responsible_user_id: billing.responsible_user_id,
+				previous_counter: billing.previousCounter ?? null,
+				current_counter: billing.currentCounter ?? null,
+				payment_method: billing.paymentMethod || '',
+				amount_to_receive: billing.amountToReceive,
+				is_invoiced: billing.isInvoiced ?? false,
+				responsible_user_id: billing.responsibleUserId,
 			};
 		}
 		isEditMode = false;
@@ -165,27 +162,27 @@
 								</div>
 								<div>
 									<p class="text-sm font-medium text-muted-foreground">Contador Anterior</p>
-									<p class="text-sm">{billing.previous_counter ?? 'N/A'}</p>
+									<p class="text-sm">{billing.previousCounter ?? 'N/A'}</p>
 								</div>
 							</div>
 							<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 								<div>
 									<p class="text-sm font-medium text-muted-foreground">Contador Atual</p>
-									<p class="text-sm">{billing.current_counter ?? 'Não preenchido'}</p>
+									<p class="text-sm">{billing.currentCounter ?? 'Não preenchido'}</p>
 								</div>
 								<div>
 									<p class="text-sm font-medium text-muted-foreground">Forma de Pagamento</p>
-									<p class="text-sm">{billing.payment_method || 'Não informado'}</p>
+									<p class="text-sm">{billing.paymentMethod || 'Não informado'}</p>
 								</div>
 							</div>
 							<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 								<div>
 									<p class="text-sm font-medium text-muted-foreground">Valor a Receber</p>
-									<p class="text-sm font-semibold">{formatCurrency(billing.amount_to_receive)}</p>
+									<p class="text-sm font-semibold">{formatCurrency(billing.amountToReceive)}</p>
 								</div>
 								<div>
 									<p class="text-sm font-medium text-muted-foreground">Pagamento Concluído</p>
-									<p class="text-sm">{billing.is_invoiced ? 'Sim' : 'Não'}</p>
+									<p class="text-sm">{billing.isInvoiced ? 'Sim' : 'Não'}</p>
 								</div>
 							</div>
 						</div>
@@ -227,11 +224,11 @@
 					<CardContent class="space-y-2">
 						<p class="text-sm font-medium">
 							{billing.copyMachine?.catalogCopyMachine?.model ||
-								billing.copyMachine?.external_model ||
+								billing.copyMachine?.externalModel ||
 								'Máquina'}
 						</p>
-						{#if billing.copyMachine?.serial_number}
-							<p class="text-sm text-muted-foreground">Série: {billing.copyMachine.serial_number}</p>
+						{#if billing.copyMachine?.serialNumber}
+							<p class="text-sm text-muted-foreground">Série: {billing.copyMachine.serialNumber}</p>
 						{/if}
 						{#if billing.copyMachine?.franchise}
 							<p class="text-sm text-muted-foreground">

@@ -31,9 +31,12 @@ const createAxiosInstance = ({ file = false } = {}) => {
 
   instance.interceptors.response.use(
     (response) => {
-      if (response.data && response.headers?.['content-type'] === 'application/json') {
+      const contentType = response.headers?.['content-type'] || response.headers?.['Content-Type'] || '';
+
+      if (response.data && contentType.toLowerCase().includes('application/json') || typeof response.data === 'object') {
         response.data = humps.camelizeKeys(response.data);
       }
+      
       return response;
     },
     (error) => {

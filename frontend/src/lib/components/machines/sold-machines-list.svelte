@@ -80,17 +80,17 @@
 						{#each machines as machine}
 							<TableRow>
 								<TableCell class="font-medium">
-									{machine?.external_model || machine?.catalogCopyMachine?.model || '-'}
+									{machine?.externalModel || machine?.catalogCopyMachine?.model || '-'}
 								</TableCell>
 								<TableCell>
-									{machine?.external_manufacturer || machine?.catalogCopyMachine?.manufacturer || '-'}
+									{machine?.externalManufacturer || machine?.catalogCopyMachine?.manufacturer || '-'}
 								</TableCell>
-								<TableCell>{machine?.serial_number}</TableCell>
+								<TableCell>{machine?.serialNumber}</TableCell>
 								<TableCell>{machine?.client?.name || '-'}</TableCell>
 								<TableCell>
 									{machine?.value ? formatCurrency(machine.value) : '-'}
 								</TableCell>
-								<TableCell>{formatDate((machine as any).created_at || machine.createdAt || null)}</TableCell>
+								<TableCell>{formatDate(machine.createdAt)}</TableCell>
 							</TableRow>
 						{/each}
 					</TableBody>

@@ -6,6 +6,7 @@ import { Category } from '../entities/category.entity';
 import { Step } from '../entities/step.entity';
 import { Client } from '../../clients/entities/client.entity';
 import { ClientCopyMachine } from '../../copy-machines/entities/client-copy-machine.entity';
+import { User } from '../../auth/entities/user.entity';
 import { CreateServiceDto } from '../dto/create-service.dto';
 import { UpdateServiceDto } from '../dto/update-service.dto';
 import { AcquisitionType } from '../../../common/enums/acquisition-type.enum';
@@ -24,6 +25,8 @@ export class ServicesService {
     private clientsRepository: Repository<Client>,
     @InjectRepository(ClientCopyMachine)
     private copyMachinesRepository: Repository<ClientCopyMachine>,
+    @InjectRepository(User)
+    private usersRepository: Repository<User>,
   ) {}
 
   async findAll(filters?: {
@@ -102,68 +105,92 @@ export class ServicesService {
   async create(createServiceDto: CreateServiceDto): Promise<Service> {
     const { steps, ...serviceData } = createServiceDto;
 
-    // If internal service, allow client_id and client_copy_machine_id to be null
-    const isInternal = serviceData.is_internal === true;
+    const isInternal = serviceData.is_internal;
 
-    // Validate that client exists (if provided and not internal)
     if (!isInternal && serviceData.client_id) {
       const client = await this.clientsRepository.findOne({
         where: { id: serviceData.client_id },
       });
       if (!client) {
-        throw new BadRequestException(`Client with ID ${serviceData.client_id} not found`);
+        throw new BadRequestException(`Cliente com id ${serviceData.client_id} não encontrado`);
       }
     }
 
-    // Validate that category exists (if provided)
     let category = null;
     if (serviceData.category_id) {
       category = await this.categoriesRepository.findOne({
         where: { id: serviceData.category_id },
       });
       if (!category) {
-        throw new BadRequestException(`Category with ID ${serviceData.category_id} not found`);
+        throw new BadRequestException(`Categoria com id ${serviceData.category_id} não encontrada`);
       }
-      // Auto-set priority to HIGH for "Cobrança" category if priority not provided
       if (!serviceData.priority && category.name.toLowerCase().includes('cobrança')) {
         serviceData.priority = 'high';
       }
     }
 
-    // Validate that client copy machine exists (if provided and not internal)
     if (!isInternal && serviceData.client_copy_machine_id) {
       const clientCopyMachine = await this.copyMachinesRepository.findOne({
         where: { id: serviceData.client_copy_machine_id },
       });
       if (!clientCopyMachine) {
-        throw new BadRequestException(`Client copy machine with ID ${serviceData.client_copy_machine_id} not found`);
+          throw new BadRequestException(`Máquina de cópia de cliente com id ${serviceData.client_copy_machine_id} não encontrada`);
       }
     }
 
-    // Remove undefined values to avoid DEFAULT insertion
-    const cleanServiceData: DeepPartial<Service> = {};
-    if (serviceData.client_id !== undefined) {
-      cleanServiceData.client_id = isInternal ? null : serviceData.client_id;
-    }
-    if (serviceData.category_id !== undefined) cleanServiceData.category_id = serviceData.category_id;
-    if (serviceData.client_copy_machine_id !== undefined) {
-      cleanServiceData.client_copy_machine_id = isInternal ? null : serviceData.client_copy_machine_id;
-    }
-    if (serviceData.description !== undefined) cleanServiceData.description = serviceData.description;
-    if (serviceData.priority !== undefined) cleanServiceData.priority = serviceData.priority;
-    if (serviceData.is_internal !== undefined) cleanServiceData.is_internal = serviceData.is_internal;
+    const cleanServiceData: DeepPartial<Service> = {
+      client_id: isInternal ? null : serviceData.client_id,
+      category_id: serviceData.category_id,
+      client_copy_machine_id: isInternal ? null : serviceData.client_copy_machine_id,
+      description: serviceData.description,
+      priority: serviceData.priority,
+      is_internal: serviceData.is_internal,
+    };
 
     const service = this.servicesRepository.create(cleanServiceData);
     const savedService: Service = await this.servicesRepository.save(service);
 
     if (steps && steps.length > 0) {
-      const stepEntities = steps.map(step => this.stepsRepository.create({
-        ...step,
-        service_id: savedService.id,
-      }));
+      // Create step entities with proper handling of responsable_id
+      const stepEntities = await Promise.all(
+        steps.map(async (step) => {
+          // Validate responsable_id if provided
+          let responsableUser: User | null = null;
+          if (step.responsable_id !== undefined) {
+            if (step.responsable_id === null) {
+              responsableUser = null;
+            } else {
+              const user = await this.usersRepository.findOne({
+                where: { id: step.responsable_id },
+              });
+              if (!user) {
+                throw new BadRequestException(`User with ID ${step.responsable_id} not found`);
+              }
+              responsableUser = user;
+            }
+          }
+
+          const stepData: DeepPartial<Step> = {
+            name: step.name,
+            description: step.description,
+            service_id: savedService.id,
+            observation: step.observation ?? undefined,
+            datetime_start: step.datetime_start ? new Date(step.datetime_start) : undefined,
+            datetime_conclusion: step.datetime_conclusion ? new Date(step.datetime_conclusion) : undefined,
+            datetime_expiration: step.datetime_expiration ? new Date(step.datetime_expiration) : undefined,
+            status: step.status ?? undefined,
+            responsable_client: step.responsable_client ?? undefined,
+            reason_cancellament: step.reason_cancellament ?? undefined,
+            responsable: responsableUser !== undefined ? responsableUser : undefined,
+          };
+
+          return this.stepsRepository.create(stepData);
+        })
+      );
+
       await this.stepsRepository.save(stepEntities);
     }
-
+    
     return this.findOne(savedService.id);
   }
 
@@ -174,18 +201,50 @@ export class ServicesService {
     Object.assign(service, serviceData);
     await this.servicesRepository.save(service);
 
-    if (steps !== undefined) {
+    if (steps && steps.length > 0) {
+      // Remove existing steps
       if (service.steps && service.steps.length > 0) {
         await this.stepsRepository.remove(service.steps);
       }
 
-      if (steps.length > 0) {
-        const stepEntities = steps.map(step => this.stepsRepository.create({
-          ...step,
-          service_id: service.id,
-        }));
-        await this.stepsRepository.save(stepEntities);
-      }
+      // Create new step entities with proper handling of responsable_id
+      const stepEntities = await Promise.all(
+        steps.map(async (step) => {
+          // Validate responsable_id if provided
+          let responsableUser: User | null = null;
+          if (step.responsable_id !== undefined) {
+            if (step.responsable_id === null) {
+              responsableUser = null;
+            } else {
+              const user = await this.usersRepository.findOne({
+                where: { id: step.responsable_id },
+              });
+              if (!user) {
+                throw new BadRequestException(`User with ID ${step.responsable_id} not found`);
+              }
+              responsableUser = user;
+            }
+          }
+
+          const stepData: DeepPartial<Step> = {
+            name: step.name,
+            description: step.description,
+            service_id: service.id,
+            observation: step.observation ?? undefined,
+            datetime_start: step.datetime_start ? new Date(step.datetime_start) : undefined,
+            datetime_conclusion: step.datetime_conclusion ? new Date(step.datetime_conclusion) : undefined,
+            datetime_expiration: step.datetime_expiration ? new Date(step.datetime_expiration) : undefined,
+            status: step.status ?? undefined,
+            responsable_client: step.responsable_client ?? undefined,
+            reason_cancellament: step.reason_cancellament ?? undefined,
+            responsable: responsableUser !== undefined ? responsableUser : undefined,
+          };
+
+          return this.stepsRepository.create(stepData);
+        })
+      );
+        
+      await this.stepsRepository.save(stepEntities);
     }
 
     // Update service status based on steps

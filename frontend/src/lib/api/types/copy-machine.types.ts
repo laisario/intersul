@@ -19,16 +19,16 @@ export enum AcquisitionType {
 }
 
 export interface ClientCopyMachine extends BaseEntity {
-  serial_number: string;
-  client_id: number;
-  catalog_copy_machine_id?: number;
-  external_model?: string;
-  external_manufacturer?: string;
-  external_description?: string;
-  acquisition_type: AcquisitionType;
+  serialNumber: string;
+  clientId: number;
+  catalogCopyMachineId?: number;
+  externalModel?: string;
+  externalManufacturer?: string;
+  externalDescription?: string;
+  acquisitionType: AcquisitionType;
   value?: number;
-  franchise_id?: number;
-  ultimo_contador?: number;
+  franchiseId?: number;
+  ultimoContador?: number;
   client?: Client;
   catalogCopyMachine?: CopyMachineCatalog;
   franchise?: Franchise;
@@ -37,11 +37,10 @@ export interface ClientCopyMachine extends BaseEntity {
 
 export interface Franchise extends BaseEntity {
   period: string;
-  paper_type: string; 
+  paperType: string; 
   color: boolean;
   quantity: number;
-  unitPrice?: number; // camelCase (if transformed)
-  unit_price?: number; // snake_case (from API)
+  unitPrice?: number;
 }
 
 export interface CreateCopyMachineCatalogDto {
@@ -59,22 +58,22 @@ export interface UpdateCopyMachineCatalogDto extends Partial<CreateCopyMachineCa
 }
 
 export interface CreateClientCopyMachineDto {
-  serial_number: string;
-  client_id: number;
-  catalog_copy_machine_id?: number;
-  external_model?: string;
-  external_manufacturer?: string;
-  external_description?: string;
-  acquisition_type: AcquisitionType;
+  serialNumber: string;
+  clientId: number;
+  catalogCopyMachineId?: number;
+  externalModel?: string;
+  externalManufacturer?: string;
+  externalDescription?: string;
+  acquisitionType: AcquisitionType;
   value?: number;
-  franchise_id?: number;
+  franchiseId?: number;
 }
 
 export interface UpdateClientCopyMachineDto extends Partial<CreateClientCopyMachineDto> {}
 
 export interface CreateFranchiseDto {
   period: string;
-  paper_type: string;
+  paperType: string;
   color: boolean;
   quantity: number;
   unitPrice: number;
@@ -84,7 +83,7 @@ export interface UpdateFranchiseDto extends Partial<CreateFranchiseDto> {}
 
 export interface CopyMachineQueryParams {
   clientId?: number;
-  status?: ClientCopyMachineStatus;
+  status?: string; // TODO: Define proper enum if needed
   brand?: string;
   model?: string;
   search?: string;

@@ -12,7 +12,7 @@ export interface Client extends BaseEntity {
   phone?: string;
   active: boolean;
   address?: Address;
-  how_met_company?: HowMetCompany;
+  howMetCompany?: HowMetCompany;
 }
 
 export interface CreateClientDto {
@@ -22,7 +22,7 @@ export interface CreateClientDto {
   email: string;
   phone?: string;
   address?: CreateAddressDto;
-  how_met_company?: HowMetCompany;
+  howMetCompany?: HowMetCompany;
 }
 
 export interface UpdateClientDto extends Partial<CreateClientDto> {}

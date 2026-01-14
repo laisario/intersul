@@ -3,6 +3,7 @@
 	import { errorToast, successToast, showError } from '$lib/utils/toast.js';
 	import { formatDate } from '$lib/utils/formatting.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import { LoadingButton } from '$lib/components/ui/loading-button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card/index.js';
@@ -47,6 +48,7 @@ import { useGenerateBillingsByCity, useDeleteBilling } from '$lib/hooks/queries/
 	let showResponsablesDialog = $state(false);
 	let selectedCityId = $state<number | null>(null);
 	const generateBillingsMutation = useGenerateBillingsByCity();
+	const isGeneratingBillings = $derived(generateBillingsMutation.isPending);
 	const deleteBillingMutation = useDeleteBilling();
 	let createdBillingIds = $state<number[]>([]);
 
@@ -631,15 +633,13 @@ function handlePageSizeChange(size: number) {
 					type="button"
 					variant="outline"
 					onclick={() => closeModal()}
+					disabled={isSubmitting}
 				>
 					Cancelar
 				</Button>
-				<Button type="submit" disabled={isSubmitting}>
-					{#if isSubmitting}
-						<Loader2 class="w-4 h-4 mr-2 animate-spin" />
-					{/if}
+				<LoadingButton type="submit" loading={isSubmitting}>
 					{editingClient ? 'Atualizar' : 'Criar'} Cliente
-				</Button>
+				</LoadingButton>
 			</div>
 		</form>
 	</SheetContent>
@@ -667,6 +667,7 @@ function handlePageSizeChange(size: number) {
 <BillingResponsablesDialog
 	bind:open={showResponsablesDialog}
 	cityId={selectedCityId || 0}
+	loading={isGeneratingBillings}
 	onConfirm={handleResponsablesSelected}
 	onCancel={handleCancelBilling}
 />

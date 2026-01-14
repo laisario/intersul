@@ -24,6 +24,8 @@
 	}), onChange, disabled = false, required = false }: Props = $props();
 
 	let isLoadingCep = $state(false);
+	let hasTriedCepLookup = $state(false);
+	let cepLookupResult = $state<'success' | 'error' | null>(null);
 	let locationDisplay = $state({
 		neighborhood: '',
 		city: '',
@@ -47,12 +49,18 @@
 		}
 
 		isLoadingCep = true;
+		hasTriedCepLookup = false;
+		cepLookupResult = null;
+		
 		try {
 			// Call ViaCEP directly from frontend
 			const viaCepData = await ViaCepService.getAddressByCep(cleanCep);
 			
+			hasTriedCepLookup = true;
+			
 			if (!viaCepData) {
-				showError('CEP não encontrado');
+				cepLookupResult = 'error';
+				showError('CEP não encontrado. Preencha o endereço manualmente.');
 				return;
 			}
 
@@ -82,10 +90,13 @@
 			};
 			
 			onChange(updated);
+			cepLookupResult = 'success';
 			showSuccess('Endereço encontrado! Verifique os dados e complete o número.');
 		} catch (err: any) {
 			console.error('Error fetching CEP:', err);
-			showError('Erro ao buscar CEP. Tente novamente.');
+			hasTriedCepLookup = true;
+			cepLookupResult = 'error';
+			showError('Erro ao buscar CEP. Preencha o endereço manualmente.');
 		} finally {
 			isLoadingCep = false;
 		}
@@ -163,8 +174,8 @@
 		</div>
 	</div>
 
-	<!-- Location Display (read-only, filled by CEP search) -->
-	{#if locationDisplay.neighborhood || locationDisplay.city || locationDisplay.state}
+	<!-- Location Display (read-only, filled by CEP search) - Only show after CEP lookup -->
+	{#if hasTriedCepLookup && (locationDisplay.neighborhood || locationDisplay.city || locationDisplay.state)}
 		<div class="grid grid-cols-1 md:grid-cols-4 gap-4">
 			<!-- Country -->
 			<div class="space-y-2">
@@ -216,43 +227,46 @@
 		</div>
 	{/if}
 
-	<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-		<!-- Street -->
-		<div class="space-y-2">
-			<Label for="street">Rua {required ? '*' : ''}</Label>
-			<Input
-				id="street"
-				bind:value={address.street}
-				onchange={(e) => updateField('street', e.currentTarget.value)}
-				placeholder="Rua das Flores"
-				disabled={disabled}
-				required={required}
-			/>
+	<!-- Street, Number, Complement - Only show after CEP lookup attempt (success or error) -->
+	{#if hasTriedCepLookup}
+		<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+			<!-- Street -->
+			<div class="space-y-2">
+				<Label for="street">Rua {required ? '*' : ''}</Label>
+				<Input
+					id="street"
+					bind:value={address.street}
+					onchange={(e) => updateField('street', e.currentTarget.value)}
+					placeholder="Rua das Flores"
+					disabled={disabled}
+					required={required}
+				/>
+			</div>
+
+			<!-- Number -->
+			<div class="space-y-2">
+				<Label for="number">Número {required ? '*' : ''}</Label>
+				<Input
+					id="number"
+					bind:value={address.number}
+					onchange={(e) => updateField('number', e.currentTarget.value)}
+					placeholder="123"
+					disabled={disabled}
+					required={required}
+				/>
+			</div>
 		</div>
 
-		<!-- Number -->
+		<!-- Complement -->
 		<div class="space-y-2">
-			<Label for="number">Número {required ? '*' : ''}</Label>
+			<Label for="complement">Complemento</Label>
 			<Input
-				id="number"
-				bind:value={address.number}
-				onchange={(e) => updateField('number', e.currentTarget.value)}
-				placeholder="123"
-				disabled={disabled}
-				required={required}
+				id="complement"
+				bind:value={address.complement}
+				onchange={(e) => updateField('complement', e.currentTarget.value)}
+				placeholder="Apto 45, Bloco B"
+				{disabled}
 			/>
 		</div>
-	</div>
-
-	<!-- Complement -->
-	<div class="space-y-2">
-		<Label for="complement">Complemento</Label>
-		<Input
-			id="complement"
-			bind:value={address.complement}
-			onchange={(e) => updateField('complement', e.currentTarget.value)}
-			placeholder="Apto 45, Bloco B"
-			{disabled}
-		/>
-	</div>
+	{/if}
 </div>

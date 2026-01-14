@@ -213,6 +213,7 @@
 		showNewMachineModal = true;
 	}
 
+
 </script>
 
 <svelte:head>

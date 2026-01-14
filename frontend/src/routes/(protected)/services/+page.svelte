@@ -23,7 +23,7 @@
 	import ServiceFormDialog from "$lib/components/service-form-dialog.svelte";
 	import PaginationControls from "$lib/components/pagination-controls.svelte";
 	import { showError, successToast } from "$lib/utils/toast.js";
-import { ACQUISITION_TYPE, PAGINATION, getServiceStatusLabel, getServiceStatusVariant, getServicePriorityLabel, getServicePriorityVariant } from "$lib/utils/constants.js";
+    import { ACQUISITION_TYPE, PAGINATION, getServiceStatusLabel, getServiceStatusVariant, getServicePriorityLabel, getServicePriorityVariant } from "$lib/utils/constants.js";
 	import type { AcquisitionType } from "$lib/api/types/copy-machine.types.js";
 	import { goto } from "$app/navigation";
 	import { canManageServices } from "$lib/stores/auth.svelte";
@@ -78,12 +78,12 @@ import { ACQUISITION_TYPE, PAGINATION, getServiceStatusLabel, getServiceStatusVa
 	);
 
 	const selectedCategoryFilter = $derived(
-		serviceFilters.category_id ? serviceFilters.category_id.toString() : ''
+		serviceFilters.categoryId ? serviceFilters.categoryId.toString() : ''
 	);
 	const selectedCityFilter = $derived(
-		serviceFilters.city_id ? serviceFilters.city_id.toString() : ''
+		serviceFilters.cityId ? serviceFilters.cityId.toString() : ''
 	);
-	const selectedAcquisitionFilter = $derived(serviceFilters.acquisition_type ?? '');
+	const selectedAcquisitionFilter = $derived(serviceFilters.acquisitionType ?? '');
 	const selectedAcquisitionLabel = $derived(
 		selectedAcquisitionFilter
 			? ACQUISITION_TYPE[selectedAcquisitionFilter as AcquisitionType]?.label ?? 'Tipo'
@@ -305,7 +305,7 @@ import { ACQUISITION_TYPE, PAGINATION, getServiceStatusLabel, getServiceStatusVa
 										onValueChange={(value: string) =>
 											updateServiceFilters(
 												{
-													category_id: value ? parseInt(value) : undefined
+													categoryId: value ? parseInt(value) : undefined
 												},
 												{ resetPage: true }
 											)
@@ -339,7 +339,7 @@ import { ACQUISITION_TYPE, PAGINATION, getServiceStatusLabel, getServiceStatusVa
 										onValueChange={(value: string) =>
 											updateServiceFilters(
 												{
-													city_id: value ? parseInt(value) : undefined
+													cityId: value ? parseInt(value) : undefined
 												},
 												{ resetPage: true }
 											)
@@ -375,7 +375,7 @@ import { ACQUISITION_TYPE, PAGINATION, getServiceStatusLabel, getServiceStatusVa
 										onValueChange={(value: string) =>
 											updateServiceFilters(
 												{
-													acquisition_type: value ? (value as AcquisitionType) : undefined
+													acquisitionType: value ? (value as AcquisitionType) : undefined
 												},
 												{ resetPage: true }
 											)
@@ -472,7 +472,7 @@ import { ACQUISITION_TYPE, PAGINATION, getServiceStatusLabel, getServiceStatusVa
 													<span class="text-muted-foreground text-sm">-</span>
 												{/if}
 											</TableCell>
-											<TableCell>{formatDate(service.created_at)}</TableCell>
+											<TableCell>{formatDate(service.createdAt)}</TableCell>
 											{#if userCanManageServices}
 												<TableCell>
 													<div class="flex items-center justify-center">

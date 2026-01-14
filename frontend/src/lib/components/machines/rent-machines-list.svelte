@@ -7,7 +7,6 @@
 	import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '$lib/components/ui/table/index.js';
 	import { Printer } from 'lucide-svelte';
 	import PaginationControls from '$lib/components/pagination-controls.svelte';
-	import type { ClientCopyMachine } from '$lib/api/types/copy-machine.types.js';
 
 	let currentPage = $state(1);
 	let pageSize = $state(10);
@@ -81,14 +80,14 @@
 						{#each machines as machine}
 							<TableRow>
 								<TableCell class="font-medium">
-									{machine?.external_model || machine?.catalogCopyMachine?.model || '-'}
+									{machine?.externalModel || machine?.catalogCopyMachine?.model || '-'}
 								</TableCell>
 								<TableCell>
-									{machine?.external_manufacturer || machine?.catalogCopyMachine?.manufacturer || '-'}
+									{machine?.externalManufacturer || machine?.catalogCopyMachine?.manufacturer || '-'}
 								</TableCell>
-								<TableCell>{machine?.serial_number}</TableCell>
+								<TableCell>{machine?.serialNumber}</TableCell>
 								<TableCell>{machine?.client?.name || '-'}</TableCell>
-								<TableCell>{formatDate((machine as any).created_at || machine.createdAt || null)}</TableCell>
+								<TableCell>{formatDate(machine.createdAt)}</TableCell>
 							</TableRow>
 						{/each}
 					</TableBody>

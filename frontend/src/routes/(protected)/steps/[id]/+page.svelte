@@ -16,6 +16,7 @@
 		return translations[method] || method;
 	}
 	import { Button } from '$lib/components/ui/button/index.js';
+	import { LoadingButton } from '$lib/components/ui/loading-button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card/index.js';
@@ -90,16 +91,16 @@
 	$effect(() => {
 		if (step) {
 			observation = step.observation || '';
-			responsableClient = step.responsable_client || '';
+			responsableClient = step.responsableClient || '';
 			
 			// Load billing data if exists
-			if (step.is_billing && step.billing) {
+			if (step.isBilling && step.billing) {
 				// Only update from step data if we're not in edit mode (to prevent resetting user input)
 				if (!isBillingEditMode) {
-					previousCounter = step.billing.previous_counter ?? null;
-					currentCounter = step.billing.current_counter ?? null;
-					paymentMethod = step.billing.payment_method || '';
-					isInvoiced = step.billing.is_invoiced ?? false;
+					previousCounter = step.billing.previousCounter ?? null;
+					currentCounter = step.billing.currentCounter ?? null;
+					paymentMethod = step.billing.paymentMethod || '';
+					isInvoiced = step.billing.isInvoiced ?? false;
 					
 					// Calculate amount if counters are available
 					if (currentCounter !== null && previousCounter !== null && step.billing.copyMachine?.franchise) {
@@ -112,8 +113,8 @@
 					
 					// For billing steps, start in edit mode if form is enabled and billing data is not filled
 					if (isFormEnabled) {
-						const hasBillingData = step.billing.current_counter !== null || 
-							step.billing.payment_method;
+						const hasBillingData = step.billing.currentCounter !== null || 
+							step.billing.paymentMethod;
 						isBillingEditMode = !hasBillingData;
 					} else {
 						isBillingEditMode = false;
@@ -133,7 +134,7 @@
 			// Start in preview mode if there's saved data, otherwise start in edit mode
 			// Only if form is enabled (IN_PROGRESS status)
 			if (isFormEnabled) {
-				const hasSavedData = (step.observation && step.observation.trim()) || (step.responsable_client && step.responsable_client.trim());
+				const hasSavedData = (step.observation && step.observation.trim()) || (step.responsableClient && step.responsableClient.trim());
 				isEditMode = !hasSavedData;
 			} else {
 				isEditMode = false; // Always preview mode for non-editable steps
@@ -181,7 +182,7 @@
 					id: step.id,
 					data: {
 						observation: observation.trim() || undefined,
-						responsable_client: responsableClient.trim() || undefined,
+						responsableClient: responsableClient.trim() || undefined,
 					},
 				},
 				{
@@ -207,7 +208,7 @@
 		// Restore original values from step
 		if (step) {
 			observation = step.observation || '';
-			responsableClient = step.responsable_client || '';
+			responsableClient = step.responsableClient || '';
 		}
 		isEditMode = false;
 	}
@@ -285,14 +286,14 @@
 	}
 
 	function goToService() {
-		if (step?.service_id) {
-			goto(`/services/${step.service_id}`);
+		if (step?.serviceId) {
+			goto(`/services/${step.serviceId}`);
 		}
 	}
 
 	function goToClient() {
-		if (step?.service?.client_id) {
-			goto(`/clients/${step.service.client_id}`);
+		if (step?.service?.clientId) {
+			goto(`/clients/${step.service.clientId}`);
 		} else if (step?.service?.client?.id) {
 			goto(`/clients/${step.service.client.id}`);
 		}
@@ -316,12 +317,10 @@
 			return;
 		}
 		
-		const updateData: { responsable_id?: number | null } = {};
+		const updateData: { responsableId?: number | null } = {};
 		
-		updateData.responsable_id = selectedResponsableId ?? null;
+		updateData.responsableId = selectedResponsableId ?? null;
 
-		console.log('updateData', updateData);
-		
 		updateStep(
 			{
 				id: step.id,
@@ -364,11 +363,11 @@
 				{
 					id: step.billing.id,
 					data: {
-						previous_counter: previousCounter,
-						current_counter: currentCounter,
-						payment_method: paymentMethod || undefined,
-						amount_to_receive: amountToReceive,
-						is_invoiced: isInvoiced,
+						previousCounter,
+						currentCounter,
+						paymentMethod: paymentMethod || undefined,
+						amountToReceive,
+						isInvoiced,
 					},
 				},
 				{
@@ -392,10 +391,10 @@
 
 	function handleCancelEditBilling() {
 		if (step?.billing) {
-			previousCounter = step.billing.previous_counter ?? null;
-			currentCounter = step.billing.current_counter ?? null;
-			paymentMethod = step.billing.payment_method || '';
-			isInvoiced = step.billing.is_invoiced ?? false;
+			previousCounter = step.billing.previousCounter ?? null;
+			currentCounter = step.billing.currentCounter ?? null;
+			paymentMethod = step.billing.paymentMethod || '';
+			isInvoiced = step.billing.isInvoiced ?? false;
 			calculatedAmountToReceive = null;
 			
 			// Recalculate if counters exist
@@ -421,7 +420,7 @@
 		const copiesMade = current - previous;
 		if (copiesMade <= 0) return 0;
 		
-		const unitPrice = franchise.unitPrice ?? (franchise as any).unit_price ?? 0;
+		const unitPrice = franchise.unitPrice ?? 0;
 		if (unitPrice <= 0) return null;
 		
 		const franchiseValue = franchise.quantity * unitPrice;
@@ -491,41 +490,33 @@
 				</div>
 			{:else if isResponsable}
 				{#if step.status === 'PENDING'}
-					<Button
+					<LoadingButton
 						onclick={handleStart}
-						disabled={isStarting}
+						loading={isStarting}
 						class="w-full sm:w-auto"
 					>
-						{#if isStarting}
-							<Loader2 class="w-4 h-4 mr-2 animate-spin" />
-						{:else}
-							<Play class="w-4 h-4 mr-2" />
-						{/if}
+						<Play class="w-4 h-4 mr-2" />
 						Começar Etapa
-					</Button>
+					</LoadingButton>
 				{:else if step.status === 'IN_PROGRESS'}
 					<div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto">
-						<Button
+						<LoadingButton
 							onclick={handleConclude}
-							disabled={isConcluding}
+							loading={isConcluding}
 							class="w-full sm:w-auto"
 						>
-							{#if isConcluding}
-								<Loader2 class="w-4 h-4 mr-2 animate-spin" />
-							{:else}
-								<CheckCircle class="w-4 h-4 mr-2" />
-							{/if}
+							<CheckCircle class="w-4 h-4 mr-2" />
 							Concluir Etapa
-						</Button>
-						<Button
+						</LoadingButton>
+						<LoadingButton
 							variant="destructive"
 							onclick={openCancelDialog}
-							disabled={isCancelling}
+							loading={isCancelling}
 							class="w-full sm:w-auto"
 						>
 							<XCircle class="w-4 h-4 mr-2" />
 							Cancelar Etapa
-						</Button>
+						</LoadingButton>
 					</div>
 				{/if}
 			{/if}
@@ -561,7 +552,7 @@
 			<!-- Main Content -->
 			<div class="lg:col-span-2 space-y-6">
 				<!-- Billing Information (for billing steps, appears first) -->
-				{#if step.is_billing && step.billing}
+				{#if step.isBilling && step.billing}
 					<Card>
 						<CardHeader>
 							<div>
@@ -596,34 +587,34 @@
 									<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 										<div>
 											<p class="text-sm font-medium text-muted-foreground">Contador Anterior</p>
-											<p class="text-sm">{step.billing.previous_counter ?? 'N/A'}</p>
+											<p class="text-sm">{step.billing.previousCounter ?? 'N/A'}</p>
 										</div>
 										<div>
 											<p class="text-sm font-medium text-muted-foreground">Contador Atual</p>
-											<p class="text-sm">{step.billing.current_counter ?? 'Não preenchido'}</p>
+											<p class="text-sm">{step.billing.currentCounter ?? 'Não preenchido'}</p>
 										</div>
 									</div>
 									<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 										<div>
 											<p class="text-sm font-medium text-muted-foreground">Forma de Pagamento</p>
-											<p class="text-sm">{step.billing.payment_method ? getPaymentMethodLabel(step.billing.payment_method) : 'Não informado'}</p>
+											<p class="text-sm">{step.billing.paymentMethod ? getPaymentMethodLabel(step.billing.paymentMethod) : 'Não informado'}</p>
 										</div>
 										<div>
 											<p class="text-sm font-medium text-muted-foreground">Pagamento Concluído</p>
-											<p class="text-sm">{step.billing.is_invoiced ? 'Sim' : 'Não'}</p>
+											<p class="text-sm">{step.billing.isInvoiced ? 'Sim' : 'Não'}</p>
 										</div>
 									</div>
 									<div>
 										<p class="text-sm font-medium text-muted-foreground">Valor a Receber</p>
-										<p class="text-sm font-semibold">{formatCurrency(step.billing.amount_to_receive)}</p>
+										<p class="text-sm font-semibold">{formatCurrency(step.billing.amountToReceive)}</p>
 									</div>
 									{#if step.billing.copyMachine}
 										<div>
 											<p class="text-sm font-medium text-muted-foreground">Máquina</p>
 											<p class="text-sm">
 												{step.billing.copyMachine.catalogCopyMachine?.model ||
-													step.billing.copyMachine.external_model ||
-													step.billing.copyMachine.serial_number}
+												step.billing.copyMachine.externalModel ||
+												step.billing.copyMachine.serialNumber}
 											</p>
 										</div>
 									{/if}
@@ -639,10 +630,10 @@
 												type="number"
 												bind:value={previousCounter}
 												placeholder="Digite o contador anterior"
-												disabled={step.billing.previous_counter !== null}
-												class={step.billing.previous_counter !== null ? 'bg-muted' : ''}
+												disabled={step.billing.previousCounter !== null}
+												class={step.billing.previousCounter !== null ? 'bg-muted' : ''}
 											/>
-											{#if step.billing.previous_counter !== null}
+											{#if step.billing.previousCounter !== null}
 												<p class="text-xs text-muted-foreground">Este valor já foi preenchido anteriormente</p>
 											{/if}
 										</div>
@@ -658,12 +649,12 @@
 									</div>
 
 									<!-- Payment method: show as preview if already filled (anytime) -->
-									{#if step.billing.payment_method}
+									{#if step.billing.paymentMethod}
 										<div class="space-y-2">
 											<Label>Forma de Pagamento</Label>
 											<Input
 												type="text"
-												value={getPaymentMethodLabel(step.billing.payment_method)}
+												value={getPaymentMethodLabel(step.billing.paymentMethod)}
 												disabled
 												class="bg-muted"
 											/>
@@ -674,7 +665,7 @@
 									{#if currentCounter !== null && previousCounter !== null && step.billing.copyMachine?.franchise}
 										{@const copiesMade = currentCounter - previousCounter}
 										{@const franchiseQuantity = step.billing.copyMachine.franchise.quantity}
-										{@const unitPrice = step.billing.copyMachine.franchise.unitPrice ?? (step.billing.copyMachine.franchise as any).unit_price ?? 0}
+										{@const unitPrice = step.billing.copyMachine.franchise.unitPrice ?? 0}
 										{@const franchiseValue = franchiseQuantity * unitPrice}
 										{@const excessCopies = copiesMade > franchiseQuantity ? copiesMade - franchiseQuantity : 0}
 										{@const excessValue = excessCopies * unitPrice}
@@ -728,7 +719,7 @@
 									{/if}
 
 									<!-- Payment method input and is_invoiced: only show if payment method is not already filled AND counters are filled -->
-									{#if !step.billing.payment_method && currentCounter !== null && previousCounter !== null}
+									{#if !step.billing.paymentMethod && currentCounter !== null && previousCounter !== null}
 										<!-- Payment Method Input -->
 										<div class="space-y-2">
 											<Label for="payment-method">Forma de Pagamento</Label>
@@ -770,7 +761,7 @@
 											</Label>
 											<p class="text-xs text-muted-foreground">Marque quando o cliente efetuar o pagamento</p>
 										</div>
-									{:else if step.billing.payment_method && currentCounter !== null && previousCounter !== null}
+									{:else if step.billing.paymentMethod && currentCounter !== null && previousCounter !== null}
 										<!-- Show is_invoiced even if payment method is already filled, but only after counters are filled -->
 										<div class="space-y-2">
 											<Label for="is-invoiced" class="flex items-center gap-2">
@@ -794,14 +785,10 @@
 											<X class="w-4 h-4 mr-2" />
 											Cancelar
 										</Button>
-										<Button onclick={handleSaveBilling} disabled={isSaving || isUpdatingBilling}>
-											{#if isSaving || isUpdatingBilling}
-												<Loader2 class="w-4 h-4 mr-2 animate-spin" />
-											{:else}
-												<Save class="w-4 h-4 mr-2" />
-											{/if}
+										<LoadingButton onclick={handleSaveBilling} loading={isSaving || isUpdatingBilling}>
+											<Save class="w-4 h-4 mr-2" />
 											Salvar Fechamento
-										</Button>
+										</LoadingButton>
 									</div>
 								</div>
 							{:else}
@@ -820,34 +807,34 @@
 									<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 										<div>
 											<p class="text-sm font-medium text-muted-foreground">Contador Anterior</p>
-											<p class="text-sm">{step.billing.previous_counter ?? 'N/A'}</p>
+											<p class="text-sm">{step.billing.previousCounter ?? 'N/A'}</p>
 										</div>
 										<div>
 											<p class="text-sm font-medium text-muted-foreground">Contador Atual</p>
-											<p class="text-sm">{step.billing.current_counter ?? 'Não preenchido'}</p>
+											<p class="text-sm">{step.billing.currentCounter ?? 'Não preenchido'}</p>
 										</div>
 									</div>
 									<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 										<div>
 											<p class="text-sm font-medium text-muted-foreground">Forma de Pagamento</p>
-											<p class="text-sm">{step.billing.payment_method ? getPaymentMethodLabel(step.billing.payment_method) : 'Não informado'}</p>
+											<p class="text-sm">{step.billing.paymentMethod ? getPaymentMethodLabel(step.billing.paymentMethod) : 'Não informado'}</p>
 										</div>
 										<div>
 											<p class="text-sm font-medium text-muted-foreground">Pagamento Concluído</p>
-											<p class="text-sm">{step.billing.is_invoiced ? 'Sim' : 'Não'}</p>
+											<p class="text-sm">{step.billing.isInvoiced ? 'Sim' : 'Não'}</p>
 										</div>
 									</div>
 									<div>
 										<p class="text-sm font-medium text-muted-foreground">Valor a Receber</p>
-										<p class="text-sm font-semibold">{formatCurrency(step.billing.amount_to_receive)}</p>
+										<p class="text-sm font-semibold">{formatCurrency(step.billing.amountToReceive)}</p>
 									</div>
 									{#if step.billing.copyMachine}
 										<div>
 											<p class="text-sm font-medium text-muted-foreground">Máquina</p>
 											<p class="text-sm">
 												{step.billing.copyMachine.catalogCopyMachine?.model ||
-													step.billing.copyMachine.external_model ||
-													step.billing.copyMachine.serial_number}
+												step.billing.copyMachine.externalModel ||
+												step.billing.copyMachine.serialNumber}
 											</p>
 										</div>
 									{/if}
@@ -946,14 +933,10 @@
 									<X class="w-4 h-4 mr-2" />
 									Cancelar
 								</Button>
-								<Button onclick={handleSave} disabled={!isFormEnabled || isSaving || isUpdating}>
-									{#if isSaving || isUpdating}
-										<Loader2 class="w-4 h-4 mr-2 animate-spin" />
-									{:else}
-										<Save class="w-4 h-4 mr-2" />
-									{/if}
+								<LoadingButton onclick={handleSave} loading={isSaving || isUpdating} disabled={!isFormEnabled}>
+									<Save class="w-4 h-4 mr-2" />
 									Salvar Alterações
-								</Button>
+								</LoadingButton>
 							</div>
 						{:else if isFormEnabled}
 							<!-- Preview Mode: Read-only display -->
@@ -1090,13 +1073,13 @@
 				</Card>
 
 				<!-- Cancel Reason (if cancelled) -->
-				{#if step.status === 'CANCELLED' && step.reason_cancellament}
+				{#if step.status === 'CANCELLED' && step.reasonCancellament}
 					<Card>
 						<CardHeader>
 							<CardTitle>Motivo do Cancelamento</CardTitle>
 						</CardHeader>
 						<CardContent>
-							<p class="text-sm">{step.reason_cancellament}</p>
+							<p class="text-sm">{step.reasonCancellament}</p>
 						</CardContent>
 					</Card>
 				{/if}
@@ -1116,7 +1099,7 @@
 							<div class="text-sm flex items-center gap-2 flex-wrap">
 								{#if step.service}
 									<span>Serviço #{step.service.id}</span>
-									{#if step?.service_id}
+									{#if step?.serviceId}
 										<button
 											onclick={() => goToService()}
 											class="text-primary hover:underline inline-flex items-center gap-1 text-xs font-medium"
@@ -1135,7 +1118,7 @@
 							<div class="text-sm flex items-center gap-2 flex-wrap">
 								{#if step.service?.client}
 									<span>{step.service.client.name}</span>
-									{#if step?.service?.client_id || step?.service?.client?.id}
+									{#if step?.service?.clientId || step?.service?.client?.id}
 										<button
 											onclick={() => goToClient()}
 											class="text-primary hover:underline inline-flex items-center gap-1 text-xs font-medium"
@@ -1185,8 +1168,8 @@
 						<div>
 							<p class="text-sm font-medium text-muted-foreground">Data de Início</p>
 							<p class="text-sm">
-								{#if step.datetime_start}
-									{formatDate(step.datetime_start)}
+								{#if step.datetimeStart}
+									{formatDate(step.datetimeStart)}
 								{:else}
 									<span class="text-muted-foreground">Não iniciado</span>
 								{/if}
@@ -1195,8 +1178,8 @@
 						<div>
 							<p class="text-sm font-medium text-muted-foreground">Data de Conclusão</p>
 							<p class="text-sm">
-								{#if step.datetime_conclusion}
-									{formatDate(step.datetime_conclusion)}
+								{#if step.datetimeConclusion}
+									{formatDate(step.datetimeConclusion)}
 								{:else}
 									<span class="text-muted-foreground">Não concluído</span>
 								{/if}
@@ -1205,8 +1188,8 @@
 						<div>
 							<p class="text-sm font-medium text-muted-foreground">Data de Expiração</p>
 							<p class="text-sm">
-								{#if step.datetime_expiration}
-									{formatDate(step.datetime_expiration)}
+								{#if step.datetimeExpiration}
+									{formatDate(step.datetimeExpiration)}
 								{:else}
 									<span class="text-muted-foreground">Sem expiração</span>
 								{/if}
@@ -1313,16 +1296,13 @@
 			>
 				Cancelar
 			</Button>
-			<Button
+			<LoadingButton
 				type="button"
 				onclick={handleUpdateResponsable}
-				disabled={isUpdating}
+				loading={isUpdating}
 			>
-				{#if isUpdating}
-					<Loader2 class="w-4 h-4 mr-2 animate-spin" />
-				{/if}
 				Salvar
-			</Button>
+			</LoadingButton>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>

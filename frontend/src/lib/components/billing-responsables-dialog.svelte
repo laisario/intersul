@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '$lib/components/ui/dialog/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import { LoadingButton } from '$lib/components/ui/loading-button/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Select, SelectTrigger, SelectContent, SelectItem } from '$lib/components/ui/select/index.js';
@@ -12,17 +13,17 @@
 	import { AcquisitionType } from '$lib/api/types/copy-machine.types.js';
 	import type { MachineUserMapping } from '$lib/api/types/billing.types.js';
 	import type { ClientCopyMachine } from '$lib/api/types/copy-machine.types.js';
-	import { Loader2 } from 'lucide-svelte';
 	import { formatCurrency } from '$lib/utils/formatting.js';
 
 	interface Props {
 		open: boolean;
 		cityId: number;
+		loading?: boolean;
 		onConfirm: (machines: MachineUserMapping[]) => void;
 		onCancel: () => void;
 	}
 
-	let { open = $bindable(false), cityId, onConfirm, onCancel }: Props = $props();
+	let { open = $bindable(false), cityId, loading = false, onConfirm, onCancel }: Props = $props();
 
 	const clientsQuery = useClients();
 	const usersQuery = useUsers();
@@ -55,23 +56,20 @@
 	function getMachineModel(machine: ClientCopyMachine): string {
 		return (
 			machine.catalogCopyMachine?.model ||
-			machine.external_model ||
-			`${machine.external_manufacturer || ''} ${machine.external_model || ''}`.trim() ||
+			machine.externalModel ||
+			`${machine.externalManufacturer || ''} ${machine.externalModel || ''}`.trim() ||
 			'Machine'
 		);
 	}
 
-	// Get last counter for machine
 	function getLastCounter(machine: ClientCopyMachine): number | null {
-		return machine.ultimo_contador ?? null;
+		return machine.ultimoContador ?? null;
 	}
 
-	// Calculate suggested price (franchise quantity * unit price)
 	function getSuggestedPrice(machine: ClientCopyMachine): number | null {
 		if (!machine.franchise) return null;
 		const quantity = machine.franchise.quantity ?? 0;
-		// Handle both camelCase (unitPrice) and snake_case (unit_price) from API
-		const unitPrice = (machine.franchise as any).unitPrice ?? (machine.franchise as any).unit_price ?? 0;
+		const unitPrice = machine.franchise.unitPrice ?? 0;
 		if (!quantity || !unitPrice) return null;
 		return quantity * unitPrice;
 	}
@@ -261,7 +259,7 @@
 				{#each cityClients as client (client.id)}
 					{@const clientMachinesQuery = useClientCopyMachines(client.id)}
 					{@const clientMachines = clientMachinesQuery?.data ?? []}
-					{@const rentMachines = clientMachines.filter((m) => m.acquisition_type === AcquisitionType.RENT && m.franchise)}
+					{@const rentMachines = clientMachines.filter((m) => m.acquisitionType === AcquisitionType.RENT && m.franchise)}
 
 					{#if clientMachinesQuery?.isLoading}
 						<Card>
@@ -458,15 +456,17 @@
 		</div>
 
 		<DialogFooter>
-			<Button variant="outline" onclick={handleCancel}>
+			<Button variant="outline" onclick={handleCancel} disabled={loading}>
 				Cancelar
 			</Button>
-			<Button
+			<LoadingButton
 				onclick={handleConfirm}
+				loading={loading}
+				loadingText="Gerando fechamentos..."
 				disabled={machineUserMap.size === 0 || clientsQuery.isLoading || usersQuery.isLoading}
 			>
 				Confirmar e Criar
-			</Button>
+			</LoadingButton>
 		</DialogFooter>
 	</DialogContent>
 </Dialog>

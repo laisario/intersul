@@ -128,8 +128,8 @@
 							</Badge>
 						</TableCell>
 						<TableCell>
-							{#if step.datetime_expiration}
-								{@const days = getDays(step.datetime_expiration)}
+							{#if step.datetimeExpiration}
+								{@const days = getDays(step.datetimeExpiration)}
 								<span 
 									class={`text-sm px-2 py-1 rounded-md inline-flex items-center justify-center font-medium ${getExpirationBadgeClasses(days)}`}
 								>

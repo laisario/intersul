@@ -7,8 +7,8 @@ import type { Step } from '../types/service.types.js';
 
 export interface UpdateStepDto {
   observation?: string;
-  responsable_client?: string;
-  responsable_id?: number | null;
+  responsableClient?: string;
+  responsableId?: number | null;
 }
 
 export const stepsApi = {

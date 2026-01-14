@@ -1,21 +1,18 @@
 <script lang="ts">
-	import PrinterIcon from "@lucide/svelte/icons/printer";
 	import type { HTMLAttributes } from "svelte/elements";
 	import {
 		FieldGroup,
 		Field,
 		FieldLabel,
-		FieldDescription,
-		FieldSeparator,
 		FieldError,
 	} from "$lib/components/ui/field/index.js"
 	import { Input } from "$lib/components/ui/input/index.js";
-	import { Button } from "$lib/components/ui/button/index.js";
+	import { LoadingButton } from "$lib/components/ui/loading-button/index.js";
 	import { cn, type WithElementRef } from "$lib/utils.js";
 	import logo from "$lib/assets/logo.png";
 	import { useLogin } from "$lib/hooks/queries/use-auth.svelte.js";
 	import { loginSchema, validateForm, getFieldError } from "$lib/utils/validation.js";
-	import { errorToast, successToast, showError } from "$lib/utils/toast.js";
+	import { successToast, showError } from "$lib/utils/toast.js";
 	import { goto } from '$app/navigation';
 	import { Eye, EyeOff } from 'lucide-svelte';
 
@@ -132,9 +129,9 @@
 			</Field>
 			
 			<Field>
-				<Button type="submit" disabled={isLoading} class="w-full bg-red-600 hover:bg-red-700 text-white">
-					{isLoading ? 'Carregando...' : 'Entrar'}
-				</Button>
+				<LoadingButton type="submit" loading={isLoading} loadingText="Carregando..." class="w-full bg-red-600 hover:bg-red-700 text-white">
+					Entrar
+				</LoadingButton>
 			</Field>
 		</FieldGroup>
 	</form>

@@ -131,7 +131,7 @@
 		if (!machine) return 'Não informado';
 		return (
 			machine.catalogCopyMachine?.model ??
-			machine.external_model ??
+			machine.externalModel ??
 			'EQUIPAMENTO'
 		);
 	}
@@ -140,15 +140,15 @@
 		if (!machine) return 'Não informado';
 		return (
 			machine.catalogCopyMachine?.manufacturer ??
-			machine.external_manufacturer ??
+			machine.externalManufacturer ??
 			'Não informado'
 		);
 	}
 
 	$effect(() => {
-		if (service?.client_copy_machine_id) {
+		if (service?.clientCopyMachineId) {
 			machineHistoryFilters = {
-				client_copy_machine_id: service.client_copy_machine_id,
+				clientCopyMachineId: service.clientCopyMachineId,
 				page: 1,
 				limit: 5
 			};
@@ -246,7 +246,7 @@
 		</div>
 
 		<!-- Content Skeleton -->
-		<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+		<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 px-6">
 			<div class="lg:col-span-2 space-y-6">
 				<Card>
 					<CardHeader>
@@ -291,7 +291,7 @@
 				<div>
 					<h1 class="text-3xl font-bold">Serviço #{service.id}</h1>
 					<p class="text-muted-foreground">
-						Cliente: {service.client?.name || '-'} • Categoria: {service.category?.name || '-'} • Criado em: {formatDate(service.created_at || service.createdAt)}
+						Cliente: {service.client?.name || '-'} • Categoria: {service.category?.name || '-'} • Criado em: {formatDate(service.createdAt)}
 					</p>
 				</div>
 			</div>
@@ -397,11 +397,11 @@
 													</span>
 												</div>
 											{/if}
-											{#if step.datetime_conclusion}
+											{#if step.datetimeConclusion}
 												<div class="flex items-center space-x-2 mt-2">
 													<Calendar class="w-4 h-4 text-muted-foreground" />
 													<span class="text-sm text-muted-foreground">
-														Concluído em: {formatDate(step.datetime_conclusion)}
+														Concluído em: {formatDate(step.datetimeConclusion)}
 													</span>
 												</div>
 											{/if}
@@ -419,7 +419,7 @@
 					</CardContent>
 				</Card>
 
-				{#if service.client_copy_machine_id}
+				{#if service.clientCopyMachineId}
 					<Card>
 						<CardHeader>
 							<CardTitle class="flex items-center">
@@ -533,12 +533,12 @@
 
 						<div>
 							<span class="font-medium text-muted-foreground block">Criado em</span>
-							<span class="mt-1 block">{formatDate(service.created_at || service.createdAt)}</span>
+							<span class="mt-1 block">{formatDate(service.createdAt)}</span>
 						</div>
 
 						<div>
 							<span class="font-medium text-muted-foreground block">Atualizado em</span>
-							<span class="mt-1 block">{formatDate(service.updated_at || service.updatedAt)}</span>
+							<span class="mt-1 block">{formatDate(service.updatedAt)}</span>
 						</div>
 					</CardContent>
 				</Card>
@@ -574,10 +574,10 @@
 								<span>{formatClientAddress(service.client)}</span>
 							</div>
 
-							{#if service.client.address?.postal_code}
+							{#if service.client.address?.postalCode}
 								<div>
 									<span class="font-medium text-muted-foreground block">CEP</span>
-									<span class="mt-1 block">{service.client.address.postal_code}</span>
+									<span class="mt-1 block">{service.client.address.postalCode}</span>
 								</div>
 							{/if}
 						</CardContent>
@@ -604,11 +604,11 @@
 							</div>
 							<div>
 								<span class="font-medium text-muted-foreground block">Número de Série</span>
-								<span class="mt-1 block">{service.clientCopyMachine.serial_number}</span>
+								<span class="mt-1 block">{service.clientCopyMachine.serialNumber}</span>
 							</div>
 							<div>
 								<span class="font-medium text-muted-foreground block">Tipo de Aquisição</span>
-								<span class="mt-1 block">{formatAcquisitionType(service.clientCopyMachine.acquisition_type)}</span>
+								<span class="mt-1 block">{formatAcquisitionType(service.clientCopyMachine.acquisitionType)}</span>
 							</div>
 							{#if service.clientCopyMachine.value}
 								<div>
@@ -616,11 +616,11 @@
 									<span class="mt-1 block">{formatCurrency(service.clientCopyMachine.value)}</span>
 								</div>
 							{/if}
-							{#if service.clientCopyMachine.external_description}
+							{#if service.clientCopyMachine.externalDescription}
 								<div>
 									<span class="font-medium text-muted-foreground block">Descrição</span>
 									<p class="mt-1 text-sm whitespace-pre-line">
-										{service.clientCopyMachine.external_description}
+										{service.clientCopyMachine.externalDescription}
 									</p>
 								</div>
 							{/if}

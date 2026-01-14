@@ -118,7 +118,7 @@ import { ACQUISITION_TYPE, getServiceStatusLabel, getServiceStatusVariant } from
 	}
 	
 	function handleDeleteMachine(machine: ClientCopyMachine) {
-		machineToDelete = { id: machine.id, serial: machine.serial_number };
+		machineToDelete = { id: machine.id, serial: machine.serialNumber };
 		showDeleteConfirmation = true;
 	}
 	
@@ -233,8 +233,8 @@ function handlePageSizeChange(size: number) {
 			parts.push(`- ${cityState.join('/')}`);
 		}
 		
-		if (address.postal_code) {
-			parts.push(`- CEP: ${address.postal_code}`);
+		if (address.postalCode) {
+			parts.push(`- CEP: ${address.postalCode}`);
 		}
 		
 		return parts.join(' ');
@@ -301,8 +301,8 @@ const isLoadingServiceHistory = $derived(serviceHistoryQuery.isLoading);
 				<div>
 					<h1 class="text-3xl font-bold">{client.name}</h1>
 					<p class="text-muted-foreground">
-						{#if client.createdAt || (client as any).created_at}
-							Cliente desde {formatDate(client.createdAt || (client as any).created_at)}
+						{#if client.createdAt}
+							Cliente desde {formatDate(client.createdAt)}
 						{:else}
 							Cliente desde -
 						{/if}
@@ -345,13 +345,13 @@ const isLoadingServiceHistory = $derived(serviceHistoryQuery.isLoading);
 							</div>
 						{/if}
 						
-						{#if client.how_met_company}
+						{#if client.howMetCompany}
 							<div class="flex items-center space-x-3">
 								<Info class="w-4 h-4 text-muted-foreground" />
 								<div class="text-sm">
 									<span class="text-muted-foreground">Como conheceu a empresa: </span>
 									<span class="font-medium">
-										{HOW_MET_COMPANY_LABELS[client.how_met_company] || client.how_met_company}
+										{HOW_MET_COMPANY_LABELS[client.howMetCompany] || client.howMetCompany}
 									</span>
 								</div>
 							</div>
@@ -389,14 +389,14 @@ const isLoadingServiceHistory = $derived(serviceHistoryQuery.isLoading);
 												class="hover:bg-muted/50 cursor-pointer"
 												onclick={() => handleViewMachine(machine)}
 											>
-												<TableCell class="font-medium">{machine?.external_model || machine?.catalogCopyMachine?.model}</TableCell>
-												<TableCell>{machine?.external_manufacturer || machine?.catalogCopyMachine?.manufacturer}</TableCell>
-												<TableCell>{machine?.serial_number}</TableCell>
+												<TableCell class="font-medium">{machine?.externalModel || machine?.catalogCopyMachine?.model}</TableCell>
+												<TableCell>{machine?.externalManufacturer || machine?.catalogCopyMachine?.manufacturer}</TableCell>
+												<TableCell>{machine?.serialNumber}</TableCell>
 												<!-- TODO: Add last service date -->
 												<TableCell>{formatDate(machine.createdAt)}</TableCell>
 												<TableCell>
 													<Badge variant="secondary">
-														{ACQUISITION_TYPE[machine?.acquisition_type]?.label || machine?.acquisition_type}
+														{ACQUISITION_TYPE[machine?.acquisitionType]?.label || machine?.acquisitionType}
 													</Badge>
 												</TableCell>
 												<TableCell onclick={(e) => e.stopPropagation()}>
@@ -504,7 +504,7 @@ const isLoadingServiceHistory = $derived(serviceHistoryQuery.isLoading);
 												{#if service.clientCopyMachine}
 													<div class="flex items-center space-x-1">
 														<Printer class="w-3 h-3" />
-														<span>{service.clientCopyMachine.catalogCopyMachine?.model || service.clientCopyMachine.external_model || 'Máquina'}</span>
+														<span>{service.clientCopyMachine.catalogCopyMachine?.model || service.clientCopyMachine.externalModel || 'Máquina'}</span>
 													</div>
 												{/if}
 											</div>
@@ -544,7 +544,7 @@ const isLoadingServiceHistory = $derived(serviceHistoryQuery.isLoading);
 							<span class="text-sm font-medium">Último Serviço</span>
 							<span class="text-sm text-muted-foreground">
 								{serviceHistory.length > 0
-									? formatDate(serviceHistory[0].created_at || serviceHistory[0].createdAt || '')
+									? formatDate(serviceHistory[0].createdAt || '')
 									: 'N/A'}
 							</span>
 						</div>
@@ -616,13 +616,13 @@ const isLoadingServiceHistory = $derived(serviceHistoryQuery.isLoading);
 						<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 							<div class="space-y-1">
 								<Label class="text-sm text-muted-foreground">Número de Série</Label>
-								<p class="text-sm font-medium">{viewingMachine.serial_number}</p>
+								<p class="text-sm font-medium">{viewingMachine.serialNumber}</p>
 							</div>
 							<div class="space-y-1">
 								<Label class="text-sm text-muted-foreground">Tipo de Aquisição</Label>
 								<div>
 									<Badge variant="secondary">
-										{ACQUISITION_TYPE[viewingMachine.acquisition_type]?.label || viewingMachine.acquisition_type}
+										{ACQUISITION_TYPE[viewingMachine.acquisitionType]?.label || viewingMachine.acquisitionType}
 									</Badge>
 								</div>
 							</div>
@@ -632,21 +632,21 @@ const isLoadingServiceHistory = $derived(serviceHistoryQuery.isLoading);
 							<div class="space-y-1">
 								<Label class="text-sm text-muted-foreground">Fabricante</Label>
 								<p class="text-sm font-medium">
-									{viewingMachine.external_manufacturer || viewingMachine.catalogCopyMachine?.manufacturer || '-'}
+									{viewingMachine.externalManufacturer || viewingMachine.catalogCopyMachine?.manufacturer || '-'}
 								</p>
 							</div>
 							<div class="space-y-1">
 								<Label class="text-sm text-muted-foreground">Modelo</Label>
 								<p class="text-sm font-medium">
-									{viewingMachine.external_model || viewingMachine.catalogCopyMachine?.model || '-'}
+									{viewingMachine.externalModel || viewingMachine.catalogCopyMachine?.model || '-'}
 								</p>
 							</div>
 						</div>
 
-						{#if viewingMachine.external_description}
+						{#if viewingMachine.externalDescription}
 							<div class="space-y-1">
 								<Label class="text-sm text-muted-foreground">Descrição</Label>
-								<p class="text-sm">{viewingMachine.external_description}</p>
+								<p class="text-sm">{viewingMachine.externalDescription}</p>
 							</div>
 						{/if}
 					</CardContent>
@@ -686,13 +686,13 @@ const isLoadingServiceHistory = $derived(serviceHistoryQuery.isLoading);
 					</Card>
 				{/if}
 
-				{#if viewingMachine.acquisition_type !== AcquisitionType.OWNED}
+				{#if viewingMachine.acquisitionType !== AcquisitionType.OWNED}
 					<Card>
 						<CardHeader>
 							<CardTitle class="text-lg">Detalhes da Aquisição</CardTitle>
 						</CardHeader>
 						<CardContent class="space-y-4">
-							{#if viewingMachine.acquisition_type === AcquisitionType.SOLD && viewingMachine.value != null}
+							{#if viewingMachine.acquisitionType === AcquisitionType.SOLD && viewingMachine.value != null}
 								<div class="space-y-1">
 									<Label class="text-sm text-muted-foreground flex items-center gap-2">
 										<DollarSign class="w-4 h-4" />
@@ -702,7 +702,7 @@ const isLoadingServiceHistory = $derived(serviceHistoryQuery.isLoading);
 								</div>
 							{/if}
 
-							{#if viewingMachine.acquisition_type === AcquisitionType.RENT}
+							{#if viewingMachine.acquisitionType === AcquisitionType.RENT}
 								{#if viewingMachine.franchise}
 									<div class="space-y-3">
 										<Label class="text-sm text-muted-foreground">Plano de Franquia</Label>
@@ -714,7 +714,7 @@ const isLoadingServiceHistory = $derived(serviceHistoryQuery.isLoading);
 												</div>
 												<div>
 													<span class="text-muted-foreground">Tipo de Papel:</span>
-													<p class="font-medium">{viewingMachine.franchise.paper_type}</p>
+													<p class="font-medium">{viewingMachine.franchise.paperType}</p>
 												</div>
 												<div>
 													<span class="text-muted-foreground">Cor:</span>
@@ -726,7 +726,7 @@ const isLoadingServiceHistory = $derived(serviceHistoryQuery.isLoading);
 												</div>
 												<div class="col-span-2">
 													<span class="text-muted-foreground">Preço Unitário:</span>
-													<p class="font-medium">{formatCurrency(viewingMachine.franchise.unitPrice ?? viewingMachine.franchise.unit_price ?? 0)}</p>
+													<p class="font-medium">{formatCurrency(viewingMachine.franchise.unitPrice ?? 0)}</p>
 												</div>
 											</div>
 										</div>

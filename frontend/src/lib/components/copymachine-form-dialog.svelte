@@ -38,52 +38,52 @@
 	let isLoadingFranchises = $derived(franchisesQuery.isLoading || franchisesQuery.isFetching);
 
 	// Initialize form state based on whether we're editing or creating
-	function getInitialFormData(): Partial<CreateClientCopyMachineDto> {
+	function getInitialFormData(): CreateClientCopyMachineDto {
 		if (machine) {
-			// Editing mode - initialize with machine data
+			// Editing mode - initialize with machine data (already in camelCase from API)
 			return {
-				serial_number: machine.serial_number || '',
-				client_id: clientId,
-				acquisition_type: machine.acquisition_type || AcquisitionType.RENT,
-				catalog_copy_machine_id: machine.catalog_copy_machine_id ?? undefined,
-				external_model: machine.external_model || '',
-				external_manufacturer: machine.external_manufacturer || '',
-				external_description: machine.external_description || '',
+				serialNumber: machine.serialNumber || '',
+				clientId: clientId,
+				acquisitionType: machine.acquisitionType || AcquisitionType.RENT,
+				catalogCopyMachineId: machine.catalogCopyMachineId ?? undefined,
+				externalModel: machine.externalModel || '',
+				externalManufacturer: machine.externalManufacturer || '',
+				externalDescription: machine.externalDescription || '',
 				value: machine.value ?? undefined,
-				franchise_id: machine.franchise_id ?? undefined
+				franchiseId: machine.franchiseId ?? undefined
 			};
 		} else {
 			// Create mode - initialize with defaults
 			return {
-				serial_number: '',
-				client_id: clientId,
-				acquisition_type: AcquisitionType.RENT,
-				catalog_copy_machine_id: undefined,
-				external_model: '',
-				external_manufacturer: '',
-				external_description: '',
+				serialNumber: '',
+				clientId: clientId,
+				acquisitionType: AcquisitionType.RENT,
+				catalogCopyMachineId: undefined,
+				externalModel: '',
+				externalManufacturer: '',
+				externalDescription: '',
 				value: undefined,
-				franchise_id: undefined
+				franchiseId: undefined
 			};
 		}
 	}
 
-	// Form state - initialized based on machine prop
+	// Form state - initialized based on machine prop (using camelCase, humps converts to snake_case on send)
 	let formData = $state<Partial<CreateClientCopyMachineDto>>(getInitialFormData());
 
 	let selectedCatalogMachine = $state<CopyMachineCatalog | null>(null);
 
 	// Derived states
 	let showCatalogSelect = $derived(
-		formData.acquisition_type === AcquisitionType.RENT ||
-		formData.acquisition_type === AcquisitionType.SOLD
+		formData.acquisitionType === AcquisitionType.RENT ||
+		formData.acquisitionType === AcquisitionType.SOLD
 	);
 
-	let showExternalFields = $derived(formData.acquisition_type === AcquisitionType.OWNED);
+	let showExternalFields = $derived(formData.acquisitionType === AcquisitionType.OWNED);
 
-	let showValueField = $derived(formData.acquisition_type === AcquisitionType.SOLD);
+	let showValueField = $derived(formData.acquisitionType === AcquisitionType.SOLD);
 
-	let showFranchiseSelect = $derived(formData.acquisition_type === AcquisitionType.RENT);
+	let showFranchiseSelect = $derived(formData.acquisitionType === AcquisitionType.RENT);
 
 	let suggestedPrice = $derived(
 		selectedCatalogMachine?.price ? `R$ ${Number(selectedCatalogMachine.price).toFixed(2)}` : ''
@@ -92,70 +92,70 @@
 	// Handle catalog machine selection
 	function handleCatalogMachineChange(value: string) {
 		const machineId = parseInt(value);
-		formData.catalog_copy_machine_id = machineId;
+		formData.catalogCopyMachineId = machineId;
 		
 		// Find the selected machine
 		selectedCatalogMachine = catalogMachines.find(m => m.id === machineId) || null;
 		
 		// If SOLD, suggest the price
-		if (formData.acquisition_type === AcquisitionType.SOLD && selectedCatalogMachine?.price) {
+		if (formData.acquisitionType === AcquisitionType.SOLD && selectedCatalogMachine?.price) {
 			formData.value = Number(selectedCatalogMachine.price);
 		}
 	}
 
 	// Handle acquisition type change
 	function handleAcquisitionTypeChange(value: string) {
-		formData.acquisition_type = value as AcquisitionType;
+		formData.acquisitionType = value as AcquisitionType;
 		
 		// Reset fields based on type
 		if (value === AcquisitionType.OWNED) {
-			formData.catalog_copy_machine_id = undefined;
-			formData.franchise_id = undefined;
+			formData.catalogCopyMachineId = undefined;
+			formData.franchiseId = undefined;
 			formData.value = undefined;
 			selectedCatalogMachine = null;
 		} else if (value === AcquisitionType.RENT) {
-			formData.external_model = '';
-			formData.external_manufacturer = '';
-			formData.external_description = '';
+			formData.externalModel = '';
+			formData.externalManufacturer = '';
+			formData.externalDescription = '';
 			formData.value = undefined;
 		} else if (value === AcquisitionType.SOLD) {
-			formData.external_model = '';
-			formData.external_manufacturer = '';
-			formData.external_description = '';
-			formData.franchise_id = undefined;
+			formData.externalModel = '';
+			formData.externalManufacturer = '';
+			formData.externalDescription = '';
+			formData.franchiseId = undefined;
 		}
 	}
 
 	// Validate form
 	function validateForm(): boolean {
-		if (!formData.serial_number?.trim()) {
+		if (!formData.serialNumber?.trim()) {
 			showError('Número de série é obrigatório');
 			return false;
 		}
 
-		if (!formData.acquisition_type) {
+		if (!formData.acquisitionType) {
 			showError('Tipo de aquisição é obrigatório');
 			return false;
 		}
 
 		// Validate based on acquisition type
-		if (showCatalogSelect && !formData.catalog_copy_machine_id) {
+		if (showCatalogSelect && !formData.catalogCopyMachineId) {
 			showError('Selecione uma máquina do catálogo');
 			return false;
 		}
 
 		if (showExternalFields) {
-			if (!formData.external_model?.trim()) {
+			if (!formData.externalModel?.trim()) {
 				showError('Modelo é obrigatório para máquinas externas');
 				return false;
 			}
-			if (!formData.external_manufacturer?.trim()) {
+			if (!formData.externalManufacturer?.trim()) {
 				showError('Fabricante é obrigatório para máquinas externas');
 				return false;
 			}
 		}
 
-		if (showFranchiseSelect && !formData.franchise_id) {
+		if (showFranchiseSelect && !formData.franchiseId) {
 			showError('Selecione uma franquia para aluguel');
 			return false;
 		}
@@ -166,16 +166,17 @@
 	async function handleSubmit() {
 		if (!validateForm()) return;
 
+		// Send camelCase directly - humps will convert to snake_case automatically
 		if (isEditing && machine) {
 			const payload: UpdateClientCopyMachineDto = {
-				serial_number: formData.serial_number!,
-				acquisition_type: formData.acquisition_type!,
-				catalog_copy_machine_id: formData.catalog_copy_machine_id,
-				external_model: formData.external_model || undefined,
-				external_manufacturer: formData.external_manufacturer || undefined,
-				external_description: formData.external_description || undefined,
-				value: formData.value ? Number(formData.value) : undefined,
-				franchise_id: formData.franchise_id
+				serialNumber: formData.serialNumber!,
+				acquisitionType: formData.acquisitionType!,
+				catalogCopyMachineId: formData.catalogCopyMachineId,
+				externalModel: formData.externalModel,
+				externalManufacturer: formData.externalManufacturer,
+				externalDescription: formData.externalDescription,
+				value: formData.value,
+				franchiseId: formData.franchiseId
 			};
 
 			updateMutation.mutate({ id: machine.id, data: payload }, {
@@ -196,15 +197,15 @@
 			});
 		} else {
 			const payload: CreateClientCopyMachineDto = {
-				serial_number: formData.serial_number!,
-				client_id: clientId,
-				acquisition_type: formData.acquisition_type!,
-				catalog_copy_machine_id: formData.catalog_copy_machine_id,
-				external_model: formData.external_model || undefined,
-				external_manufacturer: formData.external_manufacturer || undefined,
-				external_description: formData.external_description || undefined,
-				value: formData.value ? Number(formData.value) : undefined,
-				franchise_id: formData.franchise_id
+				serialNumber: formData.serialNumber!,
+				clientId: clientId,
+				acquisitionType: formData.acquisitionType!,
+				catalogCopyMachineId: formData.catalogCopyMachineId,
+				externalModel: formData.externalModel,
+				externalManufacturer: formData.externalManufacturer,
+				externalDescription: formData.externalDescription,
+				value: formData.value,
+				franchiseId: formData.franchiseId
 			};
 
 			createMutation.mutate(payload, {
@@ -228,15 +229,15 @@
 
 	// Reset form to default values (for create mode)
 	function resetForm() {
-		formData.serial_number = '';
-		formData.client_id = clientId;
-		formData.acquisition_type = AcquisitionType.RENT;
-		formData.catalog_copy_machine_id = undefined;
-		formData.external_model = '';
-		formData.external_manufacturer = '';
-		formData.external_description = '';
+		formData.serialNumber = '';
+		formData.clientId = clientId;
+		formData.acquisitionType = AcquisitionType.RENT;
+		formData.catalogCopyMachineId = undefined;
+		formData.externalModel = '';
+		formData.externalManufacturer = '';
+		formData.externalDescription = '';
 		formData.value = undefined;
-		formData.franchise_id = undefined;
+		formData.franchiseId = undefined;
 		selectedCatalogMachine = null;
 	}
 
@@ -247,30 +248,30 @@
 		if (open) {
 			const initialData = getInitialFormData();
 			
-			// Update all form fields
-			formData.serial_number = initialData.serial_number || '';
-			formData.client_id = clientId;
-			formData.acquisition_type = initialData.acquisition_type || AcquisitionType.RENT;
-			formData.catalog_copy_machine_id = initialData.catalog_copy_machine_id;
-			formData.external_model = initialData.external_model || '';
-			formData.external_manufacturer = initialData.external_manufacturer || '';
-			formData.external_description = initialData.external_description || '';
-			formData.value = initialData.value;
-			formData.franchise_id = initialData.franchise_id;
+		// Update all form fields (all in camelCase)
+		formData.serialNumber = initialData.serialNumber || '';
+		formData.clientId = clientId;
+		formData.acquisitionType = initialData.acquisitionType || AcquisitionType.RENT;
+		formData.catalogCopyMachineId = initialData.catalogCopyMachineId;
+		formData.externalModel = initialData.externalModel || '';
+		formData.externalManufacturer = initialData.externalManufacturer || '';
+		formData.externalDescription = initialData.externalDescription || '';
+		formData.value = initialData.value;
+		formData.franchiseId = initialData.franchiseId;
 		
 		}
 	});
 	
-	// Update client_id when it changes
+	// Update clientId when it changes
 	$effect(() => {
-		formData.client_id = clientId;
+		formData.clientId = clientId;
 	});
 	
 	// Set selected catalog machine when catalog loads and we're editing
 	$effect(() => {
-		if (isEditing && machine?.catalog_copy_machine_id && catalogMachines.length > 0) {
-			selectedCatalogMachine = catalogMachines.find(m => m.id === machine.catalog_copy_machine_id) || null;
-		} else if (!isEditing || !machine?.catalog_copy_machine_id) {
+		if (isEditing && machine?.catalogCopyMachineId && catalogMachines.length > 0) {
+			selectedCatalogMachine = catalogMachines.find(m => m.id === machine.catalogCopyMachineId) || null;
+		} else if (!isEditing || !machine?.catalogCopyMachineId) {
 			selectedCatalogMachine = null;
 		}
 	});
@@ -281,6 +282,11 @@
 			selectedCatalogMachine = null;
 		}
 	});
+
+	$effect(() => {
+		console.log(franchises, "ccc");
+	});
+
 </script>
 
 <Sheet bind:open>
@@ -295,10 +301,10 @@
 		<form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }} class="space-y-6 mt-6">
 			<!-- Serial Number -->
 			<div class="space-y-2">
-				<Label for="serial_number">Número de Série *</Label>
+				<Label for="serialNumber">Número de Série *</Label>
 				<Input
-					id="serial_number"
-					bind:value={formData.serial_number}
+					id="serialNumber"
+					bind:value={formData.serialNumber}
 					placeholder="Ex: CN12345678"
 					required
 					disabled={createMutation.isPending || updateMutation.isPending}
@@ -307,10 +313,10 @@
 
 			<!-- Acquisition Type -->
 			<div class="space-y-2">
-				<Label for="acquisition_type">Tipo de Aquisição *</Label>
+				<Label for="acquisitionType">Tipo de Aquisição *</Label>
 				<select
-					id="acquisition_type"
-					bind:value={formData.acquisition_type}
+					id="acquisitionType"
+					bind:value={formData.acquisitionType}
 					onchange={(e) => handleAcquisitionTypeChange(e.currentTarget.value)}
 					required
 					disabled={createMutation.isPending || updateMutation.isPending}
@@ -337,8 +343,8 @@
 						</div>
 					{:else}
 						<select
-							id="catalog_machine"
-							value={formData.catalog_copy_machine_id?.toString() || ''}
+							id="catalogMachine"
+							value={formData.catalogCopyMachineId?.toString() || ''}
 							onchange={(e) => handleCatalogMachineChange(e.currentTarget.value)}
 							required
 							disabled={createMutation.isPending || updateMutation.isPending}
@@ -364,10 +370,10 @@
 					<p class="text-sm font-medium">Informações da Máquina Externa</p>
 					
 					<div class="space-y-2">
-						<Label for="external_manufacturer">Fabricante *</Label>
+						<Label for="externalManufacturer">Fabricante *</Label>
 						<Input
-							id="external_manufacturer"
-							bind:value={formData.external_manufacturer}
+							id="externalManufacturer"
+							bind:value={formData.externalManufacturer}
 							placeholder="Ex: HP, Canon, Xerox"
 							required
 							disabled={createMutation.isPending || updateMutation.isPending}
@@ -375,10 +381,10 @@
 					</div>
 
 					<div class="space-y-2">
-						<Label for="external_model">Modelo *</Label>
+						<Label for="externalModel">Modelo *</Label>
 						<Input
-							id="external_model"
-							bind:value={formData.external_model}
+							id="externalModel"
+							bind:value={formData.externalModel}
 							placeholder="Ex: LaserJet Pro M404dn"
 							required
 							disabled={createMutation.isPending || updateMutation.isPending}
@@ -386,10 +392,10 @@
 					</div>
 
 					<div class="space-y-2">
-						<Label for="external_description">Descrição</Label>
+						<Label for="externalDescription">Descrição</Label>
 						<textarea
-							id="external_description"
-							bind:value={formData.external_description}
+							id="externalDescription"
+							bind:value={formData.externalDescription}
 							placeholder="Detalhes adicionais da máquina..."
 							rows={3}
 							disabled={createMutation.isPending || updateMutation.isPending}
@@ -448,8 +454,8 @@
 					{:else}
 						<select
 							id="franchise"
-							value={formData.franchise_id?.toString() || ''}
-							onchange={(e) => formData.franchise_id = parseInt(e.currentTarget.value)}
+							value={formData.franchiseId?.toString() || ''}
+							onchange={(e) => formData.franchiseId = parseInt(e.currentTarget.value)}
 							required
 							disabled={createMutation.isPending || updateMutation.isPending}
 							class="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
@@ -457,10 +463,10 @@
 							<option value="">Selecione uma franquia</option>
 							{#each franchises as franchise}
 								<option value={franchise.id.toString()}>
-									{franchise.period} - {franchise.paper_type} 
+									{franchise.period} - {franchise.paperType} 
 									{franchise.color ? '(Colorida)' : '(P&B)'} - 
 									{franchise.quantity} cópias - 
-									R$ {franchise?.unitPrice?.toFixed(4)}/un
+									R$ {Number(franchise.unitPrice || 0)?.toFixed(2)}/un
 								</option>
 							{/each}
 						</select>

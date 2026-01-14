@@ -86,8 +86,6 @@ export const useService = (id: number) => {
  * Create service mutation
  */
 export const useCreateService = () => {
-  // Using centralized queryClient
-  
   return createMutation(() => ({
     mutationFn: async (data: CreateServiceDto): Promise<Service> => {
       return servicesApi.create(data);

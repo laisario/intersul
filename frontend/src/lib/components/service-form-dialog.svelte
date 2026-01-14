@@ -37,8 +37,8 @@
 	type FormStep = {
 		name: string;
 		description: string;
-		responsable_id?: number;
-		datetime_expiration?: string;
+		responsableId?: number;
+		datetimeExpiration?: string;
 		source?: 'suggestion' | 'manual';
 	};
 
@@ -54,35 +54,35 @@
 	let initialized = $state(false);
 
 	let formData = $state({
-		is_internal: false,
-		client_id: 0,
-		category_id: 0,
-		client_copy_machine_id: undefined as number | undefined,
+		isInternal: false,
+		clientId: 0,
+		categoryId: 0,
+		clientCopyMachineId: undefined as number | undefined,
 		description: '',
 		priority: '' as string | undefined
 	});
 
 	let steps = $state<FormStep[]>([]);
 
-	let errors = $state<{ client_id?: string; category_id?: string; steps?: string }>({});
+	let errors = $state<{ clientId?: string; categoryId?: string; steps?: string }>({});
 
 	const clients = $derived(clientsQuery.data ?? []);
 	const categories = $derived(categoriesQuery.data ?? []);
 	const users = $derived(usersQuery.data ?? []);
-	const selectedCategory = $derived(categories.find((category) => category.id === formData.category_id) || null);
+	const selectedCategory = $derived(categories.find((category) => category.id === formData.categoryId) || null);
 	const suggestionSteps = $derived(selectedCategory?.steps ?? []);
-	const clientCopyMachinesQuery = $derived(formData.client_id ? useClientCopyMachines(formData.client_id) : null);
+	const clientCopyMachinesQuery = $derived(formData.clientId ? useClientCopyMachines(formData.clientId) : null);
 	const clientCopyMachines = $derived(clientCopyMachinesQuery?.data ?? []);
 	const selectedClientCopyMachine = $derived(
-		clientCopyMachines.find((machine) => machine.id === formData.client_copy_machine_id) || null
+		clientCopyMachines.find((machine) => machine.id === formData.clientCopyMachineId) || null
 	);
 
 	function resetForm() {
 		formData = {
-			is_internal: false,
-			client_id: 0,
-			category_id: 0,
-			client_copy_machine_id: undefined,
+			isInternal: false,
+			clientId: 0,
+			categoryId: 0,
+			clientCopyMachineId: undefined,
 			description: '',
 			priority: undefined
 		};
@@ -91,17 +91,17 @@
 	}
 
 	function fillFromService(serviceData: Service) {
-		formData.is_internal = serviceData.is_internal ?? false;
-		formData.client_id = serviceData.client_id || 0;
-		formData.category_id = serviceData.category_id;
-		formData.client_copy_machine_id = serviceData.client_copy_machine_id ?? undefined;
+		formData.isInternal = serviceData.isInternal ?? false;
+		formData.clientId = serviceData.clientId || 0;
+		formData.categoryId = serviceData.categoryId;
+		formData.clientCopyMachineId = serviceData.clientCopyMachineId ?? undefined;
 		formData.description = serviceData.description || '';
 		formData.priority = serviceData.priority || undefined;
 		steps = (serviceData.steps || []).map((step) => ({
 			name: step.name,
 			description: step.description,
-			responsable_id: step.responsable_id,
-			datetime_expiration: step.datetime_expiration,
+			responsableId: Number(step.responsableId),
+			datetimeExpiration: step.datetimeExpiration,
 			source: 'manual'
 		}));
 	}
@@ -135,7 +135,7 @@
 			{
 				name: step.name,
 				description: step.description,
-				datetime_expiration: step.datetime_expiration,
+				datetimeExpiration: step.datetimeExpiration,
 				source: 'suggestion'
 			}
 		];
@@ -191,20 +191,20 @@
 
 		const payload: any = {};
 		
-		payload.is_internal = formData.is_internal;
+		payload.isInternal = formData.isInternal;
 		
-		if (!formData.is_internal) {
-			if (formData.client_id > 0) {
-				payload.client_id = formData.client_id;
+		if (!formData.isInternal) {
+			if (formData.clientId > 0) {
+				payload.clientId = formData.clientId;
 			}
 			
-			if (formData.client_copy_machine_id) {
-				payload.client_copy_machine_id = formData.client_copy_machine_id;
+			if (formData.clientCopyMachineId) {
+				payload.clientCopyMachineId = formData.clientCopyMachineId;
 			}
 		}
 		
-		if (formData.category_id > 0) {
-			payload.category_id = formData.category_id;
+		if (formData.categoryId > 0) {
+			payload.categoryId = formData.categoryId;
 		}
 		
 		if (formData.description?.trim()) {
@@ -219,8 +219,8 @@
 			payload.steps = steps.map<CreateServiceStepDto>((step) => ({
 				name: step.name.trim(),
 				description: step.description.trim(),
-				responsable_id: step.responsable_id,
-				datetime_expiration: step.datetime_expiration || undefined
+				responsableId: Number(step.responsableId),
+				datetimeExpiration: step.datetimeExpiration || undefined
 			}));
 		}
 
@@ -275,17 +275,17 @@
 						<Label>Tipo de Serviço *</Label>
 						<Select
 							type="single"
-							value={formData.is_internal ? 'internal' : 'external'}
+							value={formData.isInternal ? 'internal' : 'external'}
 							onValueChange={(value: string) => {
-								formData.is_internal = value === 'internal';
-								if (formData.is_internal) {
-									formData.client_id = 0;
-									formData.client_copy_machine_id = undefined;
+								formData.isInternal = value === 'internal';
+								if (formData.isInternal) {
+									formData.clientId = 0;
+									formData.clientCopyMachineId = undefined;
 								}
 							}}
 						>
 							<SelectTrigger>
-								{formData.is_internal ? 'Interno' : 'Externo'}
+								{formData.isInternal ? 'Interno' : 'Externo'}
 							</SelectTrigger>
 							<SelectContent>
 								<SelectItem value="external">Externo</SelectItem>
@@ -297,21 +297,21 @@
 						</p>
 					</div>
 
-					{#if !formData.is_internal}
+					{#if !formData.isInternal}
 						<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 							<div class="space-y-2">
 								<Label>Cliente *</Label>
 								<Select
 									type="single"
-									value={formData.client_id ? formData.client_id.toString() : ''}
+									value={formData.clientId ? formData.clientId.toString() : ''}
 									onValueChange={(value: string) => {
-										formData.client_id = value ? parseInt(value) : 0;
-										formData.client_copy_machine_id = undefined;
+										formData.clientId = value ? parseInt(value) : 0;
+										formData.clientCopyMachineId = undefined;
 									}}
 								>
 									<SelectTrigger>
-										{formData.client_id
-											? clients.find((client) => client.id === formData.client_id)?.name || 'Selecione um cliente'
+										{formData.clientId
+											? clients.find((client) => client.id === formData.clientId)?.name || 'Selecione um cliente'
 											: 'Selecione um cliente'}
 									</SelectTrigger>
 									<SelectContent>
@@ -334,12 +334,12 @@
 								<Label>Equipamento do Cliente</Label>
 								<Select
 									type="single"
-									value={formData.client_copy_machine_id ? formData.client_copy_machine_id.toString() : ''}
-									onValueChange={(value: string) => formData.client_copy_machine_id = value ? parseInt(value) : undefined}
-									disabled={!formData.client_id}
+									value={formData.clientCopyMachineId ? formData.clientCopyMachineId.toString() : ''}
+									onValueChange={(value: string) => formData.clientCopyMachineId = value ? parseInt(value) : undefined}
+									disabled={!formData.clientId}
 								>
-									<SelectTrigger class={!formData.client_id ? 'opacity-60 cursor-not-allowed' : ''}>
-										{#if !formData.client_id}
+									<SelectTrigger class={!formData.clientId ? 'opacity-60 cursor-not-allowed' : ''}>
+										{#if !formData.clientId}
 											Selecione um cliente primeiro
 										{:else if clientCopyMachinesQuery?.isLoading}
 											Carregando equipamentos...
@@ -348,7 +348,7 @@
 										{:else if !clientCopyMachines.length}
 											Nenhum equipamento cadastrado
 										{:else if selectedClientCopyMachine}
-											{selectedClientCopyMachine.catalogCopyMachine?.model ?? selectedClientCopyMachine.external_model ?? 'Equipamento'} - {selectedClientCopyMachine.serial_number}
+											{selectedClientCopyMachine.catalogCopyMachine?.model ?? selectedClientCopyMachine.externalModel ?? 'Equipamento'} - {selectedClientCopyMachine.serialNumber}
 										{:else}
 											Selecione um equipamento
 										{/if}
@@ -366,7 +366,7 @@
 											</SelectItem>
 											{#each clientCopyMachines as machine (machine.id)}
 												<SelectItem value={machine.id.toString()}>
-													{machine.catalogCopyMachine?.model ?? machine.external_model ?? 'Equipamento'} - {machine.serial_number}
+													{machine.catalogCopyMachine?.model ?? machine.externalModel ?? 'Equipamento'} - {machine.serialNumber}
 												</SelectItem>
 											{/each}
 										{/if}
@@ -382,9 +382,9 @@
 							<Label>Categoria</Label>
 							<Select
 								type="single"
-								value={formData.category_id ? formData.category_id.toString() : ''}
+								value={formData.categoryId ? formData.categoryId.toString() : ''}
 								onValueChange={(value: string) => {
-									formData.category_id = value ? parseInt(value) : 0;
+									formData.categoryId = value ? parseInt(value) : 0;
 									// Auto-set priority to HIGH for "Cobrança" category
 									const selectedCategory = categories.find((cat) => cat.id === (value ? parseInt(value) : 0));
 									if (selectedCategory && selectedCategory.name.toLowerCase().includes('cobrança')) {
@@ -393,8 +393,8 @@
 								}}
 							>
 								<SelectTrigger>
-									{formData.category_id
-										? categories.find((category) => category.id === formData.category_id)?.name || 'Selecione uma categoria'
+									{formData.categoryId
+										? categories.find((category) => category.id === formData.categoryId)?.name || 'Selecione uma categoria'
 										: 'Selecione uma categoria'}
 								</SelectTrigger>
 								<SelectContent>
@@ -580,12 +580,12 @@
 										<Label>Responsável</Label>
 										<Select
 											type="single"
-											value={step.responsable_id ? step.responsable_id.toString() : ''}
-											onValueChange={(value: string) => updateStepField(index, 'responsable_id', value ? parseInt(value) : undefined)}
+											value={step.responsableId ? step.responsableId.toString() : ''}
+											onValueChange={(value: string) => updateStepField(index, 'responsableId', value ? parseInt(value) : undefined)}
 										>
 											<SelectTrigger class="w-full md:w-[220px]">
-												{step.responsable_id
-													? users.find((user) => user.id === step.responsable_id)?.name || 'Selecione um responsável'
+												{step.responsableId
+													? users.find((user) => user.id === step.responsableId)?.name || 'Selecione um responsável'
 													: 'Selecione um responsável'}
 											</SelectTrigger>
 											<SelectContent>
@@ -611,9 +611,9 @@
 										<Label>Expira em</Label>
 										<Input
 											type="text"
-											value={step.datetime_expiration 
+											value={step.datetimeExpiration 
 												? (() => {
-													const date = new Date(step.datetime_expiration);
+													const date = new Date(step.datetimeExpiration);
 													const day = String(date.getDate()).padStart(2, '0');
 													const month = String(date.getMonth() + 1).padStart(2, '0');
 													const year = date.getFullYear();
@@ -649,12 +649,12 @@
 													if (day >= 1 && day <= 31 && month >= 0 && month <= 11 && year >= 1900) {
 														const date = new Date(year, month, day);
 														date.setHours(23, 59, 59, 999);
-														updateStepField(index, 'datetime_expiration', date.toISOString());
+														updateStepField(index, 'datetimeExpiration', date.toISOString());
 													} else {
-														updateStepField(index, 'datetime_expiration', undefined);
+														updateStepField(index, 'datetimeExpiration', undefined);
 													}
 												} else if (value.length === 0) {
-													updateStepField(index, 'datetime_expiration', undefined);
+													updateStepField(index, 'datetimeExpiration', undefined);
 												}
 											}}
 											placeholder="dd/mm/aaaa"

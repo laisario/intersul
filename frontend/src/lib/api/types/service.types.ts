@@ -15,19 +15,19 @@ export interface ServiceCategory extends BaseEntity {
 
 export interface Service extends BaseEntity {
   description?: string;
-  client_id: number;
-  category_id: number;
-  client_copy_machine_id?: number;
+  clientId: number;
+  categoryId: number;
+  clientCopyMachineId?: number;
   client?: Client;
   category?: Category;
   clientCopyMachine?: ClientCopyMachine;
   steps?: Step[];
-  created_at?: string;
-  updated_at?: string;
+  createdAt?: string;
+  updatedAt?: string;
   status?: string;
   priority?: string;
-  reason_cancellament?: string;
-  is_internal?: boolean;
+  reasonCancellament?: string;
+  isInternal?: boolean;
 }
 
 export const ServiceStatus = {
@@ -53,16 +53,16 @@ export interface Step extends BaseEntity {
   name: string;
   description: string;
   observation?: string;
-  responsable_client?: string;
-  reason_cancellament?: string;
+  responsableClient?: string;
+  reasonCancellament?: string;
   status?: string;
-  datetime_start?: string;
-  datetime_conclusion?: string;
-  datetime_expiration?: string;
-  category_id?: number;
-  service_id?: number;
-  responsable_id?: number;
-  is_billing?: boolean;
+  datetimeStart?: string;
+  datetimeConclusion?: string;
+  datetimeExpiration?: string;
+  categoryId?: number;
+  serviceId?: number;
+  responsableId?: number;
+  isBilling?: boolean;
   responsable?: User;
   service?: Service;
   category?: Category;
@@ -74,7 +74,7 @@ export interface StepTemplate {
   name: string;
   description: string;
   observation?: string;
-  responsable_client?: string;
+  responsableClient?: string;
 }
 
 export interface Category extends BaseEntity {
@@ -97,21 +97,21 @@ export interface CreateServiceStepDto {
   name: string;
   description: string;
   observation?: string;
-  responsable_id?: number;
-  responsable_client?: string;
-  datetime_start?: string;
-  datetime_conclusion?: string;
-  datetime_expiration?: string;
+  responsableId?: number;
+  responsableClient?: string;
+  datetimeStart?: string;
+  datetimeConclusion?: string;
+  datetimeExpiration?: string;
 }
 
 export interface CreateServiceDto {
-  client_id?: number;
-  category_id?: number;
-  client_copy_machine_id?: number;
+  clientId?: number;
+  categoryId?: number;
+  clientCopyMachineId?: number;
   description?: string;
   priority?: string;
   steps?: CreateServiceStepDto[];
-  is_internal?: boolean;
+  isInternal?: boolean;
 }
 
 export interface CreateCategoryDto {
@@ -131,11 +131,11 @@ export interface UpdateServiceDto extends Partial<CreateServiceDto> {
 }
 
 export interface ServiceQueryParams {
-  category_id?: number;
-  client_id?: number;
-  client_copy_machine_id?: number;
-  city_id?: number;
-  acquisition_type?: AcquisitionType;
+  categoryId?: number;
+  clientId?: number;
+  clientCopyMachineId?: number;
+  cityId?: number;
+  acquisitionType?: AcquisitionType;
   search?: string;
   page?: number;
   limit?: number;
@@ -157,5 +157,5 @@ import type { User } from './auth.types';
 
 export interface Image extends BaseEntity {
   path: string;
-  step_id?: number;
+  stepId?: number;
 }

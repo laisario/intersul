@@ -92,6 +92,7 @@ export class BillingsService {
         'client.address.neighborhood.city',
         'responsibleUser',
         'step',
+        'step.responsable',
       ],
     });
 
@@ -567,10 +568,21 @@ export class BillingsService {
           name: `fechamento – ${client.name} – ${cityName}`,
           description: stepDescription,
           service_id: savedService.id,
-          responsable_id: machineMapping.responsible_user_id,
           is_billing: true,
           status: StepStatus.PENDING,
         };
+        
+        // Validate and assign responsable_id if provided
+        if (machineMapping.responsible_user_id) {
+          const responsableUser = await this.usersRepository.findOne({
+            where: { id: machineMapping.responsible_user_id },
+          });
+          if (!responsableUser) {
+            throw new BadRequestException(`User with ID ${machineMapping.responsible_user_id} not found`);
+          }
+          stepData.responsable_id = machineMapping.responsible_user_id;
+        }
+        
         // Add expiration date if provided
         const expirationDate = (machineMapping as any).datetime_expiration;
         if (expirationDate) {

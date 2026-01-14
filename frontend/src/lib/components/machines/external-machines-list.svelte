@@ -79,14 +79,14 @@
 						{#each machines as machine}
 							<TableRow>
 								<TableCell class="font-medium">
-									{machine?.external_model || '-'}
+									{machine?.externalModel || '-'}
 								</TableCell>
 								<TableCell>
-									{machine?.external_manufacturer || '-'}
+									{machine?.externalManufacturer || '-'}
 								</TableCell>
-								<TableCell>{machine?.serial_number}</TableCell>
+								<TableCell>{machine?.serialNumber}</TableCell>
 								<TableCell>{machine?.client?.name || '-'}</TableCell>
-								<TableCell>{formatDate((machine as any).created_at || machine.createdAt || null)}</TableCell>
+								<TableCell>{formatDate(machine.createdAt)}</TableCell>
 							</TableRow>
 						{/each}
 					</TableBody>

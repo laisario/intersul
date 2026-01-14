@@ -5,16 +5,16 @@ import type { User } from './auth.types';
 import type { Step } from './service.types';
 
 export interface Billing extends BaseEntity {
-  copy_machine_id: number;
-  client_id: number;
+  copyMachineId: number;
+  clientId: number;
   date: string;
-  previous_counter?: number;
-  current_counter?: number;
-  payment_method?: string;
-  amount_to_receive: number;
-  is_invoiced?: boolean;
-  responsible_user_id: number;
-  step_id?: number;
+  previousCounter?: number;
+  currentCounter?: number;
+  paymentMethod?: string;
+  amountToReceive: number;
+  isInvoiced?: boolean;
+  responsibleUserId: number;
+  stepId?: number;
   copyMachine?: ClientCopyMachine;
   client?: Client;
   responsibleUser?: User;
@@ -22,38 +22,38 @@ export interface Billing extends BaseEntity {
 }
 
 export interface CreateBillingDto {
-  copy_machine_id: number;
-  client_id: number;
+  copyMachineId: number;
+  clientId: number;
   date: string;
-  previous_counter?: number;
-  current_counter?: number;
-  payment_method?: string;
-  amount_to_receive: number;
-  responsible_user_id: number;
-  step_id?: number;
-  is_invoiced?: boolean;
+  previousCounter?: number;
+  currentCounter?: number;
+  paymentMethod?: string;
+  amountToReceive: number;
+  responsibleUserId: number;
+  stepId?: number;
+  isInvoiced?: boolean;
 }
 
 export interface UpdateBillingDto extends Partial<CreateBillingDto> {}
 
 export interface MachineUserMapping {
-  copy_machine_id: number;
-  responsible_user_id: number;
-  datetime_expiration?: string;
-  payment_method?: string;
-  is_invoiced?: boolean;
-  boleto_service_responsible_user_id?: number;
-  boleto_service_expiration_date?: string;
+  copyMachineId: number;
+  responsibleUserId: number;
+  datetimeExpiration?: string;
+  paymentMethod?: string;
+  isInvoiced?: boolean;
+  boletoServiceResponsibleUserId?: number;
+  boletoServiceExpirationDate?: string;
 }
 
 export interface GenerateBillingsDto {
-  city_id: number;
+  cityId: number;
   machines: MachineUserMapping[];
 }
 
 export interface BillingQueryParams {
-  city_id?: number;
-  client_id?: number;
+  cityId?: number;
+  clientId?: number;
   page?: number;
   limit?: number;
 }

@@ -68,10 +68,6 @@ export class Step {
   @UpdateDateColumn()
   updated_at: Date;
   
-
-  // @Column({ nullable: true })
-  // responsable_id: number;
-
   @ManyToOne(() => User, (user) => user.assignedSteps)
   @JoinColumn({ name: 'responsable_id' })
   responsable: User;
