@@ -120,38 +120,38 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-04 | Phase 1 | Pending |
 | AUTH-05 | Phase 1 | Pending |
 | AUTH-06 | Phase 1 | Pending |
-| CLNT-01 | Phase 1 | Pending |
-| CLNT-02 | Phase 1 | Pending |
-| CLNT-03 | Phase 1 | Pending |
-| CLNT-04 | Phase 1 | Pending |
-| CLNT-05 | Phase 1 | Pending |
-| SERV-01 | Phase 1 | Pending |
-| SERV-02 | Phase 1 | Pending |
-| SERV-03 | Phase 1 | Pending |
-| SERV-04 | Phase 1 | Pending |
-| SERV-05 | Phase 1 | Pending |
-| SERV-06 | Phase 1 | Pending |
-| MACH-01 | Phase 1 | Pending |
-| MACH-02 | Phase 1 | Pending |
-| MACH-03 | Phase 1 | Pending |
-| MACH-04 | Phase 1 | Pending |
-| BILL-01 | Phase 1 | Pending |
-| BILL-02 | Phase 1 | Pending |
-| BILL-03 | Phase 1 | Pending |
-| BILL-04 | Phase 1 | Pending |
-| BILL-05 | Phase 1 | Pending |
-| CAT-01 | Phase 1 | Pending |
-| CAT-02 | Phase 1 | Pending |
-| CAT-03 | Phase 1 | Pending |
-| CAT-04 | Phase 1 | Pending |
-| DASH-01 | Phase 1 | Pending |
-| DASH-02 | Phase 1 | Pending |
-| DASH-03 | Phase 1 | Pending |
-| LOC-01 | Phase 1 | Pending |
-| LOC-02 | Phase 1 | Pending |
-| LOC-03 | Phase 1 | Pending |
-| LOC-04 | Phase 1 | Pending |
-| LOC-05 | Phase 1 | Pending |
+| CLNT-01 | Phase 2 | Pending |
+| CLNT-02 | Phase 2 | Pending |
+| CLNT-03 | Phase 2 | Pending |
+| CLNT-04 | Phase 2 | Pending |
+| CLNT-05 | Phase 2 | Pending |
+| SERV-01 | Phase 2 | Pending |
+| SERV-02 | Phase 2 | Pending |
+| SERV-03 | Phase 2 | Pending |
+| SERV-04 | Phase 2 | Pending |
+| SERV-05 | Phase 2 | Pending |
+| SERV-06 | Phase 2 | Pending |
+| MACH-01 | Phase 2 | Pending |
+| MACH-02 | Phase 2 | Pending |
+| MACH-03 | Phase 2 | Pending |
+| MACH-04 | Phase 2 | Pending |
+| BILL-01 | Phase 3 | Pending |
+| BILL-02 | Phase 3 | Pending |
+| BILL-03 | Phase 3 | Pending |
+| BILL-04 | Phase 3 | Pending |
+| BILL-05 | Phase 3 | Pending |
+| CAT-01 | Phase 3 | Pending |
+| CAT-02 | Phase 3 | Pending |
+| CAT-03 | Phase 3 | Pending |
+| CAT-04 | Phase 3 | Pending |
+| DASH-01 | Phase 3 | Pending |
+| DASH-02 | Phase 3 | Pending |
+| DASH-03 | Phase 3 | Pending |
+| LOC-01 | Phase 3 | Pending |
+| LOC-02 | Phase 3 | Pending |
+| LOC-03 | Phase 3 | Pending |
+| LOC-04 | Phase 3 | Pending |
+| LOC-05 | Phase 3 | Pending |
 
 **Coverage:**
 - v1 requirements: 41 total
@@ -160,4 +160,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-18*
-*Last updated: 2026-02-18 after initial definition*
+*Last updated: 2026-02-18 - roadmap created, phased mapping applied*
