@@ -6,6 +6,7 @@
 	interface Props extends Omit<ButtonProps, 'disabled'> {
 		loading?: boolean;
 		loadingText?: string;
+		disabled?: boolean;
 		children?: Snippet;
 	}
 

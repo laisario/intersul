@@ -147,7 +147,7 @@ $effect(() => {
 
 			const payload = {
 				period: formData.period.trim(),
-				paper_type: formData.paper_type.trim(),
+				paperType: formData.paper_type.trim(),
 				color: formData.color,
 				quantity: Number(formData.quantity),
 				unitPrice: parseFloat(formData.unitPrice)
@@ -179,12 +179,14 @@ $effect(() => {
 
 	function handleOpenEditModal(franchise: Franchise) {
 		// Populate form with franchise data first
+		// Handle both camelCase and snake_case property names from API
+		const paperType = (franchise as any).paper_type || franchise.paperType || '';
 		formData = {
 			period: franchise.period || '',
-			paper_type: franchise.paper_type || '',
+			paper_type: paperType,
 			color: franchise.color || false,
 			quantity: franchise.quantity || 0,
-			unitPrice: (franchise.unitPrice ?? 0).toString()
+			unitPrice: (franchise.unitPrice ?? (franchise as any).unit_price ?? 0).toString()
 		};
 		// Set editing franchise
 		editingFranchise = franchise;
@@ -320,7 +322,7 @@ $effect(() => {
 </div>
 
 <!-- Form Modal -->
-<Sheet bind:open={showFormModal} key={editingFranchise?.id ?? 'new'}>
+<Sheet bind:open={showFormModal}>
 	<SheetContent class="sm:max-w-[500px]">
 		<SheetHeader>
 			<SheetTitle>{editingFranchise ? 'Editar Franquia' : 'Nova Franquia'}</SheetTitle>

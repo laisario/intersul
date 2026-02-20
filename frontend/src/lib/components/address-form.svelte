@@ -7,6 +7,7 @@
 	import { addressApi } from '$lib/api/endpoints/address';
 	import { ViaCepService } from '$lib/services/viacep.service';
 	import { showError, showSuccess } from '$lib/utils/toast';
+	import { normalizePostalCode, formatPostalCode } from '$lib/utils/postal-code.js';
 
 	interface Props {
 		address: Partial<CreateAddressDto>;
@@ -16,11 +17,11 @@
 	}
 
 	let { address = $bindable({
-		postal_code: '',
+		postalCode: '',
 		street: '',
 		number: '',
 		complement: '',
-		neighborhood_id: undefined
+		neighborhoodId: undefined
 	}), onChange, disabled = false, required = false }: Props = $props();
 
 	let isLoadingCep = $state(false);
@@ -37,13 +38,13 @@
 	let viaCepRawData = $state<{ state_code: string; city_name: string; neighborhood_name: string } | null>(null);
 
 	async function handleSearchCep() {
-		if (!address.postal_code) {
+		if (!address.postalCode) {
 			showError('Digite um CEP para buscar');
 			return;
 		}
 
-		const cleanCep = address.postal_code.replace(/\D/g, '');
-		if (cleanCep.length !== 8) {
+		const normalizedCep = normalizePostalCode(address.postalCode);
+		if (normalizedCep.length !== 8) {
 			showError('CEP deve ter 8 dígitos');
 			return;
 		}
@@ -53,12 +54,13 @@
 		cepLookupResult = null;
 		
 		try {
-			// Call ViaCEP directly from frontend
-			const viaCepData = await ViaCepService.getAddressByCep(cleanCep);
+			// Call ViaCEP directly from frontend (using normalized digits-only CEP)
+			const viaCepData = await ViaCepService.getAddressByCep(normalizedCep);
 			
 			hasTriedCepLookup = true;
 			
-			if (!viaCepData) {
+			// Check for ViaCEP error response (erro: true even with 200 OK)
+			if (!viaCepData || viaCepData.erro) {
 				cepLookupResult = 'error';
 				showError('CEP não encontrado. Preencha o endereço manualmente.');
 				return;
@@ -82,15 +84,30 @@
 				neighborhood_name: viaCepData.bairro
 			};
 
-			// Update address with street and postal code
+			// Update address with street and formatted postal code
 			const updated = {
 				...address,
-				postal_code: formatted.postal_code,
+				postalCode: formatPostalCode(formatted.postal_code),
 				street: formatted.street || address.street,
 			};
 			
 			onChange(updated);
 			cepLookupResult = 'success';
+			
+			// Process location data immediately after successful ViaCEP lookup
+			// This sets neighborhoodId so validation doesn't show false negative
+			try {
+				const result = await addressApi.processLocation(viaCepRawData);
+				const updatedWithNeighborhood = {
+					...updated,
+					neighborhoodId: result.neighborhoodId
+				};
+				onChange(updatedWithNeighborhood);
+			} catch (locationErr: any) {
+				console.error('Error processing location after CEP lookup:', locationErr);
+				// Don't show error here - user can still fill manually and it will retry on submit
+			}
+			
 			showSuccess('Endereço encontrado! Verifique os dados e complete o número.');
 		} catch (err: any) {
 			console.error('Error fetching CEP:', err);
@@ -105,16 +122,20 @@
 	// Function to process location with backend (call this before submitting the form)
 	export async function processLocationData(): Promise<boolean> {
 		if (!viaCepRawData) {
+			// If we already have neighborhoodId, no need to process
+			if (address.neighborhoodId) {
+				return true;
+			}
 			return true; // No location data to process
 		}
 
 		try {
 			const result = await addressApi.processLocation(viaCepRawData);
 			
-			// Update address with neighborhood_id
+			// Update address with neighborhoodId (camelCase)
 			const updated = {
 				...address,
-				neighborhood_id: result.neighborhood_id
+				neighborhoodId: result.neighborhoodId
 			};
 			
 			onChange(updated);
@@ -131,27 +152,21 @@
 		onChange(updated);
 	}
 
-	function formatCep(value: string) {
-		const cleaned = value.replace(/\D/g, '');
-		if (cleaned.length <= 5) return cleaned;
-		return `${cleaned.slice(0, 5)}-${cleaned.slice(5, 8)}`;
-	}
-
 	function handleCepInput(e: Event) {
 		const input = e.target as HTMLInputElement;
-		const formatted = formatCep(input.value);
-		updateField('postal_code', formatted);
+		const formatted = formatPostalCode(input.value);
+		updateField('postalCode', formatted);
 	}
 </script>
 
 <div class="space-y-4">
 	<!-- CEP with Search Button -->
 	<div class="space-y-2">
-		<Label for="postal_code">CEP {required ? '*' : ''}</Label>
+		<Label for="postalCode">CEP {required ? '*' : ''}</Label>
 		<div class="flex gap-2">
 			<Input
-				id="postal_code"
-				bind:value={address.postal_code}
+				id="postalCode"
+				bind:value={address.postalCode}
 				oninput={handleCepInput}
 				placeholder="00000-000"
 				maxlength={9}
@@ -163,7 +178,7 @@
 				type="button"
 				variant="outline"
 				onclick={handleSearchCep}
-				disabled={disabled || isLoadingCep || !address.postal_code}
+				disabled={disabled || isLoadingCep || !address.postalCode}
 			>
 				{#if isLoadingCep}
 					<Loader2 class="w-4 h-4 animate-spin" />

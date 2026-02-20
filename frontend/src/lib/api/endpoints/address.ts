@@ -2,7 +2,7 @@ import { axios } from '../client.js';
 import type { Country, State, City, Neighborhood } from '../types/address.types';
 
 export interface ProcessLocationResponse {
-  neighborhood_id: number;
+  neighborhoodId: number;
   neighborhood: Neighborhood;
 }
 

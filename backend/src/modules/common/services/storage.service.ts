@@ -66,9 +66,10 @@ export class StorageService {
 
     // Construct the public URL using the R2 public domain
     // R2_PUBLIC_URL format: https://pub-<account-id>.r2.dev
-    // Final URL format: https://pub-<account-id>.r2.dev/<bucket-name>/<key>
+    // Final URL format: https://pub-<account-id>.r2.dev/<key>
+    // Note: Bucket name is NOT included in the public URL path for R2 public domains
     const baseUrl = this.publicUrl.replace(/\/$/, '');
-    const fileUrl = `${baseUrl}/${this.bucketName}/${key}`;
+    const fileUrl = `${baseUrl}/${key}`;
     
     return fileUrl;
   }
@@ -93,19 +94,21 @@ export class StorageService {
    */
   extractKeyFromUrl(url: string): string | null {
     try {
-      // Remove the endpoint and bucket name from the URL
       const urlObj = new URL(url);
       const pathParts = urlObj.pathname.split('/').filter(Boolean);
       
-      // Find the bucket name index and get everything after it
+      // Handle both old format (with bucket name) and new format (without bucket name)
+      // Old format: https://pub-...r2.dev/intersul/copy-machines/filename.png
+      // New format: https://pub-...r2.dev/copy-machines/filename.png
       const bucketIndex = pathParts.indexOf(this.bucketName);
       if (bucketIndex !== -1 && bucketIndex < pathParts.length - 1) {
+        // Old format: bucket name is in the path, get everything after it
         return pathParts.slice(bucketIndex + 1).join('/');
       }
       
-      // Fallback: try to extract from pathname directly
-      if (pathParts.length >= 2) {
-        return pathParts.slice(1).join('/');
+      // New format: bucket name is not in the path, pathname is the key directly
+      if (pathParts.length > 0) {
+        return pathParts.join('/');
       }
       
       return null;

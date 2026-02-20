@@ -374,6 +374,17 @@ export class BillingsService {
       throw new BadRequestException('No template steps found for Boleto Billing category. Please run migrations.');
     }
 
+    // Get responsable user if provided
+    let responsableUser: User | null = null;
+    if (responsibleUserId && responsibleUserId > 0) {
+      responsableUser = await this.usersRepository.findOne({
+        where: { id: responsibleUserId },
+      });
+      if (!responsableUser) {
+        throw new BadRequestException(`User with ID ${responsibleUserId} not found`);
+      }
+    }
+
     // Create service steps from templates - create exactly 3 steps
     const stepsToCreate = templateSteps.map((template, index) => {
       const stepData: any = {
@@ -383,12 +394,9 @@ export class BillingsService {
         category_id: category.id,
         status: StepStatus.PENDING,
         is_billing: false,
+        // Use the relation object instead of responsable_id directly
+        responsable: responsableUser !== null && responsableUser !== undefined ? responsableUser : undefined,
       };
-      
-      // Assign responsible user to ALL steps if provided (required for boleto service)
-      if (responsibleUserId && responsibleUserId > 0) {
-        stepData.responsable_id = responsibleUserId;
-      }
       
       // Set expiration date for ALL steps if provided
       if (expirationDate) {
@@ -564,30 +572,35 @@ export class BillingsService {
 
         // Create step
         const stepDescription = `Modelo: ${modelName}\nFranquia: ${machine.franchise.quantity} páginas\nÚltimo contador: ${previousCounter ?? 'N/A'}`;
+        
+        // Validate and get responsable user if provided
+        let responsableUser: User | null = null;
+        if (machineMapping.responsible_user_id) {
+          responsableUser = await this.usersRepository.findOne({
+            where: { id: machineMapping.responsible_user_id },
+          });
+          if (!responsableUser) {
+            throw new BadRequestException(`User with ID ${machineMapping.responsible_user_id} not found`);
+          }
+        }
+        
         const stepData: any = {
           name: `fechamento – ${client.name} – ${cityName}`,
           description: stepDescription,
           service_id: savedService.id,
           is_billing: true,
           status: StepStatus.PENDING,
+          // Use the relation object instead of responsable_id directly
+          // This is the correct way to set ManyToOne relations in TypeORM
+          responsable: responsableUser !== null && responsableUser !== undefined ? responsableUser : undefined,
         };
-        
-        // Validate and assign responsable_id if provided
-        if (machineMapping.responsible_user_id) {
-          const responsableUser = await this.usersRepository.findOne({
-            where: { id: machineMapping.responsible_user_id },
-          });
-          if (!responsableUser) {
-            throw new BadRequestException(`User with ID ${machineMapping.responsible_user_id} not found`);
-          }
-          stepData.responsable_id = machineMapping.responsible_user_id;
-        }
         
         // Add expiration date if provided
         const expirationDate = (machineMapping as any).datetime_expiration;
         if (expirationDate) {
           stepData.datetime_expiration = new Date(expirationDate);
         }
+        
         const step = this.stepsRepository.create(stepData);
         const savedStep = (await this.stepsRepository.save(step)) as unknown as Step;
         createdSteps.push(savedStep);

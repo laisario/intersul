@@ -55,8 +55,8 @@
 	
 	let totalItems = $derived(catalogQuery.data?.total || 0);
 	let totalPages = $derived(catalogQuery.data?.totalPages || 0);
-	let currentPageData = $derived(catalogQuery.data?.page || 1);
-	let pageSizeData = $derived(catalogQuery.data?.limit || 12);
+	
+	$effect(() => console.log(catalogMachines))
 	
 	function handleSearch() {
 		currentPage = 1;
@@ -221,7 +221,6 @@
 </svelte:head>
 
 <div class="space-y-6 px-6">
-	<!-- Header -->
 	<div class="flex justify-between items-center">
 		<div>
 			<h1 class="text-3xl font-bold">Máquinas</h1>
@@ -235,7 +234,6 @@
 		</div>
 	</div>
 
-	<!-- Tabs Navigation -->
 	<Tabs value="catalog" class="w-full">
 		<TabsList class="grid w-full grid-cols-2 md:grid-cols-4 gap-1">
 			<TabsTrigger value="catalog" class="text-xs sm:text-sm">Catálogo</TabsTrigger>

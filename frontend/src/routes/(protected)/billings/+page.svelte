@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { useBillings } from '$lib/hooks/queries/use-billings.svelte.js';
+	import { useBillings, useGenerateBillingsByCity, useDeleteBilling } from '$lib/hooks/queries/use-billings.svelte.js';
 	import { useClients } from '$lib/hooks/queries/use-clients.svelte.js';
 	import { formatDate, formatCurrency } from '$lib/utils/formatting.js';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
@@ -15,6 +16,9 @@
 	import { errorToast, successToast, showError } from '$lib/utils/toast.js';
 	import { PAGINATION } from '$lib/utils/constants.js';
 	import { goto } from '$app/navigation';
+	import CityBillingDialog from '$lib/components/city-billing-dialog.svelte';
+	import BillingResponsablesDialog from '$lib/components/billing-responsables-dialog.svelte';
+	import ConfirmationDialog from '$lib/components/confirmation-dialog.svelte';
 
 	let billingFilters = $state<BillingQueryParams>({ page: 1, limit: PAGINATION.DEFAULT_PAGE_SIZE });
 	const billingsQuery = useBillings(() => billingFilters);
@@ -92,6 +96,102 @@
 		goto(`/billings/${id}`);
 	}
 
+	// Generate billings state and handlers
+	let showCityBillingDialog = $state(false);
+	let showConfirmationDialog = $state(false);
+	let showResponsablesDialog = $state(false);
+	let selectedCityId = $state<number | null>(null);
+	const generateBillingsMutation = useGenerateBillingsByCity();
+	const isGeneratingBillings = $derived(generateBillingsMutation.isPending);
+	const deleteBillingMutation = useDeleteBilling();
+	let createdBillingIds = $state<number[]>([]);
+
+	function handleCitySelected(cityId: number) {
+		selectedCityId = cityId;
+		showCityBillingDialog = false;
+		showConfirmationDialog = true;
+	}
+
+	function handleConfirmGeneration() {
+		// Clear created billing IDs when starting a new generation
+		createdBillingIds = [];
+		showConfirmationDialog = false;
+		showResponsablesDialog = true;
+	}
+
+	function handleCancelConfirmation() {
+		showConfirmationDialog = false;
+		selectedCityId = null;
+	}
+
+	function handleResponsablesSelected(machines: any[]) {
+		if (!selectedCityId) return;
+
+		generateBillingsMutation.mutate(
+			{
+				cityId: selectedCityId,
+				machines,
+			},
+			{
+				onSuccess: (response) => {
+					// Store created billing IDs
+					createdBillingIds = response.billings.map((billing) => billing.id);
+					successToast.created('Fechamentos gerados com sucesso');
+					showResponsablesDialog = false;
+					selectedCityId = null;
+					// Keep IDs in case user needs to cancel - will be cleared when dialog actually closes
+				},
+				onError: (error: any) => {
+					console.error('Error generating fechamentos:', error);
+					if (error.response?.data?.message) {
+						showError(error.response.data.message);
+					} else {
+						errorToast.unknown();
+					}
+					// Clear created billing IDs on error
+					createdBillingIds = [];
+				},
+			}
+		);
+	}
+
+	async function handleCancelBilling() {
+		// If billings were created, delete them
+		if (createdBillingIds.length > 0) {
+			try {
+				// Delete all created billings
+				await Promise.all(
+					createdBillingIds.map((billingId) => 
+						deleteBillingMutation.mutateAsync(billingId).catch((err) => {
+							console.error(`Error deleting billing ${billingId}:`, err);
+						})
+					)
+				);
+				successToast.deleted('Fechamentos criados');
+			} catch (error) {
+				console.error('Error deleting billings:', error);
+			}
+		}
+		
+		// Clear created billing IDs
+		createdBillingIds = [];
+		
+		// Close dialogs
+		showCityBillingDialog = false;
+		showConfirmationDialog = false;
+		showResponsablesDialog = false;
+		selectedCityId = null;
+	}
+	
+	// Clear created billing IDs when dialog closes successfully
+	$effect(() => {
+		if (!showResponsablesDialog && createdBillingIds.length > 0) {
+			// Dialog closed, clear IDs after a short delay to allow cancellation if needed
+			setTimeout(() => {
+				createdBillingIds = [];
+			}, 500);
+		}
+	});
 
 	const pageSizeOptions = [10, 25, 50, 100];
 </script>
@@ -101,10 +201,15 @@
 </svelte:head>
 
 <div class="space-y-6 px-6">
-	<div class="flex justify-between items-center">
+	<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
 		<div>
 			<h1 class="text-3xl font-bold">Fechamentos</h1>
 			<p class="text-muted-foreground">Gerencie os fechamentos de franquia</p>
+		</div>
+		<div class="flex gap-2">
+			<Button variant="outline" onclick={() => showCityBillingDialog = true} class="md:w-auto">
+				Gerar Fechamento
+			</Button>
 		</div>
 	</div>
 
@@ -246,3 +351,29 @@
 	</Card>
 </div>
 
+<CityBillingDialog
+	bind:open={showCityBillingDialog}
+	onConfirm={handleCitySelected}
+	onCancel={handleCancelBilling}
+/>
+
+<ConfirmationDialog
+	bind:open={showConfirmationDialog}
+	title="Confirmar Geração de Fechamentos"
+	description="Esta ação irá criar novos serviços e fechamentos para todos os clientes da cidade selecionada que possuem máquinas RENT. Deseja continuar?"
+	confirmText="Continuar"
+	cancelText="Cancelar"
+	variant="info"
+	icon="info"
+	loading={false}
+	onConfirm={handleConfirmGeneration}
+	onCancel={handleCancelConfirmation}
+/>
+
+<BillingResponsablesDialog
+	bind:open={showResponsablesDialog}
+	cityId={selectedCityId || 0}
+	loading={isGeneratingBillings}
+	onConfirm={handleResponsablesSelected}
+	onCancel={handleCancelBilling}
+/>

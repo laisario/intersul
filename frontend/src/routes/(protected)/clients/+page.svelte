@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { useClients, useCreateClient, useUpdateClient, useToggleClientActive } from '$lib/hooks/queries/use-clients.svelte.js';
 	import { errorToast, successToast, showError } from '$lib/utils/toast.js';
-	import { formatDate } from '$lib/utils/formatting.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { LoadingButton } from '$lib/components/ui/loading-button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
@@ -10,18 +9,16 @@
 	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
 	import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '$lib/components/ui/sheet/index.js';
 	import { Select, SelectContent, SelectItem, SelectTrigger } from '$lib/components/ui/select/index.js';
-	import { Plus, Edit, Search, Loader2, MoreVertical } from 'lucide-svelte';
+	import { Plus, Search, MoreVertical } from 'lucide-svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { goto } from '$app/navigation';
 	import type { Client, HowMetCompany } from '$lib/api/types/client.types.js';
 	import type { CreateAddressDto } from '$lib/api/types/address.types.js';
-	import ConfirmationDialog from '$lib/components/confirmation-dialog.svelte';
 	import AddressForm from '$lib/components/address-form.svelte';
 	import PaginationControls from '$lib/components/pagination-controls.svelte';
-	import CityBillingDialog from '$lib/components/city-billing-dialog.svelte';
-import BillingResponsablesDialog from '$lib/components/billing-responsables-dialog.svelte';
-import { useGenerateBillingsByCity, useDeleteBilling } from '$lib/hooks/queries/use-billings.svelte.js';
+	import { isAddressComplete, getAddressValidationMessage } from '$lib/utils/address-validation.js';
+	import { normalizePostalCode } from '$lib/utils/postal-code.js';
 
 	const HOW_MET_COMPANY_LABELS: Record<HowMetCompany, string> = {
 		SOCIAL_MEDIA: 'Redes Sociais',
@@ -42,15 +39,6 @@ import { useGenerateBillingsByCity, useDeleteBilling } from '$lib/hooks/queries/
 	let currentPage = $state(1);
 	let pageSize = $state(10);
 	const pageSizeOptions = [10, 25, 50, 100];
-	
-	let showCityBillingDialog = $state(false);
-	let showConfirmationDialog = $state(false);
-	let showResponsablesDialog = $state(false);
-	let selectedCityId = $state<number | null>(null);
-	const generateBillingsMutation = useGenerateBillingsByCity();
-	const isGeneratingBillings = $derived(generateBillingsMutation.isPending);
-	const deleteBillingMutation = useDeleteBilling();
-	let createdBillingIds = $state<number[]>([]);
 
 	let formData = $state({
 		name: '',
@@ -60,11 +48,11 @@ import { useGenerateBillingsByCity, useDeleteBilling } from '$lib/hooks/queries/
 		phone: '',
 		how_met_company: undefined as HowMetCompany | undefined,
 		address: {
-			postal_code: '',
+			postalCode: '',
 			street: '',
 			number: '',
 			complement: '',
-			neighborhood_id: undefined
+			neighborhoodId: undefined
 		} as Partial<CreateAddressDto>
 	});
 
@@ -141,6 +129,25 @@ function handlePageSizeChange(size: number) {
 		currentPage = 1;
 	});
 
+	// Check if address has any data (user started filling it)
+	const hasAddressData = $derived(
+		!!(formData.address.postalCode?.trim() || formData.address.street?.trim() || formData.address.number?.trim())
+	);
+
+	// Check if address is complete and valid
+	const isAddressValid = $derived(isAddressComplete(formData.address));
+
+	// Check if form is valid for submission
+	const isFormValid = $derived(
+		formData.name.trim() !== '' &&
+		formData.email.trim() !== '' &&
+		(!hasAddressData || isAddressValid)
+	);
+
+	// Get address validation message for UI feedback
+	const addressValidationMessage = $derived(
+		hasAddressData && !isAddressValid ? getAddressValidationMessage(formData.address) : null
+	);
 
 	function closeModal() {
 		showFormModal = false;
@@ -157,11 +164,11 @@ function handlePageSizeChange(size: number) {
 			phone: '',
 			how_met_company: undefined,
 			address: {
-				postal_code: '',
+				postalCode: '',
 				street: '',
 				number: '',
 				complement: '',
-				neighborhood_id: undefined
+				neighborhoodId: undefined
 			}
 		};
 	}
@@ -170,6 +177,7 @@ function handlePageSizeChange(size: number) {
 		isSubmitting = true;
 		
 		try {
+			// Validate required fields
 			if (!formData.name.trim()) {
 				showError('Nome é obrigatório');
 				return;
@@ -179,49 +187,51 @@ function handlePageSizeChange(size: number) {
 				return;
 			}
 
-		const hasAddress = formData.address.postal_code && formData.address.postal_code.trim();
-		
-		if (hasAddress) {
-			if (!formData.address.street?.trim()) {
-				showError('Rua é obrigatória');
-				return;
-			}
-			if (!formData.address.number?.trim()) {
-				showError('Número é obrigatório');
-				return;
-			}
-
-			if (addressFormRef && addressFormRef.processLocationData) {
-				const locationProcessed = await addressFormRef.processLocationData();
-				if (!locationProcessed) {
+			// If user started filling address, it must be complete
+			if (hasAddressData) {
+				if (!isAddressValid) {
+					const message = getAddressValidationMessage(formData.address);
+					showError(message || 'Preencha todos os campos do endereço');
 					return;
 				}
-			}
 
-			if (!formData.address.neighborhood_id) {
-				showError('Erro ao processar localização. Busque o CEP para preencher automaticamente.');
-				return;
+				// Process location data if needed (should have been done during CEP search, but retry if missing)
+				// This is a fallback in case processLocationData failed during CEP lookup
+				if (!formData.address.neighborhoodId && addressFormRef && addressFormRef.processLocationData) {
+					const locationProcessed = await addressFormRef.processLocationData();
+					if (!locationProcessed) {
+						showError('Erro ao processar localização. Tente buscar o CEP novamente.');
+						return;
+					}
+					// Re-check neighborhoodId after processing
+					if (!formData.address.neighborhoodId) {
+						showError('Erro ao processar localização. Tente buscar o CEP novamente.');
+						return;
+					}
+				}
 			}
-		}
 		
-		const payload: any = {
-			name: formData.name.trim(),
-			email: formData.email.trim(),
-			cnpj: formData.cnpj?.trim() || undefined,
-			cpf: formData.cpf?.trim() || undefined,
-			phone: formData.phone?.trim() || undefined,
-			how_met_company: formData.how_met_company || undefined,
-		};
-
-		if (hasAddress) {
-			payload.address = {
-				postal_code: formData.address.postal_code!.trim(),
-				street: formData.address.street!.trim(),
-				number: formData.address.number!.trim(),
-				complement: formData.address.complement?.trim() || undefined,
-				neighborhood_id: formData.address.neighborhood_id!,
+			// Build payload (using camelCase - API client will convert to snake_case)
+			const payload: any = {
+				name: formData.name.trim(),
+				email: formData.email.trim(),
+				cnpj: formData.cnpj?.trim() || undefined,
+				cpf: formData.cpf?.trim() || undefined,
+				phone: formData.phone?.trim() || undefined,
+				howMetCompany: formData.how_met_company || undefined,
 			};
-		}
+
+			// Add address if present (using camelCase - API client will convert)
+			// Use normalized postal code for payload
+			if (hasAddressData && isAddressValid) {
+				payload.address = {
+					postalCode: normalizePostalCode(formData.address.postalCode!),
+					street: formData.address.street!.trim(),
+					number: formData.address.number!.trim(),
+					complement: formData.address.complement?.trim() || undefined,
+					neighborhoodId: formData.address.neighborhoodId!,
+				};
+			}
 
 			if (editingClient) {
 				await updateClientMutation.mutateAsync({ id: editingClient.id, data: payload });
@@ -255,19 +265,19 @@ function handlePageSizeChange(size: number) {
 			cpf: client.cpf || '',
 			email: client.email,
 			phone: client.phone || '',
-			how_met_company: client.how_met_company,
+			how_met_company: client.howMetCompany,
 			address: client.address ? {
-				postal_code: client.address.postal_code,
+				postalCode: client.address.postalCode,
 				street: client.address.street,
 				number: client.address.number,
 				complement: client.address.complement || '',
-				neighborhood_id: client.address.neighborhood_id
+				neighborhoodId: client.address.neighborhoodId
 			} : {
-				postal_code: '',
+				postalCode: '',
 				street: '',
 				number: '',
 				complement: '',
-				neighborhood_id: undefined
+				neighborhoodId: undefined
 			}
 		};
 		showFormModal = true;
@@ -287,93 +297,6 @@ function handlePageSizeChange(size: number) {
 			},
 		});
 	}
-
-	function handleCitySelected(cityId: number) {
-		selectedCityId = cityId;
-		showCityBillingDialog = false;
-		showConfirmationDialog = true;
-	}
-
-	function handleConfirmGeneration() {
-		// Clear created billing IDs when starting a new generation
-		createdBillingIds = [];
-		showConfirmationDialog = false;
-		showResponsablesDialog = true;
-	}
-
-	function handleCancelConfirmation() {
-		showConfirmationDialog = false;
-		selectedCityId = null;
-	}
-
-	function handleResponsablesSelected(machines: any[]) {
-		if (!selectedCityId) return;
-
-		generateBillingsMutation.mutate(
-			{
-				city_id: selectedCityId,
-				machines,
-			},
-			{
-				onSuccess: (response) => {
-					// Store created billing IDs
-					createdBillingIds = response.billings.map((billing) => billing.id);
-					successToast.created('Fechamentos gerados com sucesso');
-					showResponsablesDialog = false;
-					selectedCityId = null;
-					// Keep IDs in case user needs to cancel - will be cleared when dialog actually closes
-				},
-				onError: (error: any) => {
-					console.error('Error generating fechamentos:', error);
-					if (error.response?.data?.message) {
-						showError(error.response.data.message);
-					} else {
-						errorToast.unknown();
-					}
-					// Clear created billing IDs on error
-					createdBillingIds = [];
-				},
-			}
-		);
-	}
-
-	async function handleCancelBilling() {
-		// If billings were created, delete them
-		if (createdBillingIds.length > 0) {
-			try {
-				// Delete all created billings
-				await Promise.all(
-					createdBillingIds.map((billingId) => 
-						deleteBillingMutation.mutateAsync(billingId).catch((err) => {
-							console.error(`Error deleting billing ${billingId}:`, err);
-						})
-					)
-				);
-				successToast.deleted('Fechamentos criados');
-			} catch (error) {
-				console.error('Error deleting billings:', error);
-			}
-		}
-		
-		// Clear created billing IDs
-		createdBillingIds = [];
-		
-		// Close dialogs
-		showCityBillingDialog = false;
-		showConfirmationDialog = false;
-		showResponsablesDialog = false;
-		selectedCityId = null;
-	}
-	
-	// Clear created billing IDs when dialog closes successfully
-	$effect(() => {
-		if (!showResponsablesDialog && createdBillingIds.length > 0) {
-			// Dialog closed, clear IDs after a short delay to allow cancellation if needed
-			setTimeout(() => {
-				createdBillingIds = [];
-			}, 500);
-		}
-	});
 </script>
 
 <svelte:head>
@@ -387,9 +310,6 @@ function handlePageSizeChange(size: number) {
 			<p class="text-muted-foreground">Gerencie os clientes</p>
 		</div>
 		<div class="flex gap-2">
-			<Button variant="outline" onclick={() => showCityBillingDialog = true} class="md:w-auto">
-				Fazer fechamento
-			</Button>
 			<Button onclick={() => showFormModal = true} class="md:w-auto">
 				<Plus class="w-4 h-4 mr-2" />
 				Novo Cliente
@@ -496,10 +416,6 @@ function handlePageSizeChange(size: number) {
 													</Button>
 												</DropdownMenu.Trigger>
 												<DropdownMenu.Content align="end">
-													<DropdownMenu.Item onclick={() => handleOpenEditModal(client)}>
-														<Edit class="w-4 h-4 mr-2" />
-														Editar
-													</DropdownMenu.Item>
 													<DropdownMenu.Item
 														onclick={() => handleToggleActive(client)}
 														disabled={isToggling}
@@ -628,6 +544,12 @@ function handlePageSizeChange(size: number) {
 				/>
 			</div>
 
+			{#if addressValidationMessage}
+				<div class="text-sm text-amber-600 bg-amber-50 p-3 rounded-md">
+					{addressValidationMessage}
+				</div>
+			{/if}
+
 			<div class="flex justify-end space-x-2 pt-4">
 				<Button
 					type="button"
@@ -637,38 +559,15 @@ function handlePageSizeChange(size: number) {
 				>
 					Cancelar
 				</Button>
-				<LoadingButton type="submit" loading={isSubmitting}>
+				<LoadingButton 
+					type="submit" 
+					loading={isSubmitting}
+					disabled={!isFormValid || isSubmitting}
+				>
 					{editingClient ? 'Atualizar' : 'Criar'} Cliente
 				</LoadingButton>
 			</div>
 		</form>
 	</SheetContent>
 </Sheet>
-
-<CityBillingDialog
-	bind:open={showCityBillingDialog}
-	onConfirm={handleCitySelected}
-	onCancel={handleCancelBilling}
-/>
-
-<ConfirmationDialog
-	bind:open={showConfirmationDialog}
-	title="Confirmar Geração de Fechamentos"
-	description="Esta ação irá criar novos serviços e fechamentos para todos os clientes da cidade selecionada que possuem máquinas RENT. Deseja continuar?"
-	confirmText="Continuar"
-	cancelText="Cancelar"
-	variant="info"
-	icon="info"
-	loading={false}
-	onConfirm={handleConfirmGeneration}
-	onCancel={handleCancelConfirmation}
-/>
-
-<BillingResponsablesDialog
-	bind:open={showResponsablesDialog}
-	cityId={selectedCityId || 0}
-	loading={isGeneratingBillings}
-	onConfirm={handleResponsablesSelected}
-	onCancel={handleCancelBilling}
-/>
 

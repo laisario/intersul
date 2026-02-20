@@ -499,7 +499,7 @@ const isLoadingServiceHistory = $derived(serviceHistoryQuery.isLoading);
 											<div class="flex items-center space-x-4 mt-2 text-xs text-muted-foreground">
 												<div class="flex items-center space-x-1">
 													<Calendar class="w-3 h-3" />
-													<span>{service.created_at ? formatDate(service.created_at) : 'Sem data'}</span>
+													<span>{service.createdAt ? formatDate(service.createdAt) : 'Sem data'}</span>
 												</div>
 												{#if service.clientCopyMachine}
 													<div class="flex items-center space-x-1">
@@ -836,23 +836,6 @@ const isLoadingServiceHistory = $derived(serviceHistoryQuery.isLoading);
 						</div>
 					</CardContent>
 				</Card>
-
-				<div class="flex justify-end gap-2 pt-4 border-t">
-					<Button variant="outline" onclick={closeViewModal}>
-						Fechar
-					</Button>
-					{#if viewingMachine}
-						<Button onclick={() => { 
-							if (viewingMachine) {
-								closeViewModal(); 
-								handleEditMachine(viewingMachine); 
-							}
-						}}>
-							<Edit class="w-4 h-4 mr-2" />
-							Editar
-						</Button>
-					{/if}
-				</div>
 			</div>
 		{/if}
 	</SheetContent>
