@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class CreateBoletoBillingCategoryAndSteps1737480000000 implements MigrationInterface {
-    name = 'CreateBoletoBillingCategoryAndSteps1737480000000'
+export class CreateBoletoBillingCategoryAndSteps1770000000000 implements MigrationInterface {
+    name = 'CreateBoletoBillingCategoryAndSteps1770000000000'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         // Check if category already exists to make migration idempotent
