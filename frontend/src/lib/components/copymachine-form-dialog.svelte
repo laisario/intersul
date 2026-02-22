@@ -91,7 +91,20 @@
 
 	// Handle catalog machine selection
 	function handleCatalogMachineChange(value: string) {
-		const machineId = parseInt(value);
+		if (!value || value === '') {
+			formData.catalogCopyMachineId = undefined;
+			selectedCatalogMachine = null;
+			return;
+		}
+		
+		const machineId = parseInt(value, 10);
+		if (isNaN(machineId) || machineId <= 0) {
+			console.error('Invalid catalog machine ID:', value);
+			formData.catalogCopyMachineId = undefined;
+			selectedCatalogMachine = null;
+			return;
+		}
+		
 		formData.catalogCopyMachineId = machineId;
 		
 		// Find the selected machine
@@ -133,6 +146,11 @@
 			return false;
 		}
 
+		if (formData.serialNumber.trim().length < 5) {
+			showError('Número de série deve ter pelo menos 5 caracteres');
+			return false;
+		}
+
 		if (!formData.acquisitionType) {
 			showError('Tipo de aquisição é obrigatório');
 			return false;
@@ -142,6 +160,14 @@
 		if (showCatalogSelect && !formData.catalogCopyMachineId) {
 			showError('Selecione uma máquina do catálogo');
 			return false;
+		}
+
+		// Validate catalog machine ID is a valid number
+		if (showCatalogSelect && formData.catalogCopyMachineId) {
+			if (isNaN(formData.catalogCopyMachineId) || formData.catalogCopyMachineId <= 0) {
+				showError('ID da máquina do catálogo inválido');
+				return false;
+			}
 		}
 
 		if (showExternalFields) {
@@ -196,17 +222,30 @@
 				}
 			});
 		} else {
+			// Ensure catalogCopyMachineId is a valid number or undefined
+			let catalogId: number | undefined = undefined;
+			if (formData.catalogCopyMachineId) {
+				const parsed = Number(formData.catalogCopyMachineId);
+				if (!isNaN(parsed) && parsed > 0 && parsed < Number.MAX_SAFE_INTEGER) {
+					catalogId = parsed;
+				} else {
+					console.error('Invalid catalog machine ID:', formData.catalogCopyMachineId);
+				}
+			}
+
 			const payload: CreateClientCopyMachineDto = {
 				serialNumber: formData.serialNumber!,
 				clientId: clientId,
 				acquisitionType: formData.acquisitionType!,
-				catalogCopyMachineId: formData.catalogCopyMachineId,
+				catalogCopyMachineId: catalogId,
 				externalModel: formData.externalModel,
 				externalManufacturer: formData.externalManufacturer,
 				externalDescription: formData.externalDescription,
 				value: formData.value,
 				franchiseId: formData.franchiseId
 			};
+
+			console.log('Submitting payload:', payload);
 
 			createMutation.mutate(payload, {
 				onSuccess: () => {
@@ -345,14 +384,17 @@
 						<select
 							id="catalogMachine"
 							value={formData.catalogCopyMachineId?.toString() || ''}
-							onchange={(e) => handleCatalogMachineChange(e.currentTarget.value)}
+							onchange={(e) => {
+								console.log('Select changed, value:', e.currentTarget.value, 'type:', typeof e.currentTarget.value);
+								handleCatalogMachineChange(e.currentTarget.value);
+							}}
 							required
 							disabled={createMutation.isPending || updateMutation.isPending}
 							class="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
 						>
 							<option value="">Selecione uma máquina</option>
 							{#each catalogMachines as machine}
-								<option value={machine.id.toString()}>
+								<option value={machine.id?.toString() || ''}>
 									{machine.manufacturer} - {machine.model}
 									{#if machine.price != null}
 										(R$ {Number(machine.price).toFixed(2)})

@@ -6,6 +6,7 @@ import { Button } from '$lib/components/ui/button/index.js';
 import { Input } from '$lib/components/ui/input/index.js';
 import { Label } from '$lib/components/ui/label/index.js';
 import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card/index.js';
+import { Select, SelectContent, SelectItem, SelectTrigger } from '$lib/components/ui/select/index.js';
 import { Skeleton } from '$lib/components/ui/skeleton/index.js';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '$lib/components/ui/sheet/index.js';
 import { Plus, Edit, Trash2, Loader2 } from 'lucide-svelte';
@@ -29,7 +30,22 @@ let formData = $state({
 	unitPrice: ''
 });
 
-	const franchisesQuery = $derived(useFranchises());
+	// Filter state
+	let filters = $state({
+		period: '',
+		color: undefined as boolean | undefined,
+		paper_type: ''
+	});
+
+	const franchisesQuery = $derived(useFranchises(
+		filters.period || filters.color !== undefined || filters.paper_type
+			? {
+					period: filters.period || undefined,
+					color: filters.color,
+					paper_type: filters.paper_type || undefined
+				}
+			: undefined
+	));
 	const createFranchiseMutation = useCreateFranchise();
 	const updateFranchiseMutation = useUpdateFranchise();
 	const deleteFranchiseMutation = useDeleteFranchise();
@@ -38,6 +54,14 @@ let formData = $state({
 	let franchisesLoading = $derived(franchisesQuery.isLoading);
 	let franchisesError = $derived(franchisesQuery.error);
 	let refetchFranchises = $derived(franchisesQuery.refetch);
+
+	function clearFilters() {
+		filters = {
+			period: '',
+			color: undefined,
+			paper_type: ''
+		};
+	}
 
 let currentPage = $state(1);
 let pageSize = $state(10);
@@ -216,9 +240,63 @@ $effect(() => {
 		</Button>
 	</div>
 
+	<!-- Filters -->
+	<Card>
+		<CardHeader>
+			<CardTitle>Filtros</CardTitle>
+		</CardHeader>
+		<CardContent>
+			<div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+				<div class="space-y-2">
+					<Label for="filter-period">Período</Label>
+					<Input
+						id="filter-period"
+						bind:value={filters.period}
+						placeholder="Ex: 12 meses"
+					/>
+				</div>
+				<div class="space-y-2">
+					<Label for="filter-paper-type">Tipo de Papel</Label>
+					<Input
+						id="filter-paper-type"
+						bind:value={filters.paper_type}
+						placeholder="Ex: A4"
+					/>
+				</div>
+				<div class="space-y-2">
+					<Label for="filter-color">Colorida</Label>
+					<Select
+						type="single"
+						value={filters.color === undefined ? '' : filters.color ? 'true' : 'false'}
+						onValueChange={(value: string) => {
+							if (value === '') {
+								filters.color = undefined;
+							} else {
+								filters.color = value === 'true';
+							}
+						}}
+					>
+						<SelectTrigger>
+							{filters.color === undefined ? 'Todas' : filters.color ? 'Colorida' : 'Não Colorida'}
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="">Todas</SelectItem>
+							<SelectItem value="true">Colorida</SelectItem>
+							<SelectItem value="false">Não Colorida</SelectItem>
+						</SelectContent>
+					</Select>
+				</div>
+				<div class="flex items-end gap-2">
+					<Button variant="outline" onclick={clearFilters}>
+						Limpar Filtros
+					</Button>
+				</div>
+			</div>
+		</CardContent>
+	</Card>
+
 	<!-- Table -->
 	<Card>
-		
 		<CardContent>
 			{#if franchisesLoading}
 				<div class="space-y-3">

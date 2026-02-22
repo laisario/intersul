@@ -1,8 +1,6 @@
 # Feature: Edit Service
 
-## Feature summary
-
-Provides form interface for editing existing service information. Pre-fills form with current service data and allows updates.
+Provides form interface for editing existing service information. Pre-fills form with current service data including price and allows updates.
 
 ## User value
 
@@ -20,6 +18,7 @@ Provides form interface for editing existing service information. Pre-fills form
 
 ### In scope
 - Core edit service user interface
+- Service price/value field editing
 - Form validation and error handling
 - API integration and data fetching
 - Loading and error states
@@ -34,21 +33,26 @@ Provides form interface for editing existing service information. Pre-fills form
 ## User flow
 
 1. User navigates to /services/[id] (edit action)
-2. System fetches required data from API
-3. System displays edit service interface
-4. User interacts with edit service (view, create, edit, etc.)
-5. System handles user actions and API calls
-6. System updates UI based on results
-7. **Loading state**: Data fetching → Show loading indicators
-8. **Error state**: API failure → Display error message
-9. **Empty state**: No data → Display empty state message
+2. System fetches required data from API including current price
+3. System displays edit service interface with pre-filled data
+4. User can update service price field
+5. User interacts with edit service (view, create, edit, etc.)
+6. System handles user actions and API calls
+7. System updates UI based on results
+8. **Loading state**: Data fetching → Show loading indicators
+9. **Error state**: API failure → Display error message
+10. **Error state**: Invalid price → Show validation error
+11. **Empty state**: No data → Display empty state message
 
 ## Acceptance criteria
 
 - edit service interface is displayed correctly
+- Service price field is displayed with current value
+- Service price can be updated
 - Data is fetched and displayed from API
 - User interactions work as expected
 - Form validation prevents invalid submissions
+- Price validation works correctly
 - Loading states are shown during operations
 - Error states are handled gracefully
 - Navigation works correctly
@@ -59,6 +63,7 @@ Provides form interface for editing existing service information. Pre-fills form
 
 **Screens/components involved:**
 - `/services/[id] (edit action)` route page component
+- Service form component with price field
 - Form components (if applicable)
 - List/table components (if applicable)
 - Detail view components (if applicable)
@@ -73,6 +78,7 @@ Provides form interface for editing existing service information. Pre-fills form
 
 **Validations:**
 - Form fields validated before submission
+- Service price field validated (must be positive number if provided)
 - API responses validated before display
 - User input sanitized and validated
 
@@ -92,6 +98,8 @@ Provides form interface for editing existing service information. Pre-fills form
 
 **Validation errors:**
 - Invalid form data: Show validation messages, prevent submission
+- Invalid price format: Show validation error
+- Invalid price (negative or zero): Show validation error
 - Invalid API response: Display error message
 
 **Missing data:**

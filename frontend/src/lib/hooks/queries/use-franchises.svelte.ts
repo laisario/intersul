@@ -7,10 +7,10 @@ import type {
   UpdateFranchiseDto
 } from '$lib/api/types/copy-machine.types.js';
 
-export const useFranchises = () => {
+export const useFranchises = (filters?: { period?: string; color?: boolean; paper_type?: string }) => {
   return createQuery(() => ({
-    queryKey: ['franchises'],
-    queryFn: () => copyMachinesApi.franchise.getAll(),
+    queryKey: ['franchises', filters],
+    queryFn: () => copyMachinesApi.franchise.getAll(filters),
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   }));

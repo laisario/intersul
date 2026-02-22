@@ -1,8 +1,6 @@
 # Feature: Manage Franchises
 
-## Feature summary
-
-Provides interface for managing franchise plans including creation, editing, and deletion. Includes franchise form with pricing and feature details.
+Provides interface for managing franchise plans including creation, editing, and deletion. Includes franchise form with pricing and feature details. Supports filtering franchises by period, color (colorida), and paper type (tipo de papel).
 
 ## User value
 
@@ -20,13 +18,16 @@ Provides interface for managing franchise plans including creation, editing, and
 
 ### In scope
 - Core manage franchises user interface
+- Filter interface for period, color, and paper type
+- Filter controls (input fields, dropdowns, checkboxes)
+- Filter application and result display
 - Form validation and error handling
-- API integration and data fetching
+- API integration and data fetching with filter parameters
 - Loading and error states
 - Navigation and routing
 
 ### Out of scope
-- Advanced filtering and search (if not implemented)
+- Advanced filtering and search beyond period, color, and paper type
 - Bulk operations
 - Export functionality
 - Print functionality
@@ -34,18 +35,36 @@ Provides interface for managing franchise plans including creation, editing, and
 ## User flow
 
 1. User navigates to /franchises
-2. System fetches required data from API
-3. System displays manage franchises interface
-4. User interacts with manage franchises (view, create, edit, etc.)
-5. System handles user actions and API calls
-6. System updates UI based on results
-7. **Loading state**: Data fetching → Show loading indicators
-8. **Error state**: API failure → Display error message
-9. **Empty state**: No data → Display empty state message
+2. System fetches required data from API (initially without filters)
+3. System displays manage franchises interface with filter controls
+4. User can apply filters:
+   - Period filter: User enters or selects period value (string input)
+   - Color filter: User selects colorida (true) or não colorida (false) via checkbox or dropdown
+   - Paper type filter: User enters or selects paper type value (string input)
+5. User applies filters (individually or combined)
+6. System sends API request with filter query parameters
+7. System fetches filtered data from API
+8. System displays filtered franchise list
+9. User can clear filters to show all franchises
+10. User interacts with manage franchises (view, create, edit, etc.)
+11. System handles user actions and API calls
+12. System updates UI based on results
+13. **Loading state**: Data fetching → Show loading indicators
+14. **Error state**: API failure → Display error message
+15. **Empty state**: No data → Display empty state message
+16. **Empty state**: No results match filters → Display "no results" message
 
 ## Acceptance criteria
 
 - manage franchises interface is displayed correctly
+- Filter controls are displayed and functional
+- Period filter accepts string input and applies filter correctly
+- Color filter (colorida checkbox/dropdown) applies boolean filter correctly
+- Paper type filter accepts string input and applies filter correctly
+- Multiple filters can be applied simultaneously (AND logic)
+- Filters are sent as query parameters to API
+- Filtered data is displayed correctly
+- Clear filters functionality works
 - Data is fetched and displayed from API
 - User interactions work as expected
 - Form validation prevents invalid submissions
@@ -59,6 +78,12 @@ Provides interface for managing franchise plans including creation, editing, and
 
 **Screens/components involved:**
 - `/franchises` route page component
+- Filter panel/component with:
+  - Period input field (text input)
+  - Color filter (checkbox or dropdown: "Colorida" / "Não Colorida")
+  - Paper type input field (text input)
+  - Apply filters button
+  - Clear filters button
 - Form components (if applicable)
 - List/table components (if applicable)
 - Detail view components (if applicable)
@@ -73,6 +98,11 @@ Provides interface for managing franchise plans including creation, editing, and
 
 **Validations:**
 - Form fields validated before submission
+- Filter inputs validated:
+  - Period: String format validation
+  - Color: Boolean value (true/false) or "Colorida"/"Não Colorida" mapping
+  - Paper type: String format validation
+- Filter parameters are properly encoded in API request query string
 - API responses validated before display
 - User input sanitized and validated
 
@@ -92,10 +122,13 @@ Provides interface for managing franchise plans including creation, editing, and
 
 **Validation errors:**
 - Invalid form data: Show validation messages, prevent submission
+- Invalid filter input: Show validation message for filter field
 - Invalid API response: Display error message
+- Filter API error: Display error message, allow retry
 
 **Missing data:**
 - No data available: Display empty state message
+- No results match filters: Display "no results" message with option to clear filters
 - Resource not found: Display 404 or error message
 
 **Permission denied:**

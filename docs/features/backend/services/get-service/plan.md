@@ -1,8 +1,6 @@
 # Feature: Get Service
 
-## Feature summary
-
-Retrieves a specific service by ID including complete service information, client, category, copy machine, and workflow steps.
+Retrieves a specific service by ID including complete service information, client, category, copy machine, workflow steps, price, and payment fields (for external services).
 
 ## User value
 
@@ -42,6 +40,8 @@ Retrieves a specific service by ID including complete service information, clien
 ## Acceptance criteria
 
 - Valid request successfully completes get service operation
+- Response includes service price field (if set)
+- Response includes payment fields (amount_to_receive, payment_method, is_invoiced) for external services
 - Invalid data returns appropriate error response
 - Permission checks are enforced
 - Response includes expected data structure

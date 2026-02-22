@@ -262,12 +262,29 @@ export class CopyMachinesService {
     return this.franchiseRepository.save(franchise);
   }
 
-  async findAllFranchises(): Promise<Franchise[]> {
-    return this.franchiseRepository.find({
-      where: { isDisabled: false },
-      relations: ['clientCopyMachines'],
-      order: { created_at: 'DESC' },
-    });
+  async findAllFranchises(filters?: {
+    period?: string;
+    color?: boolean;
+    paper_type?: string;
+  }): Promise<Franchise[]> {
+    const queryBuilder = this.franchiseRepository
+      .createQueryBuilder('franchise')
+      .where('franchise.isDisabled = :isDisabled', { isDisabled: false })
+      .leftJoinAndSelect('franchise.clientCopyMachines', 'clientCopyMachines');
+
+    if (filters?.period) {
+      queryBuilder.andWhere('franchise.period LIKE :period', { period: `%${filters.period}%` });
+    }
+
+    if (filters?.color !== undefined) {
+      queryBuilder.andWhere('franchise.color = :color', { color: filters.color });
+    }
+
+    if (filters?.paper_type) {
+      queryBuilder.andWhere('franchise.paper_type LIKE :paper_type', { paper_type: `%${filters.paper_type}%` });
+    }
+
+    return queryBuilder.orderBy('franchise.created_at', 'DESC').getMany();
   }
 
   async findOneFranchise(id: number): Promise<Franchise> {

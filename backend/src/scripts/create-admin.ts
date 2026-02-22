@@ -13,7 +13,7 @@ config({ path: envPath });
 
 async function bootstrap() {
   const adminEmail = 'admin@admin.com';
-  const adminPassword = 'Xerox@2026';
+  const adminPassword = 'Admin@123';
   const adminName = 'Administrador TI';
   const adminRole = UserRole.ADMIN;
 

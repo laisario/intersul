@@ -262,8 +262,16 @@ export class CopyMachinesController {
   @Get('franchise')
   @ApiOperation({ summary: 'Obter todos os planos de franquia' })
   @ApiResponse({ status: 200, description: 'Lista de todos os planos de franquia', type: [Franchise] })
-  async findAllFranchises(): Promise<Franchise[]> {
-    return this.copyMachinesService.findAllFranchises();
+  async findAllFranchises(
+    @Query('period') period?: string,
+    @Query('color') color?: string,
+    @Query('paper_type') paper_type?: string,
+  ): Promise<Franchise[]> {
+    return this.copyMachinesService.findAllFranchises({
+      period,
+      color: color === 'true' ? true : color === 'false' ? false : undefined,
+      paper_type,
+    });
   }
 
   @Get('franchise/:id')

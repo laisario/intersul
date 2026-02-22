@@ -111,6 +111,16 @@ export class ServicesService {
 
     const isInternal = serviceData.is_internal;
 
+    // Validate external service payment fields
+    if (!isInternal) {
+      if (serviceData.amount_to_receive === undefined || serviceData.amount_to_receive === null) {
+        throw new BadRequestException('amount_to_receive is required for external services');
+      }
+      if (serviceData.amount_to_receive <= 0) {
+        throw new BadRequestException('amount_to_receive must be a positive number');
+      }
+    }
+
     if (!isInternal && serviceData.client_id) {
       const client = await this.clientsRepository.findOne({
         where: { id: serviceData.client_id },
@@ -149,6 +159,9 @@ export class ServicesService {
       description: serviceData.description,
       priority: serviceData.priority,
       is_internal: serviceData.is_internal,
+      amount_to_receive: isInternal ? null : serviceData.amount_to_receive,
+      payment_method: isInternal ? null : serviceData.payment_method,
+      is_invoiced: isInternal ? false : (serviceData.is_invoiced ?? false),
     };
 
     const service = this.servicesRepository.create(cleanServiceData);
@@ -193,6 +206,44 @@ export class ServicesService {
       );
 
       await this.stepsRepository.save(stepEntities);
+    }
+
+    // Create automatic steps for external services
+    if (!isInternal) {
+      // Create "Realizar pagamento" step
+      const paymentStep = this.stepsRepository.create({
+        name: 'Realizar pagamento',
+        description: `Consultar o valor informado no serviço: R$ ${serviceData.amount_to_receive?.toFixed(2) || '0.00'}`,
+        service_id: savedService.id,
+        status: StepStatus.PENDING,
+      });
+      await this.stepsRepository.save(paymentStep);
+
+      // If payment method is BOLETO, create "Cobrança de boleto" step
+      const paymentMethod = serviceData.payment_method?.toLowerCase();
+      if (paymentMethod === 'boleto' || paymentMethod === 'bank slip' || paymentMethod === 'bankslip') {
+        // Find or create "Cobrança de Boleto" category
+        let boletoCategory = await this.categoriesRepository.findOne({
+          where: { name: 'Cobrança de Boleto' },
+        });
+
+        if (!boletoCategory) {
+          boletoCategory = this.categoriesRepository.create({
+            name: 'Cobrança de Boleto',
+            description: 'Categoria para serviços de cobrança de boleto',
+          });
+          boletoCategory = await this.categoriesRepository.save(boletoCategory);
+        }
+
+        const boletoStep = this.stepsRepository.create({
+          name: 'Cobrança de boleto',
+          description: 'Realizar cobrança de boleto conforme método de pagamento informado',
+          service_id: savedService.id,
+          category_id: boletoCategory.id,
+          status: StepStatus.PENDING,
+        });
+        await this.stepsRepository.save(boletoStep);
+      }
     }
     
     return this.findOne(savedService.id);

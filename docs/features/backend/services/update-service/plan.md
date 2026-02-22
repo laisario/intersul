@@ -1,8 +1,6 @@
 # Feature: Update Service
 
-## Feature summary
-
-Updates an existing service record with new information. Allows modification of service details, status, and associations. Only ADMIN and MANAGER roles can update.
+Updates an existing service record with new information. Allows modification of service details, status, associations, and price. Only ADMIN and MANAGER roles can update.
 
 ## User value
 
@@ -20,6 +18,7 @@ Updates an existing service record with new information. Allows modification of 
 
 ### In scope
 - Core update service functionality
+- Service price/value field updates
 - Data validation and error handling
 - Authentication and authorization checks
 
@@ -32,19 +31,23 @@ Updates an existing service record with new information. Allows modification of 
 ## User flow
 
 1. User initiates update service action
-2. System validates request and permissions
-3. System processes update service operation
-4. System returns result or confirmation
-5. **Error state**: Validation failure → 400 Bad Request
-6. **Error state**: Not found → 404 Not Found
-7. **Error state**: Permission denied → 403 Forbidden
+2. User can update service price/value field
+3. System validates request and permissions
+4. System validates price field if provided (must be positive number)
+5. System processes update service operation
+6. System returns updated service
+7. **Error state**: Validation failure → 400 Bad Request
+8. **Error state**: Not found → 404 Not Found
+9. **Error state**: Permission denied → 403 Forbidden
 
 ## Acceptance criteria
 
 - Valid request successfully completes update service operation
+- Service price field can be updated
+- Invalid price data returns appropriate error response
 - Invalid data returns appropriate error response
 - Permission checks are enforced
-- Response includes expected data structure
+- Response includes expected data structure with updated price
 
 ## Backend/Frontend behavior
 
@@ -56,6 +59,8 @@ Updates an existing service record with new information. Allows modification of 
 **Main rules/validations:**
 - Requires JWT authentication (unless public endpoint)
 - Input validation through DTOs
+- Service price field is optional (can be null/undefined)
+- If price is provided, must be a positive number
 - Business rule validation
 - Permission checks based on user role
 
@@ -74,6 +79,8 @@ Updates an existing service record with new information. Allows modification of 
 **Validation errors:**
 - Invalid input data: Returns 400 Bad Request
 - Missing required fields: Returns 400 Bad Request
+- Invalid price (negative or zero): Returns 400 Bad Request
+- Invalid price format: Returns 400 Bad Request
 
 **Missing data:**
 - Resource not found: Returns 404 Not Found

@@ -28,6 +28,9 @@ export interface Service extends BaseEntity {
   priority?: string;
   reasonCancellament?: string;
   isInternal?: boolean;
+  amountToReceive?: number;
+  paymentMethod?: string;
+  isInvoiced?: boolean;
 }
 
 export const ServiceStatus = {
@@ -112,6 +115,9 @@ export interface CreateServiceDto {
   priority?: string;
   steps?: CreateServiceStepDto[];
   isInternal?: boolean;
+  amountToReceive?: number;
+  paymentMethod?: string;
+  isInvoiced?: boolean;
 }
 
 export interface CreateCategoryDto {

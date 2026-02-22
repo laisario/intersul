@@ -1,4 +1,4 @@
-import { IsNumber, IsOptional, IsString, IsArray, ValidateNested, IsEnum, IsBoolean } from 'class-validator';
+import { IsNumber, IsOptional, IsString, IsArray, ValidateNested, IsEnum, IsBoolean, Min, ValidateIf } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type, Transform } from 'class-transformer';
 import { CreateStepDto } from './create-step.dto';
@@ -109,4 +109,38 @@ export class CreateServiceDto {
     return undefined;
   })
   is_internal?: boolean;
+
+  @ApiProperty({
+    example: 100.00,
+    description: 'Amount to receive (required for external services)',
+    required: false,
+  })
+  @ValidateIf((o) => o.is_internal === false)
+  @Type(() => Number)
+  @IsNumber({}, { message: 'amount_to_receive must be a number' })
+  @Min(0, { message: 'amount_to_receive must be a positive number' })
+  amount_to_receive?: number;
+
+  @ApiProperty({
+    example: 'PIX',
+    description: 'Payment method (optional for external services)',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  payment_method?: string;
+
+  @ApiProperty({
+    example: false,
+    description: 'Whether payment has been completed (optional for external services)',
+    required: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => {
+    if (value === 'true' || value === true) return true;
+    if (value === 'false' || value === false) return false;
+    return false;
+  })
+  is_invoiced?: boolean;
 }

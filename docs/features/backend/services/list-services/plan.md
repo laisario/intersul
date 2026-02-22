@@ -1,8 +1,6 @@
 # Feature: List Services
 
-## Feature summary
-
-Retrieves paginated list of services with optional filters (category, client, city, acquisition type). Supports pagination and returns service data with relations.
+Retrieves paginated list of services with optional filters (category, client, city, acquisition type). Supports pagination and returns service data with relations including price and payment fields (for external services).
 
 ## User value
 
@@ -42,6 +40,8 @@ Retrieves paginated list of services with optional filters (category, client, ci
 ## Acceptance criteria
 
 - Valid request successfully completes list services operation
+- Response includes service price field for each service (if set)
+- Response includes payment fields (amount_to_receive, payment_method, is_invoiced) for external services
 - Invalid data returns appropriate error response
 - Permission checks are enforced
 - Response includes expected data structure

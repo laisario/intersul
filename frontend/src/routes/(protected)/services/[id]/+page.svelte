@@ -495,6 +495,33 @@
 							<span class="font-medium text-muted-foreground block">Categoria</span>
 							<span class="mt-1 block">{service.category?.name || 'Não informado'}</span>
 						</div>
+						{#if !service.isInternal && (service.amountToReceive || service.paymentMethod || service.isInvoiced !== undefined)}
+							<div class="border-t pt-4 mt-4">
+								<h4 class="font-semibold mb-3">Informações de Pagamento</h4>
+								{#if service.amountToReceive}
+									<div class="mb-2">
+										<span class="font-medium text-muted-foreground block">Valor a Receber</span>
+										<span class="mt-1 block font-semibold text-primary">{formatCurrency(service.amountToReceive)}</span>
+									</div>
+								{/if}
+								{#if service.paymentMethod}
+									<div class="mb-2">
+										<span class="font-medium text-muted-foreground block">Método de Pagamento</span>
+										<span class="mt-1 block">{service.paymentMethod}</span>
+									</div>
+								{/if}
+								{#if service.isInvoiced !== undefined}
+									<div>
+										<span class="font-medium text-muted-foreground block">Status do Pagamento</span>
+										<span class="mt-1 block">
+											<Badge variant={service.isInvoiced ? 'default' : 'outline'}>
+												{service.isInvoiced ? 'Pago' : 'Pendente'}
+											</Badge>
+										</span>
+									</div>
+								{/if}
+							</div>
+						{/if}
 
 						<div>
 							<span class="font-medium text-muted-foreground block">Prioridade</span>

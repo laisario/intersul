@@ -5,6 +5,7 @@ import { Step } from '../entities/step.entity';
 import { UpdateStepDto } from '../dto/update-step.dto';
 import { StepStatus } from '../../../common/enums/step-status.enum';
 import { ServicesService } from './services';
+import { Service } from '../entities/service.entity';
 import { User } from '../../auth/entities/user.entity';
 
 @Injectable()
@@ -12,6 +13,8 @@ export class StepService {
   constructor(
     @InjectRepository(Step)
     private stepsRepository: Repository<Step>,
+    @InjectRepository(Service)
+    private servicesRepository: Repository<Service>,
     @InjectRepository(User)
     private usersRepository: Repository<User>,
     @Inject(forwardRef(() => ServicesService))
@@ -197,6 +200,17 @@ export class StepService {
     // Update service status if step has service_id
     if (step.service_id) {
       await this.servicesService.updateServiceStatus(step.service_id);
+
+      // If step is "Realizar pagamento" from external service, update is_invoiced
+      if (step.name === 'Realizar pagamento' && step.service_id) {
+        const service = await this.servicesRepository.findOne({
+          where: { id: step.service_id },
+        });
+        if (service && !service.is_internal) {
+          service.is_invoiced = true;
+          await this.servicesRepository.save(service);
+        }
+      }
     }
 
     return savedStep;

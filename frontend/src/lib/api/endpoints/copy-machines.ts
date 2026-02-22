@@ -110,10 +110,15 @@ export const copyMachinesApi = {
   // Franchise endpoints
   franchise: {
     /**
-     * Get all franchises
+     * Get all franchises with optional filters
      */
-    getAll: (): Promise<Franchise[]> =>
-      axios.get('/copy-machines/franchise').then(res => res.data),
+    getAll: (filters?: { period?: string; color?: boolean; paper_type?: string }): Promise<Franchise[]> => {
+      const params: any = {};
+      if (filters?.period) params.period = filters.period;
+      if (filters?.color !== undefined) params.color = filters.color.toString();
+      if (filters?.paper_type) params.paper_type = filters.paper_type;
+      return axios.get('/copy-machines/franchise', { params }).then(res => res.data);
+    },
 
     /**
      * Get franchise by ID

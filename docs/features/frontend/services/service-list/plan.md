@@ -1,8 +1,6 @@
 # Feature: Service List
 
-## Feature summary
-
-Displays a paginated, filterable list of all services in the system. Shows service information including client, category, status, and creation date. Supports filtering by category, client, city, and acquisition type. Enables navigation to service detail pages and service creation.
+Displays a paginated, filterable list of all services in the system. Shows service information including client, category, status, price, and creation date. Supports filtering by category, client, city, and acquisition type. Enables navigation to service detail pages and service creation.
 
 ## User value
 
@@ -23,7 +21,9 @@ Displays a paginated, filterable list of all services in the system. Shows servi
 ### In scope
 - Display service list with pagination
 - Filter services by category, client, city, acquisition type
-- Show service details (client, category, status, date)
+- Show service details (client, category, status, price, date)
+- Display service price in list (if available)
+- Display payment information for external services (if applicable)
 - Navigate to service detail page
 - Create new service action
 - Loading and error states
@@ -48,6 +48,8 @@ Displays a paginated, filterable list of all services in the system. Shows servi
 ## Acceptance criteria
 
 - Service list is displayed with pagination
+- Service price is displayed in list (if available)
+- Payment information is displayed for external services (if applicable)
 - Filters work correctly (category, client, city, acquisition type)
 - Service information is correctly formatted
 - Clicking service navigates to detail page

@@ -59,12 +59,15 @@
 		categoryId: 0,
 		clientCopyMachineId: undefined as number | undefined,
 		description: '',
-		priority: '' as string | undefined
+		priority: '' as string | undefined,
+		amountToReceive: undefined as number | undefined,
+		paymentMethod: '' as string | undefined,
+		isInvoiced: false
 	});
 
 	let steps = $state<FormStep[]>([]);
 
-	let errors = $state<{ clientId?: string; categoryId?: string; steps?: string }>({});
+	let errors = $state<{ clientId?: string; categoryId?: string; steps?: string; amountToReceive?: string }>({});
 
 	const clients = $derived(clientsQuery.data ?? []);
 	const categories = $derived(categoriesQuery.data ?? []);
@@ -84,7 +87,10 @@
 			categoryId: 0,
 			clientCopyMachineId: undefined,
 			description: '',
-			priority: undefined
+			priority: undefined,
+			amountToReceive: undefined,
+			paymentMethod: undefined,
+			isInvoiced: false
 		};
 		steps = [];
 		errors = {};
@@ -97,6 +103,9 @@
 		formData.clientCopyMachineId = serviceData.clientCopyMachineId ?? undefined;
 		formData.description = serviceData.description || '';
 		formData.priority = serviceData.priority || undefined;
+		formData.amountToReceive = serviceData.amountToReceive;
+		formData.paymentMethod = serviceData.paymentMethod;
+		formData.isInvoiced = serviceData.isInvoiced ?? false;
 		steps = (serviceData.steps || []).map((step) => ({
 			name: step.name,
 			description: step.description,
@@ -180,6 +189,13 @@
 			errors.steps = 'Todas as etapas devem ter nome e descrição preenchidos';
 		}
 
+		// Validate external service payment fields
+		if (!formData.isInternal) {
+			if (!formData.amountToReceive || formData.amountToReceive <= 0) {
+				errors.amountToReceive = 'Valor a receber é obrigatório para serviços externos';
+			}
+		}
+
 		return Object.keys(errors).length === 0;
 	}
 
@@ -213,6 +229,14 @@
 		
 		if (formData.priority) {
 			payload.priority = formData.priority;
+		}
+
+		if (!formData.isInternal) {
+			payload.amountToReceive = formData.amountToReceive;
+			if (formData.paymentMethod) {
+				payload.paymentMethod = formData.paymentMethod;
+			}
+			payload.isInvoiced = formData.isInvoiced;
 		}
 		
 		if (steps.length > 0) {
@@ -670,6 +694,74 @@
 					{/if}
 				</CardContent>
 			</Card>
+
+			{#if !formData.isInternal}
+				<Card>
+					<CardHeader>
+						<CardTitle class="text-lg">Informações de Pagamento</CardTitle>
+						<CardDescription>
+							Configure as informações de pagamento para serviços externos.
+						</CardDescription>
+					</CardHeader>
+					<CardContent class="space-y-4">
+						<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+							<div class="space-y-2">
+								<Label>Valor a Receber *</Label>
+								<Input
+									type="number"
+									step="0.01"
+									min="0"
+									value={formData.amountToReceive?.toString() || ''}
+									oninput={(e) => {
+										const value = e.currentTarget.value;
+										formData.amountToReceive = value ? parseFloat(value) : undefined;
+									}}
+									placeholder="0.00"
+									class={errors.amountToReceive ? 'border-red-500' : ''}
+									required
+								/>
+								{#if errors.amountToReceive}
+									<p class="text-xs text-red-500">{errors.amountToReceive}</p>
+								{/if}
+							</div>
+
+							<div class="space-y-2">
+								<Label>Método de Pagamento</Label>
+								<Select
+									type="single"
+									value={formData.paymentMethod || ''}
+									onValueChange={(value: string) => formData.paymentMethod = value || undefined}
+								>
+									<SelectTrigger>
+										{formData.paymentMethod || 'Selecione o método de pagamento'}
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="Cash">Dinheiro</SelectItem>
+										<SelectItem value="PIX">PIX</SelectItem>
+										<SelectItem value="Debit Card">Cartão de Débito</SelectItem>
+										<SelectItem value="Credit Card">Cartão de Crédito</SelectItem>
+										<SelectItem value="Bank Slip">Boleto</SelectItem>
+										<SelectItem value="Transfer">Transferência</SelectItem>
+									</SelectContent>
+								</Select>
+							</div>
+						</div>
+
+						<div class="space-y-2">
+							<Label class="flex items-center gap-2">
+								<input
+									type="checkbox"
+									checked={formData.isInvoiced}
+									onchange={(e) => formData.isInvoiced = e.currentTarget.checked}
+									class="h-4 w-4 rounded border-gray-300"
+								/>
+								<span>Foi Pago</span>
+							</Label>
+							<p class="text-xs text-muted-foreground">Marque se o pagamento já foi realizado</p>
+						</div>
+					</CardContent>
+				</Card>
+			{/if}
 		</div>
 
 		<SheetFooter class="px-6 pb-6 mt-6 flex gap-2 justify-end">

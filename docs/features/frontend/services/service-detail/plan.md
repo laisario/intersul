@@ -1,8 +1,6 @@
 # Feature: Service Detail
 
-## Feature summary
-
-Displays detailed view of a specific service including service information, client, category, copy machine, workflow steps, and step status.
+Displays detailed view of a specific service including service information, client, category, copy machine, workflow steps, step status, price, and payment fields (for external services).
 
 ## User value
 
@@ -20,6 +18,8 @@ Displays detailed view of a specific service including service information, clie
 
 ### In scope
 - Core service detail user interface
+- Display service price (if available)
+- Display payment information for external services (amount_to_receive, payment_method, is_invoiced)
 - Form validation and error handling
 - API integration and data fetching
 - Loading and error states
@@ -46,6 +46,8 @@ Displays detailed view of a specific service including service information, clie
 ## Acceptance criteria
 
 - service detail interface is displayed correctly
+- Service price is displayed (if available)
+- Payment fields are displayed for external services (amount_to_receive, payment_method, is_invoiced)
 - Data is fetched and displayed from API
 - User interactions work as expected
 - Form validation prevents invalid submissions
@@ -59,6 +61,8 @@ Displays detailed view of a specific service including service information, clie
 
 **Screens/components involved:**
 - `/services/[id]` route page component
+- Service price display component
+- Payment information display component (for external services)
 - Form components (if applicable)
 - List/table components (if applicable)
 - Detail view components (if applicable)

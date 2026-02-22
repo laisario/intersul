@@ -103,3 +103,5 @@ Retrieves aggregated statistics about services such as total count, status distr
 - What are the specific role requirements for this operation?
 - Are there any business rules that need clarification?
 - Should there be rate limiting on this endpoint?
+- Should service price be included in statistics and reports?
+- Should statistics include aggregated price data (total, average, etc.)?

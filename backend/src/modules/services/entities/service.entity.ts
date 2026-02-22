@@ -47,6 +47,15 @@ export class Service {
   @Column({ type: 'boolean', default: false })
   is_internal: boolean;
 
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  amount_to_receive: number;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  payment_method: string;
+
+  @Column({ type: 'boolean', default: false })
+  is_invoiced: boolean;
+
   @CreateDateColumn()
   created_at: Date;
 
