@@ -18,6 +18,7 @@ import { BillingsModule } from './modules/billings/billings.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: ['.env', '../.env'], // Try current dir and parent dir
     }),
     TypeOrmModule.forRoot(databaseConfig),
     CommonModule,
