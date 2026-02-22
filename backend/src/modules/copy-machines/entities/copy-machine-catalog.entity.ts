@@ -34,6 +34,9 @@ export class CopyMachineCatalog {
   @Column({ type: 'varchar', length: 500, nullable: true })
   file?: string;
 
+  @Column({ default: false })
+  isDisabled: boolean;
+
   @CreateDateColumn()
   created_at: Date;
 

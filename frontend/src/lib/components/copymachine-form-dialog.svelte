@@ -31,9 +31,9 @@
 	
 	let isEditing = $derived(!!machine);
 
-	// Derived data from queries
-	let catalogMachines = $derived(catalogQuery.data?.data || []);
-	let franchises = $derived(franchisesQuery.data || []);
+	// Derived data from queries (filter out disabled items)
+	let catalogMachines = $derived((catalogQuery.data?.data || []).filter((m: CopyMachineCatalog) => !m.isDisabled));
+	let franchises = $derived((franchisesQuery.data || []).filter((f: Franchise) => !f.isDisabled));
 	let isLoadingCatalog = $derived(catalogQuery.isLoading || catalogQuery.isFetching);
 	let isLoadingFranchises = $derived(franchisesQuery.isLoading || franchisesQuery.isFetching);
 

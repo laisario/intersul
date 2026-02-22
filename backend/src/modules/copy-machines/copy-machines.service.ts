@@ -41,11 +41,12 @@ export class CopyMachinesService {
     
     let queryBuilder = this.copyMachineCatalogRepository
       .createQueryBuilder('catalog')
+      .where('catalog.isDisabled = :isDisabled', { isDisabled: false })
       .orderBy('catalog.created_at', 'DESC');
     
     if (search) {
-      queryBuilder = queryBuilder.where(
-        'catalog.model LIKE :search OR catalog.manufacturer LIKE :search OR catalog.description LIKE :search', 
+      queryBuilder = queryBuilder.andWhere(
+        '(catalog.model LIKE :search OR catalog.manufacturer LIKE :search OR catalog.description LIKE :search)', 
         { search: `%${search}%` }
       );
     }
@@ -68,7 +69,7 @@ export class CopyMachinesService {
 
   async findOneCatalog(id: number): Promise<CopyMachineCatalog> {
     const copyMachine = await this.copyMachineCatalogRepository.findOne({
-      where: { id },
+      where: { id, isDisabled: false },
       relations: ['clientCopyMachines'],
     });
 
@@ -86,12 +87,46 @@ export class CopyMachinesService {
   }
 
   async removeCatalog(id: number): Promise<void> {
-    const copyMachine = await this.findOneCatalog(id);
-    await this.copyMachineCatalogRepository.remove(copyMachine);
+    const copyMachine = await this.copyMachineCatalogRepository.findOne({
+      where: { id },
+    });
+
+    if (!copyMachine) {
+      throw new NotFoundException(`Catalog copy machine with ID ${id} not found`);
+    }
+
+    copyMachine.isDisabled = true;
+    await this.copyMachineCatalogRepository.save(copyMachine);
   }
 
   // Client Copy Machine methods
   async createClientCopyMachine(createClientCopyMachineDto: CreateClientCopyMachineDto): Promise<ClientCopyMachine> {
+    // Validate that catalog machine is not disabled if provided
+    if (createClientCopyMachineDto.catalog_copy_machine_id) {
+      const catalogMachine = await this.copyMachineCatalogRepository.findOne({
+        where: { id: createClientCopyMachineDto.catalog_copy_machine_id },
+      });
+      if (!catalogMachine) {
+        throw new NotFoundException(`Catalog copy machine with ID ${createClientCopyMachineDto.catalog_copy_machine_id} not found`);
+      }
+      if (catalogMachine.isDisabled) {
+        throw new NotFoundException(`Cannot link to a disabled catalog machine. The machine has been deactivated.`);
+      }
+    }
+
+    // Validate that franchise is not disabled if provided
+    if (createClientCopyMachineDto.franchise_id) {
+      const franchise = await this.franchiseRepository.findOne({
+        where: { id: createClientCopyMachineDto.franchise_id },
+      });
+      if (!franchise) {
+        throw new NotFoundException(`Franchise with ID ${createClientCopyMachineDto.franchise_id} not found`);
+      }
+      if (franchise.isDisabled) {
+        throw new NotFoundException(`Cannot link to a disabled franchise. The franchise has been deactivated.`);
+      }
+    }
+
     const clientCopyMachine = this.clientCopyMachineRepository.create(createClientCopyMachineDto);
     return this.clientCopyMachineRepository.save(clientCopyMachine);
   }
@@ -111,6 +146,27 @@ export class CopyMachinesService {
 
   async updateClientCopyMachine(id: number, updateClientCopyMachineDto: UpdateClientCopyMachineDto): Promise<ClientCopyMachine> {
     const clientCopyMachine = await this.findOneClientCopyMachine(id);
+
+    // Validate that catalog machine is not disabled if being updated
+    if (updateClientCopyMachineDto.catalog_copy_machine_id !== undefined) {
+      const catalogMachine = await this.copyMachineCatalogRepository.findOne({
+        where: { id: updateClientCopyMachineDto.catalog_copy_machine_id },
+      });
+      if (catalogMachine && catalogMachine.isDisabled) {
+        throw new NotFoundException(`Cannot link to a disabled catalog machine. The machine has been deactivated.`);
+      }
+    }
+
+    // Validate that franchise is not disabled if being updated
+    if (updateClientCopyMachineDto.franchise_id !== undefined) {
+      const franchise = await this.franchiseRepository.findOne({
+        where: { id: updateClientCopyMachineDto.franchise_id },
+      });
+      if (franchise && franchise.isDisabled) {
+        throw new NotFoundException(`Cannot link to a disabled franchise. The franchise has been deactivated.`);
+      }
+    }
+
     Object.assign(clientCopyMachine, updateClientCopyMachineDto);
     return this.clientCopyMachineRepository.save(clientCopyMachine);
   }
@@ -208,6 +264,7 @@ export class CopyMachinesService {
 
   async findAllFranchises(): Promise<Franchise[]> {
     return this.franchiseRepository.find({
+      where: { isDisabled: false },
       relations: ['clientCopyMachines'],
       order: { created_at: 'DESC' },
     });
@@ -215,7 +272,7 @@ export class CopyMachinesService {
 
   async findOneFranchise(id: number): Promise<Franchise> {
     const franchise = await this.franchiseRepository.findOne({
-      where: { id },
+      where: { id, isDisabled: false },
       relations: ['clientCopyMachines', 'clientCopyMachines.client'],
     });
     if (!franchise) {
@@ -231,7 +288,15 @@ export class CopyMachinesService {
   }
 
   async removeFranchise(id: number): Promise<void> {
-    const franchise = await this.findOneFranchise(id);
-    await this.franchiseRepository.remove(franchise);
+    const franchise = await this.franchiseRepository.findOne({
+      where: { id },
+    });
+
+    if (!franchise) {
+      throw new NotFoundException(`Franchise with ID ${id} not found`);
+    }
+
+    franchise.isDisabled = true;
+    await this.franchiseRepository.save(franchise);
   }
 }

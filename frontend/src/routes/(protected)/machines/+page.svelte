@@ -47,7 +47,7 @@
 	const updateMachineMutation = useUpdateCopyMachine();
 	const deleteMachineMutation = useDeleteCopyMachine();
 	
-	let catalogMachines = $derived(catalogQuery.data?.data || []);
+	let catalogMachines = $derived((catalogQuery.data?.data || []).filter((m: CopyMachineCatalog) => !m.isDisabled));
 	let catalogLoading = $derived(catalogQuery.isLoading);
 	let catalogFetching = $derived(catalogQuery.isFetching);
 	let catalogError = $derived(catalogQuery.error);
@@ -548,9 +548,9 @@
 
 <ConfirmationDialog
 	bind:open={showDeleteConfirmation}
-	title="Excluir Máquina"
-	description="Tem certeza que deseja excluir a máquina '{machineToDelete?.model}'? Esta ação não pode ser desfeita."
-	confirmText="Excluir"
+	title="Desativar Máquina"
+	description="Isso irá desativar a máquina '{machineToDelete?.model}'. Itens desativados não aparecem mais nas listas, mas continuam no histórico."
+	confirmText="Desativar"
 	cancelText="Cancelar"
 	variant="destructive"
 	icon="trash"

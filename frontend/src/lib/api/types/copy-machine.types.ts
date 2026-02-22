@@ -10,6 +10,7 @@ export interface CopyMachineCatalog extends BaseEntity {
   price?: number;
   quantity?: number;
   file?: string;
+  isDisabled?: boolean;
 }
 
 export enum AcquisitionType {
@@ -41,6 +42,7 @@ export interface Franchise extends BaseEntity {
   color: boolean;
   quantity: number;
   unitPrice?: number;
+  isDisabled?: boolean;
 }
 
 export interface CreateCopyMachineCatalogDto {

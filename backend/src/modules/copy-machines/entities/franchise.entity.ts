@@ -47,6 +47,13 @@ export class Franchise {
   unit_price: number;
 
   @ApiProperty({
+    example: false,
+    description: 'Whether the franchise is disabled (soft delete)',
+  })
+  @Column({ default: false })
+  isDisabled: boolean;
+
+  @ApiProperty({
     example: '2024-01-15T00:00:00.000Z',
     description: 'Franchise creation date',
   })

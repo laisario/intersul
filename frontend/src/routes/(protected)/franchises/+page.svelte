@@ -34,7 +34,7 @@ let formData = $state({
 	const updateFranchiseMutation = useUpdateFranchise();
 	const deleteFranchiseMutation = useDeleteFranchise();
 	
-	let franchises = $derived(franchisesQuery.data || []);
+	let franchises = $derived((franchisesQuery.data || []).filter((f: Franchise) => !f.isDisabled));
 	let franchisesLoading = $derived(franchisesQuery.isLoading);
 	let franchisesError = $derived(franchisesQuery.error);
 	let refetchFranchises = $derived(franchisesQuery.refetch);
@@ -218,9 +218,7 @@ $effect(() => {
 
 	<!-- Table -->
 	<Card>
-		<CardHeader>
-			<CardTitle>Lista de Franquias</CardTitle>
-		</CardHeader>
+		
 		<CardContent>
 			{#if franchisesLoading}
 				<div class="space-y-3">
@@ -407,9 +405,9 @@ $effect(() => {
 
 <ConfirmationDialog
 	bind:open={showDeleteConfirmation}
-	title="Excluir Franquia"
-	description="Tem certeza que deseja excluir a franquia '{franchiseToDelete?.period}'? Esta ação não pode ser desfeita."
-	confirmText="Excluir"
+	title="Desativar Franquia"
+	description="Isso irá desativar a franquia '{franchiseToDelete?.period}'. Itens desativados não aparecem mais nas listas, mas continuam no histórico."
+	confirmText="Desativar"
 	cancelText="Cancelar"
 	variant="destructive"
 	icon="trash"
