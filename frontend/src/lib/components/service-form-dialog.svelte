@@ -42,6 +42,10 @@
 		source?: 'suggestion' | 'manual';
 	};
 
+	// Estado separado para previews extras (não modifica steps)
+	let paymentStepPreview = $state<{ responsableId?: number; datetimeExpiration?: string } | null>(null);
+	let boletoStepPreview = $state<{ responsableId?: number; datetimeExpiration?: string } | null>(null);
+
 	let { open = $bindable(false), service = null, serviceId = null, onSuccess }: Props = $props();
 
 	const createMutation = useCreateService();
@@ -67,7 +71,7 @@
 
 	let steps = $state<FormStep[]>([]);
 
-	let errors = $state<{ clientId?: string; categoryId?: string; steps?: string; amountToReceive?: string }>({});
+	let errors = $state<{ clientId?: string; categoryId?: string; steps?: string; amountToReceive?: string; paymentMethod?: string }>({});
 
 	const clients = $derived(clientsQuery.data ?? []);
 	const categories = $derived(categoriesQuery.data ?? []);
@@ -93,6 +97,8 @@
 			isInvoiced: false
 		};
 		steps = [];
+		paymentStepPreview = null;
+		boletoStepPreview = null;
 		errors = {};
 	}
 
@@ -173,6 +179,41 @@
 		steps = steps.map((step, i) => (i === index ? { ...step, [field]: value } : step));
 	}
 
+	// Previews extras calculados (não modificam steps)
+	const shouldShowPaymentPreview = $derived(
+		!formData.isInternal && formData.amountToReceive && formData.amountToReceive > 0
+	);
+	
+	const shouldShowBoletoPreview = $derived(() => {
+		if (formData.isInternal) return false;
+		const method = formData.paymentMethod?.toLowerCase() || '';
+		return method === 'boleto' || method === 'bank slip' || method === 'bankslip' || method === 'bank slip';
+	});
+	
+	// Função auxiliar para verificar se método é boleto (usado no submit)
+	function isBoletoPaymentMethod(method: string | undefined): boolean {
+		if (!method) return false;
+		const lowerMethod = method.toLowerCase();
+		return lowerMethod === 'boleto' || lowerMethod === 'bank slip' || lowerMethod === 'bankslip';
+	}
+
+	// Inicializar previews quando necessário
+	$effect(() => {
+		if (!initialized) return;
+		
+		if (shouldShowPaymentPreview && !paymentStepPreview) {
+			paymentStepPreview = { responsableId: undefined, datetimeExpiration: undefined };
+		} else if (!shouldShowPaymentPreview && paymentStepPreview) {
+			paymentStepPreview = null;
+		}
+		
+		if (shouldShowBoletoPreview() && !boletoStepPreview) {
+			boletoStepPreview = { responsableId: undefined, datetimeExpiration: undefined };
+		} else if (!shouldShowBoletoPreview() && boletoStepPreview) {
+			boletoStepPreview = null;
+		}
+	});
+
 	function isSuggestionAdded(step: Step) {
 		return steps.some(
 			(existing) =>
@@ -193,6 +234,21 @@
 		if (!formData.isInternal) {
 			if (!formData.amountToReceive || formData.amountToReceive <= 0) {
 				errors.amountToReceive = 'Valor a receber é obrigatório para serviços externos';
+				return false; // Não continuar validação se não tiver valor
+			}
+			
+			// Validar responsável do step de pagamento (obrigatório quando EXTERNO + amount_to_receive)
+			if (shouldShowPaymentPreview) {
+				if (!paymentStepPreview?.responsableId) {
+					errors.amountToReceive = 'Responsável do step de pagamento é obrigatório para serviços externos';
+				}
+			}
+			
+			// Validar responsável do step de boleto (se método for boleto)
+			if (shouldShowBoletoPreview()) {
+				if (!boletoStepPreview?.responsableId) {
+					errors.paymentMethod = 'Responsável do step de boleto é obrigatório quando método de pagamento é Boleto';
+				}
 			}
 		}
 
@@ -239,13 +295,59 @@
 			payload.isInvoiced = formData.isInvoiced;
 		}
 		
+		// Montar array de steps (normais + automáticos se EXTERNO)
+		const stepsArray: CreateServiceStepDto[] = [];
+		
+		// Adicionar steps normais do formulário
 		if (steps.length > 0) {
-			payload.steps = steps.map<CreateServiceStepDto>((step) => ({
+			stepsArray.push(...steps.map<CreateServiceStepDto>((step) => ({
 				name: step.name.trim(),
 				description: step.description.trim(),
-				responsableId: Number(step.responsableId),
+				responsableId: step.responsableId ? Number(step.responsableId) : undefined,
 				datetimeExpiration: step.datetimeExpiration || undefined
-			}));
+			})));
+		}
+		
+		// Adicionar step de pagamento automaticamente se EXTERNO + amount_to_receive
+		if (!formData.isInternal && formData.amountToReceive && formData.amountToReceive > 0) {
+			// Verificar se já não existe step de pagamento
+			const hasPaymentStep = stepsArray.some(step => 
+				step.name.toLowerCase().includes('realizar pagamento') || 
+				step.name.toLowerCase() === 'realizar pagamento'
+			);
+			
+			if (!hasPaymentStep && paymentStepPreview?.responsableId) {
+				const amountText = formData.amountToReceive.toFixed(2);
+				stepsArray.push({
+					name: 'Realizar pagamento',
+					description: `Realizar pagamento. Consulte o valor informado no serviço: R$ ${amountText}.`,
+					responsableId: paymentStepPreview.responsableId,
+					datetimeExpiration: paymentStepPreview.datetimeExpiration || undefined
+				});
+			}
+		}
+		
+		// Adicionar step de boleto automaticamente se método for Boleto
+		if (!formData.isInternal && isBoletoPaymentMethod(formData.paymentMethod) && boletoStepPreview?.responsableId) {
+			// Verificar se já não existe step de boleto
+			const hasBoletoStep = stepsArray.some(step => 
+				step.name.toLowerCase().includes('cobrança de boleto') || 
+				step.name.toLowerCase() === 'cobrança de boleto'
+			);
+			
+			if (!hasBoletoStep) {
+				stepsArray.push({
+					name: 'Cobrança de boleto',
+					description: 'Gerar/realizar cobrança via boleto para o serviço.',
+					responsableId: boletoStepPreview.responsableId,
+					datetimeExpiration: boletoStepPreview.datetimeExpiration || undefined
+				});
+			}
+		}
+		
+		// Incluir steps no payload apenas se houver steps
+		if (stepsArray.length > 0) {
+			payload.steps = stepsArray;
 		}
 
 		try {
@@ -553,7 +655,7 @@
 					</Button>
 				</CardHeader>
 				<CardContent class="space-y-2">
-					{#if steps.length === 0}
+					{#if steps.length === 0 && !shouldShowPaymentPreview && !shouldShowBoletoPreview()}
 						<p class="text-sm text-muted-foreground">Nenhuma etapa adicionada. Utilize as sugestões ou crie uma etapa manualmente.</p>
 					{:else}
 						<div class="space-y-4">
@@ -687,6 +789,220 @@
 									</div>
 								</div>
 							{/each}
+							
+							<!-- Preview: Step de Pagamento (apenas visual) -->
+							{#if shouldShowPaymentPreview && paymentStepPreview}
+								<div class="border rounded-lg p-4 space-y-4 bg-muted/30">
+									<div class="flex items-center justify-between">
+										<div class="flex items-center gap-2">
+											<Badge variant="outline">Etapa {steps.length + 1}</Badge>
+											<Badge variant="secondary" class="text-xs">Automática - Pagamento</Badge>
+										</div>
+									</div>
+
+									<div class="space-y-2">
+										<Label>Nome da etapa</Label>
+										<Input
+											value="Realizar pagamento"
+											disabled
+											class="bg-muted"
+										/>
+									</div>
+
+									<div class="space-y-2">
+										<Label>Descrição</Label>
+										<textarea
+											value={'Consultar o ' + (formData.amountToReceive ? `R$ ${formData.amountToReceive.toFixed(2)}` : 'valor informado no serviço')}
+											disabled
+											rows="3"
+											class="flex min-h-[80px] w-full rounded-md border border-input bg-muted px-3 py-2 text-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
+										></textarea>
+									</div>
+
+									<div class="space-y-2">
+										<Label>Responsável</Label>
+										<Select
+											type="single"
+											value={paymentStepPreview.responsableId ? paymentStepPreview.responsableId.toString() : ''}
+											onValueChange={(value: string) => {
+												if (paymentStepPreview) {
+													paymentStepPreview.responsableId = value ? parseInt(value) : undefined;
+												}
+											}}
+										>
+											<SelectTrigger class="w-full md:w-[220px]">
+												{paymentStepPreview?.responsableId
+													? users.find((user) => user.id === paymentStepPreview?.responsableId)?.name || 'Selecione um responsável'
+													: 'Selecione um responsável'}
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="">
+													<span class="text-muted-foreground">Sem responsável</span>
+												</SelectItem>
+												{#if usersQuery.isLoading}
+													<SelectItem value="" disabled>Carregando usuários...</SelectItem>
+												{:else if usersQuery.error}
+													<SelectItem value="" disabled>Erro ao carregar usuários</SelectItem>
+												{:else}
+													{#each users as user (user.id)}
+														<SelectItem value={user.id.toString()}>
+															{user.name}
+														</SelectItem>
+													{/each}
+												{/if}
+											</SelectContent>
+										</Select>
+									</div>
+
+									<div class="space-y-2">
+										<Label>Expira em</Label>
+										<Input
+											type="text"
+											value={paymentStepPreview.datetimeExpiration 
+												? (() => {
+													const date = new Date(paymentStepPreview.datetimeExpiration!);
+													const day = String(date.getDate()).padStart(2, '0');
+													const month = String(date.getMonth() + 1).padStart(2, '0');
+													const year = date.getFullYear();
+													return `${day}/${month}/${year}`;
+												})()
+												: ''}
+											oninput={(e) => {
+												if (!paymentStepPreview) return;
+												let value = e.currentTarget.value.replace(/\D/g, '');
+												if (value.length > 8) value = value.slice(0, 8);
+												let formatted = value;
+												if (value.length > 2) formatted = value.slice(0, 2) + '/' + value.slice(2);
+												if (value.length > 4) formatted = value.slice(0, 2) + '/' + value.slice(2, 4) + '/' + value.slice(4, 8);
+												e.currentTarget.value = formatted;
+												if (value.length === 8) {
+													const day = parseInt(value.slice(0, 2), 10);
+													const month = parseInt(value.slice(2, 4), 10) - 1;
+													const year = parseInt(value.slice(4, 8), 10);
+													if (day >= 1 && day <= 31 && month >= 0 && month <= 11 && year >= 1900) {
+														const date = new Date(year, month, day);
+														date.setHours(23, 59, 59, 999);
+														paymentStepPreview.datetimeExpiration = date.toISOString();
+													} else {
+														paymentStepPreview.datetimeExpiration = undefined;
+													}
+												} else if (value.length === 0) {
+													paymentStepPreview.datetimeExpiration = undefined;
+												}
+											}}
+											placeholder="dd/mm/aaaa"
+											maxlength={10}
+										/>
+									</div>
+								</div>
+							{/if}
+
+							<!-- Preview: Step de Boleto (apenas visual) -->
+							{#if shouldShowBoletoPreview() && boletoStepPreview}
+								<div class="border rounded-lg p-4 space-y-4 bg-muted/30">
+									<div class="flex items-center justify-between">
+										<div class="flex items-center gap-2">
+											<Badge variant="outline">Etapa {steps.length + (shouldShowPaymentPreview ? 2 : 1)}</Badge>
+											<Badge variant="secondary" class="text-xs">Automática - Boleto</Badge>
+										</div>
+									</div>
+
+									<div class="space-y-2">
+										<Label>Nome da etapa</Label>
+										<Input
+											value="Cobrança de boleto"
+											disabled
+											class="bg-muted"
+										/>
+									</div>
+
+									<div class="space-y-2">
+										<Label>Descrição</Label>
+										<textarea
+											value="Realizar cobrança de boleto conforme método de pagamento informado"
+											disabled
+											rows="3"
+											class="flex min-h-[80px] w-full rounded-md border border-input bg-muted px-3 py-2 text-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
+										></textarea>
+									</div>
+
+									<div class="space-y-2">
+										<Label>Responsável</Label>
+										<Select
+											type="single"
+											value={boletoStepPreview.responsableId ? boletoStepPreview.responsableId.toString() : ''}
+											onValueChange={(value: string) => {
+												if (boletoStepPreview) {
+													boletoStepPreview.responsableId = value ? parseInt(value) : undefined;
+												}
+											}}
+										>
+											<SelectTrigger class="w-full md:w-[220px]">
+												{boletoStepPreview?.responsableId
+													? users.find((user) => user.id === boletoStepPreview?.responsableId)?.name || 'Selecione um responsável'
+													: 'Selecione um responsável'}
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="">
+													<span class="text-muted-foreground">Sem responsável</span>
+												</SelectItem>
+												{#if usersQuery.isLoading}
+													<SelectItem value="" disabled>Carregando usuários...</SelectItem>
+												{:else if usersQuery.error}
+													<SelectItem value="" disabled>Erro ao carregar usuários</SelectItem>
+												{:else}
+													{#each users as user (user.id)}
+														<SelectItem value={user.id.toString()}>
+															{user.name}
+														</SelectItem>
+													{/each}
+												{/if}
+											</SelectContent>
+										</Select>
+									</div>
+
+									<div class="space-y-2">
+										<Label>Expira em</Label>
+										<Input
+											type="text"
+											value={boletoStepPreview.datetimeExpiration 
+												? (() => {
+													const date = new Date(boletoStepPreview.datetimeExpiration!);
+													const day = String(date.getDate()).padStart(2, '0');
+													const month = String(date.getMonth() + 1).padStart(2, '0');
+													const year = date.getFullYear();
+													return `${day}/${month}/${year}`;
+												})()
+												: ''}
+											oninput={(e) => {
+												if (!boletoStepPreview) return;
+												let value = e.currentTarget.value.replace(/\D/g, '');
+												if (value.length > 8) value = value.slice(0, 8);
+												let formatted = value;
+												if (value.length > 2) formatted = value.slice(0, 2) + '/' + value.slice(2);
+												if (value.length > 4) formatted = value.slice(0, 2) + '/' + value.slice(2, 4) + '/' + value.slice(4, 8);
+												e.currentTarget.value = formatted;
+												if (value.length === 8) {
+													const day = parseInt(value.slice(0, 2), 10);
+													const month = parseInt(value.slice(2, 4), 10) - 1;
+													const year = parseInt(value.slice(4, 8), 10);
+													if (day >= 1 && day <= 31 && month >= 0 && month <= 11 && year >= 1900) {
+														const date = new Date(year, month, day);
+														date.setHours(23, 59, 59, 999);
+														boletoStepPreview.datetimeExpiration = date.toISOString();
+													} else {
+														boletoStepPreview.datetimeExpiration = undefined;
+													}
+												} else if (value.length === 0) {
+													boletoStepPreview.datetimeExpiration = undefined;
+												}
+											}}
+											placeholder="dd/mm/aaaa"
+											maxlength={10}
+										/>
+									</div>
+								</div>
+							{/if}
 						</div>
 					{/if}
 					{#if errors.steps}

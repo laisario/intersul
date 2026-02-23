@@ -167,11 +167,22 @@ export class ServicesService {
     const service = this.servicesRepository.create(cleanServiceData);
     const savedService: Service = await this.servicesRepository.save(service);
 
+    // Create steps from payload (if provided)
     if (steps && steps.length > 0) {
-      // Create step entities with proper handling of responsable_id
+      // Check for duplicates before creating
+      const existingSteps = await this.stepsRepository.find({
+        where: { service_id: savedService.id },
+        select: ['name'],
+      });
+      const existingStepNames = new Set(existingSteps.map(s => s.name.toLowerCase()));
+
       const stepEntities = await Promise.all(
         steps.map(async (step) => {
-          // Validate responsable_id if provided
+          // Skip if step with same name already exists (idempotency)
+          if (existingStepNames.has(step.name.toLowerCase())) {
+            return null;
+          }
+
           let responsableUser: User | null = null;
           if (step.responsable_id !== undefined) {
             if (step.responsable_id === null) {
@@ -187,6 +198,23 @@ export class ServicesService {
             }
           }
 
+          // Handle boleto step category
+          let categoryId: number | undefined = undefined;
+          if (step.name === 'Cobrança de boleto' || step.name.toLowerCase().includes('cobrança de boleto')) {
+            let boletoCategory = await this.categoriesRepository.findOne({
+              where: { name: 'Cobrança de Boleto' },
+            });
+
+            if (!boletoCategory) {
+              boletoCategory = this.categoriesRepository.create({
+                name: 'Cobrança de Boleto',
+                description: 'Categoria para serviços de cobrança de boleto',
+              });
+              boletoCategory = await this.categoriesRepository.save(boletoCategory);
+            }
+            categoryId = boletoCategory.id;
+          }
+
           const stepData: DeepPartial<Step> = {
             name: step.name,
             description: step.description,
@@ -195,54 +223,20 @@ export class ServicesService {
             datetime_start: step.datetime_start ? new Date(step.datetime_start) : undefined,
             datetime_conclusion: step.datetime_conclusion ? new Date(step.datetime_conclusion) : undefined,
             datetime_expiration: step.datetime_expiration ? new Date(step.datetime_expiration) : undefined,
-            status: step.status ?? undefined,
+            status: step.status ?? StepStatus.PENDING,
             responsable_client: step.responsable_client ?? undefined,
             reason_cancellament: step.reason_cancellament ?? undefined,
             responsable: responsableUser !== undefined ? responsableUser : undefined,
+            category_id: categoryId,
           };
 
           return this.stepsRepository.create(stepData);
         })
       );
 
-      await this.stepsRepository.save(stepEntities);
-    }
-
-    // Create automatic steps for external services
-    if (!isInternal) {
-      // Create "Realizar pagamento" step
-      const paymentStep = this.stepsRepository.create({
-        name: 'Realizar pagamento',
-        description: `Consultar o valor informado no serviço: R$ ${serviceData.amount_to_receive?.toFixed(2) || '0.00'}`,
-        service_id: savedService.id,
-        status: StepStatus.PENDING,
-      });
-      await this.stepsRepository.save(paymentStep);
-
-      // If payment method is BOLETO, create "Cobrança de boleto" step
-      const paymentMethod = serviceData.payment_method?.toLowerCase();
-      if (paymentMethod === 'boleto' || paymentMethod === 'bank slip' || paymentMethod === 'bankslip') {
-        // Find or create "Cobrança de Boleto" category
-        let boletoCategory = await this.categoriesRepository.findOne({
-          where: { name: 'Cobrança de Boleto' },
-        });
-
-        if (!boletoCategory) {
-          boletoCategory = this.categoriesRepository.create({
-            name: 'Cobrança de Boleto',
-            description: 'Categoria para serviços de cobrança de boleto',
-          });
-          boletoCategory = await this.categoriesRepository.save(boletoCategory);
-        }
-
-        const boletoStep = this.stepsRepository.create({
-          name: 'Cobrança de boleto',
-          description: 'Realizar cobrança de boleto conforme método de pagamento informado',
-          service_id: savedService.id,
-          category_id: boletoCategory.id,
-          status: StepStatus.PENDING,
-        });
-        await this.stepsRepository.save(boletoStep);
+      const validStepEntities = stepEntities.filter(step => step !== null);
+      if (validStepEntities.length > 0) {
+        await this.stepsRepository.save(validStepEntities);
       }
     }
     
