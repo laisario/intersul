@@ -120,12 +120,27 @@ export class BillingsService {
       throw new BadRequestException(`Client with ID ${createBillingDto.client_id} not found`);
     }
 
-    // Validate responsible user exists
+    // Validate responsible user exists and is active
     const user = await this.usersRepository.findOne({
       where: { id: createBillingDto.responsible_user_id },
     });
     if (!user) {
-      throw new BadRequestException(`User with ID ${createBillingDto.responsible_user_id} not found`);
+      throw new BadRequestException({
+        message: 'Validation failed',
+        errors: [{
+          field: 'responsible_user_id',
+          message: `User with ID ${createBillingDto.responsible_user_id} not found`
+        }]
+      });
+    }
+    if (!user.active) {
+      throw new BadRequestException({
+        message: 'Validation failed',
+        errors: [{
+          field: 'responsible_user_id',
+          message: 'Usuário responsável selecionado está inativo'
+        }]
+      });
     }
 
     const billing = this.billingsRepository.create({
@@ -576,11 +591,27 @@ export class BillingsService {
         // Validate and get responsable user if provided
         let responsableUser: User | null = null;
         if (machineMapping.responsible_user_id) {
+          const machineIndex = generateDto.machines.findIndex(m => m.copy_machine_id === machine.id);
           responsableUser = await this.usersRepository.findOne({
             where: { id: machineMapping.responsible_user_id },
           });
           if (!responsableUser) {
-            throw new BadRequestException(`User with ID ${machineMapping.responsible_user_id} not found`);
+            throw new BadRequestException({
+              message: 'Validation failed',
+              errors: [{
+                field: `machines[${machineIndex}].responsible_user_id`,
+                message: `User with ID ${machineMapping.responsible_user_id} not found`
+              }]
+            });
+          }
+          if (!responsableUser.active) {
+            throw new BadRequestException({
+              message: 'Validation failed',
+              errors: [{
+                field: `machines[${machineIndex}].responsible_user_id`,
+                message: 'Usuário responsável selecionado está inativo'
+              }]
+            });
           }
         }
         

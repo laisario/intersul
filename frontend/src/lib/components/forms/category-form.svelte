@@ -41,8 +41,9 @@
 		}>
 	});
 
-	// Available users for role suggestions
-	const { data: users } = useUsers();
+	// Available users for role suggestions (only active users)
+	const usersQuery = useUsers();
+	const users = $derived((usersQuery.data || []).filter(u => u.active === true));
 
 	// Predefined color options
 	let colorOptions = [

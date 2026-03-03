@@ -71,8 +71,9 @@ export class Billing {
   @ApiProperty({
     example: 100.00,
     description: 'Amount to receive',
+    required: false,
   })
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   amount_to_receive: number;
 
   @ApiProperty({

@@ -72,7 +72,13 @@ const invitationExpirationOptions = [
 
 	const queryParams = $derived({
 		role: roleFilter !== 'all' ? roleFilter : undefined,
-		active: statusFilter !== 'all' ? statusFilter === 'active' : undefined
+		// For admin list view: show all users by default (both active and inactive)
+		// When statusFilter is 'active' or 'inactive', filter accordingly
+		// When statusFilter is 'all', show all users (both active and inactive)
+		active: statusFilter === 'active' ? true : statusFilter === 'inactive' ? false : undefined,
+		// Always include inactive users when viewing 'all' or when no specific filter is set
+		// This ensures the admin list shows all users by default
+		includeInactive: statusFilter === 'all' || statusFilter === undefined
 	});
 
 	const usersQuery = $derived(useUsers(queryParams));

@@ -141,12 +141,8 @@
 
 	// Validate form
 	function validateForm(): boolean {
-		if (!formData.serialNumber?.trim()) {
-			showError('Número de série é obrigatório');
-			return false;
-		}
-
-		if (formData.serialNumber.trim().length < 5) {
+		// Serial number is optional, but if provided, must be at least 5 characters
+		if (formData.serialNumber && formData.serialNumber.trim().length > 0 && formData.serialNumber.trim().length < 5) {
 			showError('Número de série deve ter pelo menos 5 caracteres');
 			return false;
 		}
@@ -195,7 +191,7 @@
 		// Send camelCase directly - humps will convert to snake_case automatically
 		if (isEditing && machine) {
 			const payload: UpdateClientCopyMachineDto = {
-				serialNumber: formData.serialNumber!,
+				serialNumber: formData.serialNumber?.trim() || undefined,
 				acquisitionType: formData.acquisitionType!,
 				catalogCopyMachineId: formData.catalogCopyMachineId,
 				externalModel: formData.externalModel,
@@ -234,7 +230,7 @@
 			}
 
 			const payload: CreateClientCopyMachineDto = {
-				serialNumber: formData.serialNumber!,
+				serialNumber: formData.serialNumber?.trim() || undefined,
 				clientId: clientId,
 				acquisitionType: formData.acquisitionType!,
 				catalogCopyMachineId: catalogId,
@@ -340,12 +336,11 @@
 		<form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }} class="space-y-6 mt-6">
 			<!-- Serial Number -->
 			<div class="space-y-2">
-				<Label for="serialNumber">Número de Série *</Label>
+				<Label for="serialNumber">Número de Série</Label>
 				<Input
 					id="serialNumber"
 					bind:value={formData.serialNumber}
 					placeholder="Ex: CN12345678"
-					required
 					disabled={createMutation.isPending || updateMutation.isPending}
 				/>
 			</div>

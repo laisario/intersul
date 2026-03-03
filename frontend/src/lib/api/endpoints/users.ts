@@ -9,8 +9,14 @@ import type {
 } from '../types/users.types.js';
 
 export const usersApi = {
-  getAll: (params?: UserQueryParams): Promise<User[]> =>
-    axios.get('/users', { params }).then(res => res.data),
+  getAll: (params?: UserQueryParams): Promise<User[]> => {
+    // Convert includeInactive to query param if needed
+    const queryParams: any = { ...params };
+    if (params?.includeInactive) {
+      queryParams.includeInactive = true;
+    }
+    return axios.get('/users', { params: queryParams }).then(res => res.data);
+  },
 
   getById: (id: number): Promise<User> =>
     axios.get(`/users/${id}`).then(res => res.data),

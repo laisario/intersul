@@ -10,6 +10,7 @@ import { User } from '../../auth/entities/user.entity';
 import { Billing } from '../../billings/entities/billing.entity';
 import { CreateServiceDto } from '../dto/create-service.dto';
 import { UpdateServiceDto } from '../dto/update-service.dto';
+import { CreateStepDto } from '../dto/create-step.dto';
 import { AcquisitionType } from '../../../common/enums/acquisition-type.enum';
 import { StepStatus } from '../../../common/enums/step-status.enum';
 import { ServiceStatus } from '../../../common/enums/service-status.enum';
@@ -111,11 +112,8 @@ export class ServicesService {
 
     const isInternal = serviceData.is_internal;
 
-    // Validate external service payment fields
-    if (!isInternal) {
-      if (serviceData.amount_to_receive === undefined || serviceData.amount_to_receive === null) {
-        throw new BadRequestException('amount_to_receive is required for external services');
-      }
+    // Validate external service payment fields (amount_to_receive is now optional)
+    if (!isInternal && serviceData.amount_to_receive !== undefined && serviceData.amount_to_receive !== null) {
       if (serviceData.amount_to_receive <= 0) {
         throw new BadRequestException('amount_to_receive must be a positive number');
       }
@@ -167,21 +165,12 @@ export class ServicesService {
     const service = this.servicesRepository.create(cleanServiceData);
     const savedService: Service = await this.servicesRepository.save(service);
 
-    // Create steps from payload (if provided)
-    if (steps && steps.length > 0) {
-      // Check for duplicates before creating
-      const existingSteps = await this.stepsRepository.find({
-        where: { service_id: savedService.id },
-        select: ['name'],
-      });
-      const existingStepNames = new Set(existingSteps.map(s => s.name.toLowerCase()));
-
-      const stepEntities = await Promise.all(
-        steps.map(async (step) => {
-          // Skip if step with same name already exists (idempotency)
-          if (existingStepNames.has(step.name.toLowerCase())) {
-            return null;
-          }
+    // Helper function to create a step entity
+    const createStepEntity = async (step: CreateStepDto, existingStepNames: Set<string>): Promise<Step | null> => {
+      // Skip if step with same name already exists (idempotency)
+      if (existingStepNames.has(step.name.toLowerCase())) {
+        return null;
+      }
 
           let responsableUser: User | null = null;
           if (step.responsable_id !== undefined) {
@@ -192,52 +181,152 @@ export class ServicesService {
                 where: { id: step.responsable_id },
               });
               if (!user) {
-                throw new BadRequestException(`User with ID ${step.responsable_id} not found`);
+                throw new BadRequestException({
+                  message: 'Validation failed',
+                  errors: [{
+                    field: `steps[${steps?.findIndex(s => s.name === step.name) ?? 0}].responsable_id`,
+                    message: `User with ID ${step.responsable_id} not found`
+                  }]
+                });
+              }
+              // Validate that user is active
+              if (!user.active) {
+                throw new BadRequestException({
+                  message: 'Validation failed',
+                  errors: [{
+                    field: `steps[${steps?.findIndex(s => s.name === step.name) ?? 0}].responsable_id`,
+                    message: `Responsável selecionado está inativo`
+                  }]
+                });
               }
               responsableUser = user;
             }
           }
 
-          // Handle boleto step category
-          let categoryId: number | undefined = undefined;
-          if (step.name === 'Cobrança de boleto' || step.name.toLowerCase().includes('cobrança de boleto')) {
-            let boletoCategory = await this.categoriesRepository.findOne({
-              where: { name: 'Cobrança de Boleto' },
-            });
+      // Handle boleto step category
+      let categoryId: number | undefined = undefined;
+      if (step.name === 'Cobrança de boleto' || step.name.toLowerCase().includes('cobrança de boleto')) {
+        let boletoCategory = await this.categoriesRepository.findOne({
+          where: { name: 'Cobrança de Boleto' },
+        });
 
-            if (!boletoCategory) {
-              boletoCategory = this.categoriesRepository.create({
-                name: 'Cobrança de Boleto',
-                description: 'Categoria para serviços de cobrança de boleto',
-              });
-              boletoCategory = await this.categoriesRepository.save(boletoCategory);
-            }
-            categoryId = boletoCategory.id;
-          }
+        if (!boletoCategory) {
+          boletoCategory = this.categoriesRepository.create({
+            name: 'Cobrança de Boleto',
+            description: 'Categoria para serviços de cobrança de boleto',
+          });
+          boletoCategory = await this.categoriesRepository.save(boletoCategory);
+        }
+        categoryId = boletoCategory.id;
+      }
 
-          const stepData: DeepPartial<Step> = {
-            name: step.name,
-            description: step.description,
-            service_id: savedService.id,
-            observation: step.observation ?? undefined,
-            datetime_start: step.datetime_start ? new Date(step.datetime_start) : undefined,
-            datetime_conclusion: step.datetime_conclusion ? new Date(step.datetime_conclusion) : undefined,
-            datetime_expiration: step.datetime_expiration ? new Date(step.datetime_expiration) : undefined,
-            status: step.status ?? StepStatus.PENDING,
-            responsable_client: step.responsable_client ?? undefined,
-            reason_cancellament: step.reason_cancellament ?? undefined,
-            responsable: responsableUser !== undefined ? responsableUser : undefined,
-            category_id: categoryId,
+      const stepData: DeepPartial<Step> = {
+        name: step.name,
+        description: step.description,
+        service_id: savedService.id,
+        observation: step.observation ?? undefined,
+        datetime_start: step.datetime_start ? new Date(step.datetime_start) : undefined,
+        datetime_conclusion: step.datetime_conclusion ? new Date(step.datetime_conclusion) : undefined,
+        datetime_expiration: step.datetime_expiration ? new Date(step.datetime_expiration) : undefined,
+        status: step.status ?? StepStatus.PENDING,
+        responsable_client: step.responsable_client ?? undefined,
+        reason_cancellament: step.reason_cancellament ?? undefined,
+        responsable: responsableUser !== undefined ? responsableUser : undefined,
+        category_id: categoryId,
+      };
+
+      return this.stepsRepository.create(stepData);
+    };
+
+    // Get existing step names for duplicate checking
+    const existingSteps = await this.stepsRepository.find({
+      where: { service_id: savedService.id },
+      select: ['name'],
+    });
+    const existingStepNames = new Set(existingSteps.map(s => s.name.toLowerCase()));
+
+    const stepEntities: (Step | null)[] = [];
+
+    // Create steps from payload (if provided)
+    if (steps && steps.length > 0) {
+      const payloadStepEntities = await Promise.all(
+        steps.map(async (step) => await createStepEntity(step, existingStepNames))
+      );
+      stepEntities.push(...payloadStepEntities);
+    }
+
+    // Auto-generate payment step for external services (always, regardless of amount_to_receive)
+    if (!isInternal) {
+      const paymentStepName = 'Realizar pagamento';
+      const hasPaymentStep = existingStepNames.has(paymentStepName.toLowerCase()) ||
+        stepEntities.some(se => se?.name.toLowerCase() === paymentStepName.toLowerCase());
+
+      if (!hasPaymentStep) {
+        // Build description based on whether amount is provided
+        let paymentDescription = 'Realizar pagamento.';
+        if (serviceData.amount_to_receive && serviceData.amount_to_receive > 0) {
+          paymentDescription = `Realizar pagamento. Consulte o valor informado no serviço: R$ ${serviceData.amount_to_receive.toFixed(2)}.`;
+        } else {
+          paymentDescription = 'Realizar pagamento. O valor será definido posteriormente na etapa de pagamento.';
+        }
+
+        // Find payment step from payload to get responsable and expiration, or use null
+        const paymentStepFromPayload = steps?.find(s => 
+          s.name.toLowerCase().includes('realizar pagamento') || 
+          s.name.toLowerCase() === 'realizar pagamento'
+        );
+
+        const paymentStepDto: CreateStepDto = {
+          name: paymentStepName,
+          description: paymentDescription,
+          responsable_id: paymentStepFromPayload?.responsable_id ?? null,
+          datetime_expiration: paymentStepFromPayload?.datetime_expiration,
+          status: StepStatus.PENDING,
+        };
+
+        const paymentStepEntity = await createStepEntity(paymentStepDto, existingStepNames);
+        if (paymentStepEntity) {
+          stepEntities.push(paymentStepEntity);
+          existingStepNames.add(paymentStepName.toLowerCase());
+        }
+      }
+
+      // Auto-generate boleto step if payment method is Boleto
+      const isBoleto = serviceData.payment_method?.toLowerCase() === 'bank slip' || 
+                       serviceData.payment_method?.toLowerCase() === 'boleto';
+      
+      if (isBoleto) {
+        const boletoStepName = 'Cobrança de boleto';
+        const hasBoletoStep = existingStepNames.has(boletoStepName.toLowerCase()) ||
+          stepEntities.some(se => se?.name.toLowerCase() === boletoStepName.toLowerCase());
+
+        if (!hasBoletoStep) {
+          // Find boleto step from payload to get responsable and expiration, or use null
+          const boletoStepFromPayload = steps?.find(s => 
+            s.name.toLowerCase().includes('cobrança de boleto') || 
+            s.name.toLowerCase() === 'cobrança de boleto'
+          );
+
+          const boletoStepDto: CreateStepDto = {
+            name: boletoStepName,
+            description: 'Gerar/realizar cobrança via boleto para o serviço.',
+            responsable_id: boletoStepFromPayload?.responsable_id ?? null, // Optional for boleto
+            datetime_expiration: boletoStepFromPayload?.datetime_expiration,
+            status: StepStatus.PENDING,
           };
 
-          return this.stepsRepository.create(stepData);
-        })
-      );
-
-      const validStepEntities = stepEntities.filter(step => step !== null);
-      if (validStepEntities.length > 0) {
-        await this.stepsRepository.save(validStepEntities);
+          const boletoStepEntity = await createStepEntity(boletoStepDto, existingStepNames);
+          if (boletoStepEntity) {
+            stepEntities.push(boletoStepEntity);
+          }
+        }
       }
+    }
+
+    // Save all step entities
+    const validStepEntities = stepEntities.filter(step => step !== null);
+    if (validStepEntities.length > 0) {
+      await this.stepsRepository.save(validStepEntities);
     }
     
     return this.findOne(savedService.id);
@@ -266,7 +355,23 @@ export class ServicesService {
                 where: { id: step.responsable_id },
               });
               if (!user) {
-                throw new BadRequestException(`User with ID ${step.responsable_id} not found`);
+                throw new BadRequestException({
+                  message: 'Validation failed',
+                  errors: [{
+                    field: `steps[${steps.findIndex(s => s.name === step.name)}].responsable_id`,
+                    message: `User with ID ${step.responsable_id} not found`
+                  }]
+                });
+              }
+              // Validate that user is active
+              if (!user.active) {
+                throw new BadRequestException({
+                  message: 'Validation failed',
+                  errors: [{
+                    field: `steps[${steps.findIndex(s => s.name === step.name)}].responsable_id`,
+                    message: `Responsável selecionado está inativo`
+                  }]
+                });
               }
               responsableUser = user;
             }

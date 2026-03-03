@@ -112,10 +112,10 @@ export class CreateServiceDto {
 
   @ApiProperty({
     example: 100.00,
-    description: 'Amount to receive (required for external services)',
+    description: 'Amount to receive (optional for external services)',
     required: false,
   })
-  @ValidateIf((o) => o.is_internal === false)
+  @IsOptional()
   @Type(() => Number)
   @IsNumber({}, { message: 'amount_to_receive must be a number' })
   @Min(0, { message: 'amount_to_receive must be a positive number' })

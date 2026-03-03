@@ -19,18 +19,31 @@ export class UserService {
     private stepsRepository: Repository<Step>,
   ) {}
 
-  async findAll(filters?: { role?: UserRole; active?: boolean }): Promise<User[]> {
+  async findAll(filters?: { role?: UserRole; active?: boolean; includeInactive?: boolean }): Promise<User[]> {
     const where: any = {};
     
     if (filters?.role !== undefined) {
       where.role = filters.role;
     }
     
+    // Default to active=true unless includeInactive=true is explicitly set
+    // If active is explicitly set, use that value; otherwise default to true unless includeInactive
     if (filters?.active !== undefined) {
       where.active = filters.active;
+    } else if (filters?.includeInactive !== true) {
+      // Default to active users only unless includeInactive is explicitly true
+      where.active = true;
     }
+    // If includeInactive is true and active is not set, don't filter by active (show all)
     
     return this.usersRepository.find({ where });
+  }
+
+  /**
+   * Find active users only - convenience method for selects
+   */
+  async findActiveUsers(filters?: { role?: UserRole }): Promise<User[]> {
+    return this.findAll({ ...filters, active: true });
   }
 
   async getStats(): Promise<{

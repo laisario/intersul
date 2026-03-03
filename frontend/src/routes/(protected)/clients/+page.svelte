@@ -137,12 +137,12 @@ function handlePageSizeChange(size: number) {
 	// Check if address is complete and valid
 	const isAddressValid = $derived(isAddressComplete(formData.address));
 
-	// Check if form is valid for submission
-	const isFormValid = $derived(
-		formData.name.trim() !== '' &&
-		formData.email.trim() !== '' &&
-		(!hasAddressData || isAddressValid)
-	);
+		// Check if form is valid for submission
+		const isFormValid = $derived(
+			formData.name.trim() !== '' &&
+			formData.phone.trim() !== '' &&
+			(!hasAddressData || isAddressValid)
+		);
 
 	// Get address validation message for UI feedback
 	const addressValidationMessage = $derived(
@@ -182,8 +182,8 @@ function handlePageSizeChange(size: number) {
 				showError('Nome é obrigatório');
 				return;
 			}
-			if (!formData.email.trim()) {
-				showError('Email é obrigatório');
+			if (!formData.phone.trim()) {
+				showError('Telefone é obrigatório');
 				return;
 			}
 
@@ -214,10 +214,10 @@ function handlePageSizeChange(size: number) {
 			// Build payload (using camelCase - API client will convert to snake_case)
 			const payload: any = {
 				name: formData.name.trim(),
-				email: formData.email.trim(),
+				email: formData.email?.trim() || undefined,
 				cnpj: formData.cnpj?.trim() || undefined,
 				cpf: formData.cpf?.trim() || undefined,
-				phone: formData.phone?.trim() || undefined,
+				phone: formData.phone.trim(),
 				howMetCompany: formData.how_met_company || undefined,
 			};
 
@@ -491,21 +491,21 @@ function handlePageSizeChange(size: number) {
 
 			<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 				<div class="space-y-2">
-					<Label for="email">Email *</Label>
+					<Label for="email">Email</Label>
 					<Input
 						id="email"
 						type="email"
 						bind:value={formData.email}
 						placeholder="email@exemplo.com"
-						required
 					/>
 				</div>
 				<div class="space-y-2">
-					<Label for="phone">Telefone</Label>
+					<Label for="phone">Telefone *</Label>
 					<Input
 						id="phone"
 						bind:value={formData.phone}
 						placeholder="(00) 00000-0000"
+						required
 					/>
 				</div>
 			</div>

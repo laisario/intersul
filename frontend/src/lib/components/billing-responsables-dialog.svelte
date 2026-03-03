@@ -375,6 +375,7 @@
 																if (method === 'Credit Card') return 'Cartão de Crédito';
 																if (method === 'Bank Slip') return 'Boleto';
 																if (method === 'Transfer') return 'Transferência';
+																if (method === 'Fiado') return 'Fiado';
 																return method || 'Selecione a forma de pagamento';
 															})()
 															: 'Selecione a forma de pagamento'}
@@ -387,6 +388,7 @@
 														<SelectItem value="Credit Card">Cartão de Crédito</SelectItem>
 														<SelectItem value="Bank Slip">Boleto</SelectItem>
 														<SelectItem value="Transfer">Transferência</SelectItem>
+														<SelectItem value="Fiado">Fiado</SelectItem>
 													</SelectContent>
 												</Select>
 											</div>

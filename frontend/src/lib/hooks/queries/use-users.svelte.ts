@@ -12,10 +12,26 @@ import type {
 
 
 export const useUsers = (params?: UserQueryParams) => {
+  // Default to active=true unless includeInactive=true is set (for admin list views)
+  // If includeInactive is true, don't set active filter (let backend return all users)
+  const queryParams: UserQueryParams = {
+    ...params,
+    // Only set active=true by default if includeInactive is NOT true
+    active: params?.includeInactive ? params.active : (params?.active !== undefined ? params.active : true),
+  };
+  
   return createQuery(() => ({
-    queryKey: ['users', params],
+    queryKey: ['users', queryParams],
     queryFn: async (): Promise<User[]> => {
-      return usersApi.getAll(params);
+      const users = await usersApi.getAll(queryParams);
+      // Defensive filtering: ensure only active users are returned for selects
+      // Admin pages can override by setting includeInactive: true
+      if (!queryParams.includeInactive) {
+        // For selects: filter to only active users
+        return users.filter(u => u.active === true);
+      }
+      // For admin list: return all users (both active and inactive)
+      return users;
     },
     staleTime: 2 * 60 * 1000, // 2 minutes
   }));

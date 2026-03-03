@@ -75,7 +75,8 @@
 
 	const clients = $derived(clientsQuery.data ?? []);
 	const categories = $derived(categoriesQuery.data ?? []);
-	const users = $derived(usersQuery.data ?? []);
+	// Filter to only active users for selects (defensive filtering)
+	const users = $derived((usersQuery.data ?? []).filter(u => u.active === true));
 	const selectedCategory = $derived(categories.find((category) => category.id === formData.categoryId) || null);
 	const suggestionSteps = $derived(selectedCategory?.steps ?? []);
 	const clientCopyMachinesQuery = $derived(formData.clientId ? useClientCopyMachines(formData.clientId) : null);
@@ -180,9 +181,8 @@
 	}
 
 	// Previews extras calculados (não modificam steps)
-	const shouldShowPaymentPreview = $derived(
-		!formData.isInternal && formData.amountToReceive && formData.amountToReceive > 0
-	);
+	// Payment step is always shown for external services (regardless of amount)
+	const shouldShowPaymentPreview = $derived(!formData.isInternal);
 	
 	const shouldShowBoletoPreview = $derived(() => {
 		if (formData.isInternal) return false;
@@ -198,15 +198,18 @@
 	}
 
 	// Inicializar previews quando necessário
+	// Payment step preview is always available for external services
 	$effect(() => {
 		if (!initialized) return;
 		
+		// Always initialize payment step preview for external services
 		if (shouldShowPaymentPreview && !paymentStepPreview) {
 			paymentStepPreview = { responsableId: undefined, datetimeExpiration: undefined };
 		} else if (!shouldShowPaymentPreview && paymentStepPreview) {
 			paymentStepPreview = null;
 		}
 		
+		// Boleto step preview only for boleto payment method
 		if (shouldShowBoletoPreview() && !boletoStepPreview) {
 			boletoStepPreview = { responsableId: undefined, datetimeExpiration: undefined };
 		} else if (!shouldShowBoletoPreview() && boletoStepPreview) {
@@ -232,24 +235,15 @@
 
 		// Validate external service payment fields
 		if (!formData.isInternal) {
-			if (!formData.amountToReceive || formData.amountToReceive <= 0) {
-				errors.amountToReceive = 'Valor a receber é obrigatório para serviços externos';
-				return false; // Não continuar validação se não tiver valor
+			// amount_to_receive is now optional, but if provided, must be positive
+			if (formData.amountToReceive !== undefined && formData.amountToReceive !== null && formData.amountToReceive <= 0) {
+				errors.amountToReceive = 'Valor a receber deve ser um número positivo';
+				return false;
 			}
 			
-			// Validar responsável do step de pagamento (obrigatório quando EXTERNO + amount_to_receive)
-			if (shouldShowPaymentPreview) {
-				if (!paymentStepPreview?.responsableId) {
-					errors.amountToReceive = 'Responsável do step de pagamento é obrigatório para serviços externos';
-				}
-			}
-			
-			// Validar responsável do step de boleto (se método for boleto)
-			if (shouldShowBoletoPreview()) {
-				if (!boletoStepPreview?.responsableId) {
-					errors.paymentMethod = 'Responsável do step de boleto é obrigatório quando método de pagamento é Boleto';
-				}
-			}
+			// Payment step is always generated for external services
+			// Responsable is optional (can be set later in step details)
+			// Boleto step responsable is also optional
 		}
 
 		return Object.keys(errors).length === 0;
@@ -308,38 +302,48 @@
 			})));
 		}
 		
-		// Adicionar step de pagamento automaticamente se EXTERNO + amount_to_receive
-		if (!formData.isInternal && formData.amountToReceive && formData.amountToReceive > 0) {
+		// Adicionar step de pagamento automaticamente se EXTERNO (sempre, mesmo sem amount_to_receive)
+		// Backend will auto-generate this, but we include it in payload if user configured responsable/expiration
+		if (!formData.isInternal) {
 			// Verificar se já não existe step de pagamento
 			const hasPaymentStep = stepsArray.some(step => 
 				step.name.toLowerCase().includes('realizar pagamento') || 
 				step.name.toLowerCase() === 'realizar pagamento'
 			);
 			
-			if (!hasPaymentStep && paymentStepPreview?.responsableId) {
-				const amountText = formData.amountToReceive.toFixed(2);
+			if (!hasPaymentStep && paymentStepPreview) {
+				// Build description based on whether amount is provided
+				let description = 'Realizar pagamento.';
+				if (formData.amountToReceive && formData.amountToReceive > 0) {
+					const amountText = formData.amountToReceive.toFixed(2);
+					description = `Realizar pagamento. Consulte o valor informado no serviço: R$ ${amountText}.`;
+				} else {
+					description = 'Realizar pagamento. O valor será definido posteriormente na etapa de pagamento.';
+				}
+				
 				stepsArray.push({
 					name: 'Realizar pagamento',
-					description: `Realizar pagamento. Consulte o valor informado no serviço: R$ ${amountText}.`,
-					responsableId: paymentStepPreview.responsableId,
+					description: description,
+					responsableId: paymentStepPreview.responsableId || undefined,
 					datetimeExpiration: paymentStepPreview.datetimeExpiration || undefined
 				});
 			}
 		}
 		
 		// Adicionar step de boleto automaticamente se método for Boleto
-		if (!formData.isInternal && isBoletoPaymentMethod(formData.paymentMethod) && boletoStepPreview?.responsableId) {
+		// Backend will auto-generate this, but we include it in payload if user configured responsable/expiration
+		if (!formData.isInternal && isBoletoPaymentMethod(formData.paymentMethod)) {
 			// Verificar se já não existe step de boleto
 			const hasBoletoStep = stepsArray.some(step => 
 				step.name.toLowerCase().includes('cobrança de boleto') || 
 				step.name.toLowerCase() === 'cobrança de boleto'
 			);
 			
-			if (!hasBoletoStep) {
+			if (!hasBoletoStep && boletoStepPreview) {
 				stepsArray.push({
 					name: 'Cobrança de boleto',
 					description: 'Gerar/realizar cobrança via boleto para o serviço.',
-					responsableId: boletoStepPreview.responsableId,
+					responsableId: boletoStepPreview.responsableId || undefined,
 					datetimeExpiration: boletoStepPreview.datetimeExpiration || undefined
 				});
 			}
@@ -365,11 +369,55 @@
 			open = false;
 			onSuccess?.();
 		} catch (error: any) {
-			const message =
-				error?.response?.data?.message ||
-				error?.message ||
-				'Erro ao salvar serviço';
-			showError(message);
+			// Map backend field-level errors to form fields
+			const errorData = error?.response?.data;
+			if (errorData?.errors && Array.isArray(errorData.errors)) {
+				// Clear previous errors
+				errors = {};
+				
+				// Map each error to the appropriate form field
+				errorData.errors.forEach((err: any) => {
+					const field = err.field || err.property;
+					const message = err.message || (err.constraints ? Object.values(err.constraints)[0] : 'Erro de validação');
+					
+					// Map backend field names to frontend form field names
+					if (field?.includes('amount_to_receive')) {
+						errors.amountToReceive = message;
+					} else if (field?.includes('payment_method')) {
+						errors.paymentMethod = message;
+					} else if (field?.includes('steps') && field?.includes('responsable_id')) {
+						// Extract step index if available
+						const stepMatch = field.match(/steps\[(\d+)\]/);
+						if (stepMatch) {
+							const stepIndex = parseInt(stepMatch[1]);
+							if (steps[stepIndex]) {
+								errors[`steps.${stepIndex}.responsableId`] = message;
+							}
+						} else {
+							errors.steps = message;
+						}
+					} else if (field?.includes('client_id')) {
+						errors.clientId = message;
+					} else if (field?.includes('category_id')) {
+						errors.categoryId = message;
+					} else {
+						// Generic error - show in general message
+						showError(message);
+					}
+				});
+				
+				// If we have field errors, show a general message too
+				if (Object.keys(errors).length > 0) {
+					showError('Por favor, corrija os erros no formulário');
+				}
+			} else {
+				// Fallback to generic error message
+				const message =
+					errorData?.message ||
+					error?.message ||
+					'Erro ao salvar serviço';
+				showError(message);
+			}
 		}
 	}
 
@@ -812,7 +860,9 @@
 									<div class="space-y-2">
 										<Label>Descrição</Label>
 										<textarea
-											value={'Consultar o ' + (formData.amountToReceive ? `R$ ${formData.amountToReceive.toFixed(2)}` : 'valor informado no serviço')}
+											value={formData.amountToReceive && formData.amountToReceive > 0
+												? `Realizar pagamento. Consulte o valor informado no serviço: R$ ${formData.amountToReceive.toFixed(2)}.`
+												: 'Realizar pagamento. O valor será definido posteriormente na etapa de pagamento.'}
 											disabled
 											rows="3"
 											class="flex min-h-[80px] w-full rounded-md border border-input bg-muted px-3 py-2 text-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
@@ -1022,7 +1072,7 @@
 					<CardContent class="space-y-4">
 						<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 							<div class="space-y-2">
-								<Label>Valor a Receber *</Label>
+								<Label>Valor a Receber</Label>
 								<Input
 									type="number"
 									step="0.01"
@@ -1034,8 +1084,8 @@
 									}}
 									placeholder="0.00"
 									class={errors.amountToReceive ? 'border-red-500' : ''}
-									required
 								/>
+								<p class="text-xs text-muted-foreground">Opcional. Pode ser preenchido posteriormente na etapa de pagamento.</p>
 								{#if errors.amountToReceive}
 									<p class="text-xs text-red-500">{errors.amountToReceive}</p>
 								{/if}
@@ -1058,6 +1108,7 @@
 										<SelectItem value="Credit Card">Cartão de Crédito</SelectItem>
 										<SelectItem value="Bank Slip">Boleto</SelectItem>
 										<SelectItem value="Transfer">Transferência</SelectItem>
+										<SelectItem value="Fiado">Fiado</SelectItem>
 									</SelectContent>
 								</Select>
 							</div>

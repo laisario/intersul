@@ -19,7 +19,7 @@ export class ClientCopyMachine {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ unique: true })
+  @Column({ unique: true, nullable: true })
   serial_number: string;
 
   @Column()

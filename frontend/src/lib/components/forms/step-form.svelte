@@ -108,7 +108,7 @@
 						</SelectTrigger>
 						<SelectContent>
 							<SelectItem value={0}>Não atribuído</SelectItem>
-							{#each users?.data || [] as user}
+							{#each (users?.data || []).filter(u => u.active === true) as user}
 								<SelectItem value={user.id}>{user.name}</SelectItem>
 							{/each}
 						</SelectContent>

@@ -21,12 +21,11 @@
 		Circle,
 		ExternalLink,
 		MoreVertical,
-		Trash2,
 		Edit
 	} from 'lucide-svelte';
 	import { goto } from '$app/navigation';
 	import type { Step } from '$lib/api/types/service.types.js';
-	import { useToggleUserActive, useDeleteUser } from '$lib/hooks/queries/use-users.svelte.js';
+	import { useToggleUserActive } from '$lib/hooks/queries/use-users.svelte.js';
 	import { successToast, errorToast } from '$lib/utils/toast.js';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import ConfirmationDialog from '$lib/components/confirmation-dialog.svelte';
@@ -137,8 +136,6 @@
 
 	// User actions
 	const { mutate: toggleActive, isPending: isToggling } = useToggleUserActive();
-	const { mutate: deleteUser, isPending: isDeleting } = useDeleteUser();
-	let showDeleteConfirmation = $state(false);
 
 	function handleToggleActive() {
 		if (!user) return;
@@ -149,37 +146,6 @@
 			onError: () => {
 				errorToast.update('Usuário');
 			},
-		});
-	}
-
-	function requestDeleteUser() {
-		showDeleteConfirmation = true;
-	}
-
-	function closeDeleteDialog() {
-		showDeleteConfirmation = false;
-	}
-
-	async function confirmDeleteUser() {
-		if (!user) {
-			closeDeleteDialog();
-			return;
-		}
-
-		const userId = user.id;
-		return new Promise<void>((resolve, reject) => {
-			deleteUser(userId, {
-				onSuccess: () => {
-					successToast.deleted('Usuário');
-					closeDeleteDialog();
-					goto('/admin/users');
-					resolve();
-				},
-				onError: () => {
-					errorToast.delete('Usuário');
-					reject(new Error('delete-user-failed'));
-				},
-			});
 		});
 	}
 </script>
@@ -251,16 +217,7 @@
 										onclick={handleToggleActive}
 										disabled={isToggling}
 									>
-										{user.active ? 'Desativar' : 'Ativar'}
-									</DropdownMenu.Item>
-									<DropdownMenu.Separator />
-									<DropdownMenu.Item
-										variant="destructive"
-										onclick={requestDeleteUser}
-										disabled={isDeleting}
-									>
-										<Trash2 class="w-4 h-4" />
-										Excluir
+										{user.active ? 'Desativar funcionário' : 'Ativar funcionário'}
 									</DropdownMenu.Item>
 								</DropdownMenu.Content>
 							</DropdownMenu.Root>
@@ -279,12 +236,6 @@
 							<div>
 								<p class="text-sm font-medium text-muted-foreground">Cargo</p>
 								<p class="text-sm mt-1">{user.position}</p>
-							</div>
-						{/if}
-						{#if user.phone}
-							<div>
-								<p class="text-sm font-medium text-muted-foreground">Telefone</p>
-								<p class="text-sm mt-1">{user.phone}</p>
 							</div>
 						{/if}
 						<div>
@@ -490,17 +441,4 @@
 	{/if}
 </div>
 
-<!-- Delete Confirmation Dialog -->
-<ConfirmationDialog
-	bind:open={showDeleteConfirmation}
-	title="Excluir Usuário"
-	description={`Tem certeza que deseja excluir o usuário ${user?.name ?? ''}? Esta ação não pode ser desfeita.`}
-	confirmText="Excluir"
-	cancelText="Cancelar"
-	variant="destructive"
-	icon="trash"
-	loading={isDeleting}
-	onConfirm={confirmDeleteUser}
-	onCancel={closeDeleteDialog}
-/>
 

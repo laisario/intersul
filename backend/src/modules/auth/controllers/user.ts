@@ -13,13 +13,15 @@ export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get all users' })
+  @ApiOperation({ summary: 'Get all users (defaults to active users only)' })
   @ApiQuery({ name: 'role', required: false, enum: UserRole, description: 'Filter by role' })
-  @ApiQuery({ name: 'active', required: false, type: Boolean, description: 'Filter by active status' })
+  @ApiQuery({ name: 'active', required: false, type: Boolean, description: 'Filter by active status (overrides default)' })
+  @ApiQuery({ name: 'includeInactive', required: false, type: Boolean, description: 'Include inactive users (admin only, for list views)' })
   @ApiResponse({ status: 200, description: 'Users returned successfully', type: [User] })
   async findAll(
     @Query('role') role?: UserRole,
     @Query('active') active?: string | boolean,
+    @Query('includeInactive') includeInactive?: string | boolean,
   ): Promise<User[]> {
     let activeFilter: boolean | undefined;
     if (active !== undefined) {
@@ -29,7 +31,17 @@ export class UserController {
         activeFilter = active === 'true' || active === '1';
       }
     }
-    return this.userService.findAll({ role, active: activeFilter });
+    
+    let includeInactiveFilter = false;
+    if (includeInactive !== undefined) {
+      if (typeof includeInactive === 'boolean') {
+        includeInactiveFilter = includeInactive;
+      } else {
+        includeInactiveFilter = includeInactive === 'true' || includeInactive === '1';
+      }
+    }
+    
+    return this.userService.findAll({ role, active: activeFilter, includeInactive: includeInactiveFilter });
   }
 
   @Get('stats')

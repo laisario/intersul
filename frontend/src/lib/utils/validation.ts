@@ -42,8 +42,8 @@ export const changePasswordSchema = z.object({
 // Client schemas
 export const clientSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
-  email: emailSchema,
-  phone: phoneSchema,
+  email: emailSchema.optional(),
+  phone: z.string().min(1, 'Phone is required'),
   address: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),

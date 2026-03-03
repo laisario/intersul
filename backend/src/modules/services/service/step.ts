@@ -122,7 +122,23 @@ export class StepService {
           where: { id: updateStepDto.responsable_id },
         });
         if (!newResponsable) {
-          throw new BadRequestException(`User with ID ${updateStepDto.responsable_id} not found`);
+          throw new BadRequestException({
+            message: 'Validation failed',
+            errors: [{
+              field: 'responsable_id',
+              message: `User with ID ${updateStepDto.responsable_id} not found`
+            }]
+          });
+        }
+        // Validate that user is active
+        if (!newResponsable.active) {
+          throw new BadRequestException({
+            message: 'Validation failed',
+            errors: [{
+              field: 'responsable_id',
+              message: 'Responsável selecionado está inativo'
+            }]
+          });
         }
         step.responsable = newResponsable;
       }

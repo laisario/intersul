@@ -31,10 +31,10 @@ export class Client {
   @JoinColumn()
   address?: Address;
 
-  @Column({ nullable: true })
+  @Column()
   phone: string;
 
-  @Column({ unique: true })
+  @Column({ unique: true, nullable: true })
   email: string;
 
   @Column({ default: true })

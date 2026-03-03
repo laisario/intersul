@@ -51,7 +51,8 @@
 	const isLoadingImages = $derived(imagesQuery.isLoading);
 
 	const usersQuery = useUsers();
-	const users = $derived(usersQuery.data || []);
+	// Filter to only active users for selects (defensive filtering)
+	const users = $derived((usersQuery.data || []).filter(u => u.active === true));
 
 	const { mutate: updateStep, isPending: isUpdating } = useUpdateStep();
 	const { mutate: startStep, isPending: isStarting } = useStartStep();
@@ -741,6 +742,7 @@
 													<SelectItem value="Credit Card">Cartão de Crédito</SelectItem>
 													<SelectItem value="Bank Slip">Boleto</SelectItem>
 													<SelectItem value="Transfer">Transferência</SelectItem>
+													<SelectItem value="Fiado">Fiado</SelectItem>
 												</SelectContent>
 											</Select>
 										</div>

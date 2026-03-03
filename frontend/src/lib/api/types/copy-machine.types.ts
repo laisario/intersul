@@ -20,7 +20,7 @@ export enum AcquisitionType {
 }
 
 export interface ClientCopyMachine extends BaseEntity {
-  serialNumber: string;
+  serialNumber?: string;
   clientId: number;
   catalogCopyMachineId?: number;
   externalModel?: string;
@@ -60,7 +60,7 @@ export interface UpdateCopyMachineCatalogDto extends Partial<CreateCopyMachineCa
 }
 
 export interface CreateClientCopyMachineDto {
-  serialNumber: string;
+  serialNumber?: string;
   clientId: number;
   catalogCopyMachineId?: number;
   externalModel?: string;

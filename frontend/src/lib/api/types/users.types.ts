@@ -24,6 +24,7 @@ export interface UserQueryParams {
 	search?: string;
 	role?: UserRole;
 	active?: boolean;
+	includeInactive?: boolean;
 	page?: number;
 	limit?: number;
 }

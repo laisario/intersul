@@ -8,8 +8,8 @@ export interface Client extends BaseEntity {
   name: string;
   cnpj?: string;
   cpf?: string;
-  email: string;
-  phone?: string;
+  email?: string;
+  phone: string;
   active: boolean;
   address?: Address;
   howMetCompany?: HowMetCompany;
@@ -19,8 +19,8 @@ export interface CreateClientDto {
   name: string;
   cnpj?: string;
   cpf?: string;
-  email: string;
-  phone?: string;
+  email?: string;
+  phone: string;
   address?: CreateAddressDto;
   howMetCompany?: HowMetCompany;
 }

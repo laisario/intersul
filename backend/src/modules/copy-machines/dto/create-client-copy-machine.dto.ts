@@ -6,10 +6,12 @@ export class CreateClientCopyMachineDto {
   @ApiProperty({
     example: 'CN12345678',
     description: 'Copy machine serial number',
+    required: false,
   })
   @IsString()
-  @MinLength(5)
-  serial_number: string;
+  @IsOptional()
+  @MinLength(5, { message: 'Serial number must be at least 5 characters if provided' })
+  serial_number?: string;
 
   @ApiProperty({
     example: 1,
