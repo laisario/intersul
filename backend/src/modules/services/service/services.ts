@@ -167,10 +167,10 @@ export class ServicesService {
 
     // Helper function to create a step entity
     const createStepEntity = async (step: CreateStepDto, existingStepNames: Set<string>): Promise<Step | null> => {
-      // Skip if step with same name already exists (idempotency)
-      if (existingStepNames.has(step.name.toLowerCase())) {
-        return null;
-      }
+          // Skip if step with same name already exists (idempotency)
+          if (existingStepNames.has(step.name.toLowerCase())) {
+            return null;
+          }
 
           let responsableUser: User | null = null;
           if (step.responsable_id !== undefined) {
@@ -203,39 +203,39 @@ export class ServicesService {
             }
           }
 
-      // Handle boleto step category
-      let categoryId: number | undefined = undefined;
-      if (step.name === 'Cobrança de boleto' || step.name.toLowerCase().includes('cobrança de boleto')) {
-        let boletoCategory = await this.categoriesRepository.findOne({
-          where: { name: 'Cobrança de Boleto' },
-        });
+          // Handle boleto step category
+          let categoryId: number | undefined = undefined;
+          if (step.name === 'Cobrança de boleto' || step.name.toLowerCase().includes('cobrança de boleto')) {
+            let boletoCategory = await this.categoriesRepository.findOne({
+              where: { name: 'Cobrança de Boleto' },
+            });
 
-        if (!boletoCategory) {
-          boletoCategory = this.categoriesRepository.create({
-            name: 'Cobrança de Boleto',
-            description: 'Categoria para serviços de cobrança de boleto',
-          });
-          boletoCategory = await this.categoriesRepository.save(boletoCategory);
-        }
-        categoryId = boletoCategory.id;
-      }
+            if (!boletoCategory) {
+              boletoCategory = this.categoriesRepository.create({
+                name: 'Cobrança de Boleto',
+                description: 'Categoria para serviços de cobrança de boleto',
+              });
+              boletoCategory = await this.categoriesRepository.save(boletoCategory);
+            }
+            categoryId = boletoCategory.id;
+          }
 
-      const stepData: DeepPartial<Step> = {
-        name: step.name,
-        description: step.description,
-        service_id: savedService.id,
-        observation: step.observation ?? undefined,
-        datetime_start: step.datetime_start ? new Date(step.datetime_start) : undefined,
-        datetime_conclusion: step.datetime_conclusion ? new Date(step.datetime_conclusion) : undefined,
-        datetime_expiration: step.datetime_expiration ? new Date(step.datetime_expiration) : undefined,
-        status: step.status ?? StepStatus.PENDING,
-        responsable_client: step.responsable_client ?? undefined,
-        reason_cancellament: step.reason_cancellament ?? undefined,
-        responsable: responsableUser !== undefined ? responsableUser : undefined,
-        category_id: categoryId,
-      };
+          const stepData: DeepPartial<Step> = {
+            name: step.name,
+            description: step.description,
+            service_id: savedService.id,
+            observation: step.observation ?? undefined,
+            datetime_start: step.datetime_start ? new Date(step.datetime_start) : undefined,
+            datetime_conclusion: step.datetime_conclusion ? new Date(step.datetime_conclusion) : undefined,
+            datetime_expiration: step.datetime_expiration ? new Date(step.datetime_expiration) : undefined,
+            status: step.status ?? StepStatus.PENDING,
+            responsable_client: step.responsable_client ?? undefined,
+            reason_cancellament: step.reason_cancellament ?? undefined,
+            responsable: responsableUser !== undefined ? responsableUser : undefined,
+            category_id: categoryId,
+          };
 
-      return this.stepsRepository.create(stepData);
+          return this.stepsRepository.create(stepData);
     };
 
     // Get existing step names for duplicate checking
@@ -323,10 +323,26 @@ export class ServicesService {
       }
     }
 
-    // Save all step entities
-    const validStepEntities = stepEntities.filter(step => step !== null);
+    // Save all step entities and set dependencies based on order (atomically in transaction)
+    const validStepEntities = stepEntities.filter(step => step !== null) as Step[];
     if (validStepEntities.length > 0) {
-      await this.stepsRepository.save(validStepEntities);
+      // Use transaction to ensure atomicity
+      await this.stepsRepository.manager.transaction(async (transactionalEntityManager) => {
+        // Save steps first to get their IDs
+        const savedSteps = await transactionalEntityManager.save(Step, validStepEntities);
+        
+        // Set dependencies: step[0] has no dependency, step[i] depends on step[i-1]
+        for (let i = 0; i < savedSteps.length; i++) {
+          if (i === 0) {
+            savedSteps[i].depends_on_step_id = null;
+          } else {
+            savedSteps[i].depends_on_step_id = savedSteps[i - 1].id;
+          }
+        }
+        
+        // Save again with dependencies set
+        await transactionalEntityManager.save(Step, savedSteps);
+      });
     }
     
     return this.findOne(savedService.id);

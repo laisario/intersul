@@ -80,11 +80,36 @@ export class StepService {
     // First, try to find the step by ID (without responsable_id check)
     const step = await this.stepsRepository.findOne({
       where: { id },
-      relations: ['service', 'service.client', 'category', 'responsable', 'images', 'billing', 'billing.copyMachine', 'billing.copyMachine.franchise', 'billing.client', 'billing.responsibleUser'],
+      relations: ['service', 'service.client', 'category', 'responsable', 'images', 'billing', 'billing.copyMachine', 'billing.copyMachine.franchise', 'billing.client', 'billing.responsibleUser', 'dependsOn'],
     });
 
     if (!step) {
       throw new NotFoundException(`Step with ID ${id} not found`);
+    }
+
+    // Compute canStart flag for frontend
+    let canStart = false;
+    let blockReason: string | undefined = undefined;
+
+    if (step.status === StepStatus.PENDING) {
+      if (step.depends_on_step_id === null || step.depends_on_step_id === undefined) {
+        // First step, can start
+        canStart = true;
+      } else {
+        // Check if depends on step is concluded
+        if (step.dependsOn && step.dependsOn.status === StepStatus.CONCLUDED) {
+          canStart = true;
+        } else {
+          canStart = false;
+          blockReason = 'Você precisa concluir a etapa anterior antes de iniciar esta.';
+        }
+      }
+    }
+
+    // Add computed properties (these won't be saved to DB, just for API response)
+    (step as any).canStart = canStart;
+    if (blockReason) {
+      (step as any).blockReason = blockReason;
     }
 
     // If user is the responsable, they have full access
@@ -156,10 +181,10 @@ export class StepService {
   }
 
   async startStep(id: number, userId: number): Promise<Step> {
-    // First, find the step by ID
+    // First, find the step by ID with its dependency
     const step = await this.stepsRepository.findOne({
       where: { id },
-      relations: ['service', 'service.client', 'category', 'responsable', 'images', 'billing', 'billing.copyMachine', 'billing.copyMachine.franchise', 'billing.client', 'billing.responsibleUser'],
+      relations: ['service', 'service.client', 'category', 'responsable', 'images', 'billing', 'billing.copyMachine', 'billing.copyMachine.franchise', 'billing.client', 'billing.responsibleUser', 'dependsOn'],
     });
 
     if (!step) {
@@ -173,6 +198,45 @@ export class StepService {
 
     if (step.status !== StepStatus.PENDING) {
       throw new BadRequestException('Step can only be started if it is pending');
+    }
+
+    // Validate dependency: if step depends on another step, that step must be CONCLUDED
+    if (step.depends_on_step_id !== null && step.depends_on_step_id !== undefined) {
+      const dependsOnStep = step.dependsOn;
+      if (!dependsOnStep) {
+        // If depends_on_step_id is set but step not found, load it explicitly
+        const loadedDependsOnStep = await this.stepsRepository.findOne({
+          where: { id: step.depends_on_step_id },
+        });
+        if (!loadedDependsOnStep) {
+          throw new BadRequestException({
+            message: 'Validation failed',
+            errors: [{
+              field: 'depends_on_step_id',
+              message: `Dependent step with ID ${step.depends_on_step_id} not found`,
+            }],
+          });
+        }
+        if (loadedDependsOnStep.status !== StepStatus.CONCLUDED) {
+          throw new BadRequestException({
+            message: 'Validation failed',
+            errors: [{
+              field: 'status',
+              message: 'Não é possível iniciar esta etapa porque a etapa anterior ainda não foi concluída.',
+              dependsOnStepId: step.depends_on_step_id,
+            }],
+          });
+        }
+      } else if (dependsOnStep.status !== StepStatus.CONCLUDED) {
+        throw new BadRequestException({
+          message: 'Validation failed',
+          errors: [{
+            field: 'status',
+            message: 'Não é possível iniciar esta etapa porque a etapa anterior ainda não foi concluída.',
+            dependsOnStepId: step.depends_on_step_id,
+          }],
+        });
+      }
     }
 
     step.status = StepStatus.IN_PROGRESS;
