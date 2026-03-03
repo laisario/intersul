@@ -248,6 +248,7 @@
 					showSuccess('Máquina cadastrada com sucesso!');
 					resetForm();
 					open = false;
+					// Query invalidation is handled in the mutation hook (useCreateClientCopyMachine)
 					onSuccess?.();
 				},
 				onError: (error: any) => {
@@ -394,9 +395,30 @@
 									{#if machine.price != null}
 										(R$ {Number(machine.price).toFixed(2)})
 									{/if}
+									{#if machine.quantity !== undefined && machine.quantity !== null}
+										{@const stock = machine.quantity ?? 0}
+										{@const stockText = stock < 0 ? `[Estoque: ${stock}]` : stock === 0 ? '[Estoque: 0]' : `[Estoque: ${stock}]`}
+										- {stockText}
+									{/if}
 								</option>
 							{/each}
 						</select>
+						{#if selectedCatalogMachine && selectedCatalogMachine.quantity !== undefined && selectedCatalogMachine.quantity !== null}
+							{@const stock = selectedCatalogMachine.quantity ?? 0}
+							{#if stock <= 0}
+								<p class="text-xs mt-1 {stock < 0 ? 'text-destructive' : 'text-yellow-600'}">
+									{#if stock < 0}
+										⚠️ Estoque negativo: {stock} unidade(s)
+									{:else}
+										⚠️ Estoque zerado
+									{/if}
+								</p>
+							{:else}
+								<p class="text-xs mt-1 text-muted-foreground">
+									Estoque disponível: {stock} unidade(s)
+								</p>
+							{/if}
+						{/if}
 					{/if}
 				</div>
 			{/if}

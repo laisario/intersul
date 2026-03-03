@@ -192,6 +192,9 @@ export const useCreateClientCopyMachine = () => {
   return createMutation(() => ({
     mutationFn: (data: CreateClientCopyMachineDto) => copyMachinesApi.client.create(data),
     onSuccess: () => {
+      // Invalidate catalog machines to refresh quantity after association
+      queryClient.invalidateQueries({ queryKey: ['copy-machines'] });
+      // Invalidate client machines list
       queryClient.invalidateQueries({ queryKey: ['client-copy-machines'] });
     },
   }));

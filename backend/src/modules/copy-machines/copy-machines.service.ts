@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { CopyMachineCatalog } from './entities/copy-machine-catalog.entity';
 import { ClientCopyMachine } from './entities/client-copy-machine.entity';
 import { Franchise } from './entities/franchise.entity';
@@ -21,6 +21,7 @@ export class CopyMachinesService {
     private clientCopyMachineRepository: Repository<ClientCopyMachine>,
     @InjectRepository(Franchise)
     private franchiseRepository: Repository<Franchise>,
+    private dataSource: DataSource,
   ) {}
 
   // Catalog Copy Machine methods
@@ -101,34 +102,71 @@ export class CopyMachinesService {
 
   // Client Copy Machine methods
   async createClientCopyMachine(createClientCopyMachineDto: CreateClientCopyMachineDto): Promise<ClientCopyMachine> {
-    // Validate that catalog machine is not disabled if provided
-    if (createClientCopyMachineDto.catalog_copy_machine_id) {
-      const catalogMachine = await this.copyMachineCatalogRepository.findOne({
-        where: { id: createClientCopyMachineDto.catalog_copy_machine_id },
-      });
-      if (!catalogMachine) {
-        throw new NotFoundException(`Catalog copy machine with ID ${createClientCopyMachineDto.catalog_copy_machine_id} not found`);
-      }
-      if (catalogMachine.isDisabled) {
-        throw new NotFoundException(`Cannot link to a disabled catalog machine. The machine has been deactivated.`);
-      }
-    }
+    // Use a transaction to ensure atomicity of stock update and machine creation
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    // Validate that franchise is not disabled if provided
-    if (createClientCopyMachineDto.franchise_id) {
-      const franchise = await this.franchiseRepository.findOne({
-        where: { id: createClientCopyMachineDto.franchise_id },
-      });
-      if (!franchise) {
-        throw new NotFoundException(`Franchise with ID ${createClientCopyMachineDto.franchise_id} not found`);
+    try {
+      // Validate that catalog machine is not disabled if provided
+      let catalogMachine: CopyMachineCatalog | null = null;
+      if (createClientCopyMachineDto.catalog_copy_machine_id) {
+        catalogMachine = await queryRunner.manager.findOne(CopyMachineCatalog, {
+          where: { id: createClientCopyMachineDto.catalog_copy_machine_id },
+          lock: { mode: 'pessimistic_write' }, // Lock row for update to prevent race conditions
+        });
+        if (!catalogMachine) {
+          throw new NotFoundException(`Catalog copy machine with ID ${createClientCopyMachineDto.catalog_copy_machine_id} not found`);
+        }
+        if (catalogMachine.isDisabled) {
+          throw new NotFoundException(`Cannot link to a disabled catalog machine. The machine has been deactivated.`);
+        }
       }
-      if (franchise.isDisabled) {
-        throw new NotFoundException(`Cannot link to a disabled franchise. The franchise has been deactivated.`);
-      }
-    }
 
-    const clientCopyMachine = this.clientCopyMachineRepository.create(createClientCopyMachineDto);
-    return this.clientCopyMachineRepository.save(clientCopyMachine);
+      // Validate that franchise is not disabled if provided
+      if (createClientCopyMachineDto.franchise_id) {
+        const franchise = await queryRunner.manager.findOne(Franchise, {
+          where: { id: createClientCopyMachineDto.franchise_id },
+        });
+        if (!franchise) {
+          throw new NotFoundException(`Franchise with ID ${createClientCopyMachineDto.franchise_id} not found`);
+        }
+        if (franchise.isDisabled) {
+          throw new NotFoundException(`Cannot link to a disabled franchise. The franchise has been deactivated.`);
+        }
+      }
+
+      // Create client machine
+      const clientCopyMachine = queryRunner.manager.create(ClientCopyMachine, createClientCopyMachineDto);
+      const savedClientCopyMachine = await queryRunner.manager.save(ClientCopyMachine, clientCopyMachine);
+
+      // Decrement quantity if acquisition type is RENT or SOLD (ALUGADA or VENDIDA)
+      if (
+        catalogMachine &&
+        (createClientCopyMachineDto.acquisition_type === AcquisitionType.RENT ||
+          createClientCopyMachineDto.acquisition_type === AcquisitionType.SOLD)
+      ) {
+        // Use atomic SQL update to decrement quantity (allows negative values)
+        await queryRunner.manager
+          .createQueryBuilder()
+          .update(CopyMachineCatalog)
+          .set({
+            quantity: () => 'COALESCE(quantity, 0) - 1',
+          })
+          .where('id = :id', { id: catalogMachine.id })
+          .execute();
+      }
+
+      await queryRunner.commitTransaction();
+
+      // Reload the client machine with relations
+      return this.findOneClientCopyMachine(savedClientCopyMachine.id);
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async findOneClientCopyMachine(id: number): Promise<ClientCopyMachine> {

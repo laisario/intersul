@@ -342,10 +342,18 @@
 									<span class="font-medium text-lg">{machine.price ? formatCurrency(machine.price) : 'Preço não informado'}</span>
 								</div>
 								{#if machine.quantity !== undefined && machine.quantity !== null}
+									{@const stock = machine.quantity ?? 0}
 									<div class="flex items-center justify-between text-sm">
-										<span class="text-muted-foreground">Quantidade:</span>
-										<span class="font-medium">{machine.quantity}</span>
+										<span class="text-muted-foreground">Estoque:</span>
+										<Badge variant={stock < 0 ? 'destructive' : stock === 0 ? 'secondary' : 'default'} class="text-xs">
+											{stock < 0 ? `${stock} unidade(s)` : stock === 0 ? 'Zerado' : `${stock} unidade(s)`}
+										</Badge>
 									</div>
+									{#if stock < 0}
+										<p class="text-xs text-destructive">⚠️ Estoque negativo</p>
+									{:else if stock === 0}
+										<p class="text-xs text-yellow-600">⚠️ Estoque zerado</p>
+									{/if}
 								{/if}
 								<div class="flex items-center justify-between text-sm">
 									<span class="text-muted-foreground">Adicionada em:</span>
