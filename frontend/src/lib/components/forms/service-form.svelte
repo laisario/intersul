@@ -110,7 +110,7 @@
           id="title"
           bind:value={formData.title}
           placeholder="Título do serviço"
-          class={getFieldError(errors, 'title') ? 'border-red-500' : ''}
+          class={getFieldError(errors, 'title') ? 'border-destructive' : ''}
           required
         />
         {#if getFieldError(errors, 'title')}
@@ -121,7 +121,7 @@
       <Field>
         <FieldLabel for="categoryId">Categoria *</FieldLabel>
         <Select bind:value={formData.categoryId}>
-          <SelectTrigger class={getFieldError(errors, 'categoryId') ? 'border-red-500' : ''}>
+          <SelectTrigger class={getFieldError(errors, 'categoryId') ? 'border-destructive' : ''}>
             <span class="block text-left text-sm">
               {getCategoryLabel(formData.categoryId)}
             </span>
@@ -144,7 +144,7 @@
         id="description"
         bind:value={formData.description}
         placeholder="Descrição do serviço"
-        class="w-full min-h-[100px] px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {getFieldError(errors, 'description') ? 'border-red-500' : ''}"
+        class="w-full min-h-[100px] px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {getFieldError(errors, 'description') ? 'border-destructive' : ''}"
       ></textarea>
       {#if getFieldError(errors, 'description')}
         <FieldError>{getFieldError(errors, 'description')}</FieldError>
@@ -156,7 +156,7 @@
       <Field>
         <FieldLabel for="clientId">Cliente *</FieldLabel>
         <Select bind:value={formData.clientId}>
-          <SelectTrigger class={getFieldError(errors, 'clientId') ? 'border-red-500' : ''}>
+          <SelectTrigger class={getFieldError(errors, 'clientId') ? 'border-destructive' : ''}>
             <span class="block text-left text-sm">
               {getClientLabel(formData.clientId)}
             </span>
@@ -196,7 +196,7 @@
           id="scheduledDate"
           type="datetime-local"
           bind:value={formData.scheduledDate}
-          class={getFieldError(errors, 'scheduledDate') ? 'border-red-500' : ''}
+          class={getFieldError(errors, 'scheduledDate') ? 'border-destructive' : ''}
         />
         {#if getFieldError(errors, 'scheduledDate')}
           <FieldError>{getFieldError(errors, 'scheduledDate')}</FieldError>
@@ -211,7 +211,7 @@
           bind:value={formData.estimatedDuration}
           placeholder="60"
           min="1"
-          class={getFieldError(errors, 'estimatedDuration') ? 'border-red-500' : ''}
+          class={getFieldError(errors, 'estimatedDuration') ? 'border-destructive' : ''}
         />
         {#if getFieldError(errors, 'estimatedDuration')}
           <FieldError>{getFieldError(errors, 'estimatedDuration')}</FieldError>
@@ -223,7 +223,7 @@
     <Field>
       <FieldLabel for="priority">Prioridade</FieldLabel>
       <Select bind:value={formData.priority}>
-        <SelectTrigger class={getFieldError(errors, 'priority') ? 'border-red-500' : ''}>
+        <SelectTrigger class={getFieldError(errors, 'priority') ? 'border-destructive' : ''}>
           <span class="block text-left text-sm">
             {getPriorityLabel(formData.priority)}
           </span>
@@ -246,7 +246,7 @@
         id="notes"
         bind:value={formData.notes}
         placeholder="Observações adicionais sobre o serviço"
-        class={getFieldError(errors, 'notes') ? 'border-red-500' : ''}
+        class={getFieldError(errors, 'notes') ? 'border-destructive' : ''}
       />
       {#if getFieldError(errors, 'notes')}
         <FieldError>{getFieldError(errors, 'notes')}</FieldError>

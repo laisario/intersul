@@ -363,8 +363,8 @@
 										role="button"
 										tabindex="0"
 										class="flex items-start space-x-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-										onclick={() => step.id && goto(`/steps/${step.id}`)}
-										onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && step.id ? goto(`/steps/${step.id}`) : null}
+										onclick={() => step.id && goto(`/steps/${step.id}?from=service&serviceId=${serviceId}`)}
+										onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && step.id ? goto(`/steps/${step.id}?from=service&serviceId=${serviceId}`) : null}
 									>
 										<div class="flex-shrink-0">
 											<div class="w-8 h-8 rounded-full bg-muted flex items-center justify-center">

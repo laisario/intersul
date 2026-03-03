@@ -119,7 +119,9 @@
 
 	function handleStepClick(step: Step) {
 		if (step.id) {
-			goto(`/steps/${step.id}`);
+			// Navigate to step details with origin info (from user details page)
+			// Since this is an admin page, we'll use 'home' as origin
+			goto(`/steps/${step.id}?from=home`);
 		}
 	}
 

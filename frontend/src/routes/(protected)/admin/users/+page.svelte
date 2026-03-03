@@ -457,7 +457,7 @@ $effect(() => {
 								</div>
 								<div class="flex items-center space-x-2">
 									<span class="text-sm text-muted-foreground">
-										Criado: {formatDate((user as any).created_at)}
+										Criado: {user.createdAt ? formatDate(user.createdAt) : '—'}
 									</span>
 								</div>
 							</div>

@@ -289,7 +289,7 @@ $effect(() => {
 					<StepsTable 
 						steps={paginatedSteps()}
 						isLoading={stepsLoading()}
-						onRowClick={(step) => goto(`/steps/${step.id}`)}
+						onRowClick={(step) => step.id && goto(`/steps/${step.id}?from=home`)}
 					/>
 
 					<!-- Pagination -->

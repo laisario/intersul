@@ -137,12 +137,12 @@ function handlePageSizeChange(size: number) {
 	// Check if address is complete and valid
 	const isAddressValid = $derived(isAddressComplete(formData.address));
 
-		// Check if form is valid for submission
-		const isFormValid = $derived(
-			formData.name.trim() !== '' &&
+	// Check if form is valid for submission
+	const isFormValid = $derived(
+		formData.name.trim() !== '' &&
 			formData.phone.trim() !== '' &&
-			(!hasAddressData || isAddressValid)
-		);
+		(!hasAddressData || isAddressValid)
+	);
 
 	// Get address validation message for UI feedback
 	const addressValidationMessage = $derived(

@@ -94,7 +94,7 @@
 					type="email" 
 					placeholder="savinho.nascimento@example.com" 
 					bind:value={email}
-					class={getFieldError(errors, 'email') ? 'border-red-500' : ''}
+					class={getFieldError(errors, 'email') ? 'border-destructive' : ''}
 					required 
 				/>
 				{#if getFieldError(errors, 'email')}

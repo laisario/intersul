@@ -56,7 +56,7 @@
 				// Simple actions cell without snippet for now
 				return `<div class="flex items-center gap-2">
 					<button onclick={() => openEditDialog(row.original)} class="text-blue-600 hover:text-blue-800">Editar</button>
-					<button class="text-red-600 hover:text-red-800">Excluir</button>
+					<button class="text-destructive hover:text-destructive/80">Excluir</button>
 				</div>`;
 			},
 		},

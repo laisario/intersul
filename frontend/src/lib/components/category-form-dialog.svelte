@@ -204,7 +204,7 @@
 											onclick={() => removeStepTemplate(index)}
 											disabled={createMutation.isPending || updateMutation.isPending}
 										>
-											<Trash2 class="w-4 h-4 text-red-600" />
+											<Trash2 class="w-4 h-4 text-destructive" />
 										</Button>
 									</div>
 

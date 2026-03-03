@@ -65,12 +65,16 @@ export interface Step extends BaseEntity {
   categoryId?: number;
   serviceId?: number;
   responsableId?: number;
+  dependsOnStepId?: number | null;
   isBilling?: boolean;
   responsable?: User;
   service?: Service;
   category?: Category;
   images?: Image[];
   billing?: import('./billing.types.js').Billing;
+  dependsOn?: Step;
+  canStart?: boolean;
+  blockReason?: string;
 }
 
 export interface StepTemplate {

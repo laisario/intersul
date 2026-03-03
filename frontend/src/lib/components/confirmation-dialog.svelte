@@ -82,13 +82,13 @@
 	let iconColor = $derived(() => {
 		switch (variant) {
 			case 'destructive':
-				return 'text-red-600';
+				return 'text-destructive';
 			case 'warning':
 				return 'text-yellow-600';
 			case 'info':
 				return 'text-blue-600';
 			default:
-				return 'text-red-600';
+				return 'text-destructive';
 		}
 	});
 </script>

@@ -315,7 +315,7 @@
 				// Build description based on whether amount is provided
 				let description = 'Realizar pagamento.';
 				if (formData.amountToReceive && formData.amountToReceive > 0) {
-					const amountText = formData.amountToReceive.toFixed(2);
+				const amountText = formData.amountToReceive.toFixed(2);
 					description = `Realizar pagamento. Consulte o valor informado no serviço: R$ ${amountText}.`;
 				} else {
 					description = 'Realizar pagamento. O valor será definido posteriormente na etapa de pagamento.';
@@ -412,11 +412,11 @@
 				}
 			} else {
 				// Fallback to generic error message
-				const message =
+			const message =
 					errorData?.message ||
-					error?.message ||
-					'Erro ao salvar serviço';
-				showError(message);
+				error?.message ||
+				'Erro ao salvar serviço';
+			showError(message);
 			}
 		}
 	}
@@ -723,7 +723,7 @@
 											type="button"
 											variant="ghost"
 											size="sm"
-											class="text-red-500"
+											class="text-destructive"
 											onclick={() => removeStep(index)}
 										>
 											<Trash2 class="w-4 h-4" />
@@ -1056,7 +1056,7 @@
 						</div>
 					{/if}
 					{#if errors.steps}
-						<p class="text-sm text-red-500">{errors.steps}</p>
+						<p class="text-sm text-destructive">{errors.steps}</p>
 					{/if}
 				</CardContent>
 			</Card>
@@ -1083,11 +1083,11 @@
 										formData.amountToReceive = value ? parseFloat(value) : undefined;
 									}}
 									placeholder="0.00"
-									class={errors.amountToReceive ? 'border-red-500' : ''}
+									class={errors.amountToReceive ? 'border-destructive' : ''}
 								/>
 								<p class="text-xs text-muted-foreground">Opcional. Pode ser preenchido posteriormente na etapa de pagamento.</p>
 								{#if errors.amountToReceive}
-									<p class="text-xs text-red-500">{errors.amountToReceive}</p>
+									<p class="text-xs text-destructive">{errors.amountToReceive}</p>
 								{/if}
 							</div>
 

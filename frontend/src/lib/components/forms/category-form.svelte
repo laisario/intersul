@@ -226,7 +226,7 @@
 								variant="ghost"
 								size="sm"
 								on:click={() => removeStepTemplate(index)}
-								class="text-red-600 hover:text-red-700"
+								class="text-destructive hover:text-destructive/80"
 							>
 								<Trash2 class="w-4 h-4" />
 							</Button>

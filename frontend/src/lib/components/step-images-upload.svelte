@@ -139,7 +139,7 @@
 
 	<!-- Error message -->
 	{#if error}
-		<p class="text-sm text-red-600">{error}</p>
+		<p class="text-sm text-destructive">{error}</p>
 	{/if}
 
 	<!-- Images Grid -->

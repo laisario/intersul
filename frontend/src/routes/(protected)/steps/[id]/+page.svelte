@@ -35,11 +35,50 @@
 	import { user, canManageServices } from '$lib/stores/auth.svelte.js';
 	import { useUpdateBilling, useBilling } from '$lib/hooks/queries/use-billings.svelte.js';
 	import { useUsers } from '$lib/hooks/queries/use-users.svelte.js';
+	import { page } from '$app/stores';
+	import { userRole } from '$lib/stores/auth.svelte.js';
+	import { UserRole } from '$lib/api/types/auth.types.js';
 
 	const props = $props<{ data: { id: string } }>();
 	const stepId = Number.parseInt(props.data.id, 10);
 	const currentUser = $derived($user);
 	const userCanManageServices = $derived($canManageServices);
+	
+	// Get query params for navigation origin
+	const fromParam = $derived($page.url.searchParams.get('from'));
+	const serviceIdParam = $derived($page.url.searchParams.get('serviceId'));
+	
+	// Get current user role for fallback navigation
+	let currentUserRole = $state<UserRole | undefined>(undefined);
+	$effect(() => {
+		const unsubscribe = userRole.subscribe((role) => {
+			currentUserRole = role;
+		});
+		return unsubscribe;
+	});
+	
+	// Handle back navigation based on origin
+	function handleBack() {
+		if (fromParam === 'service' && serviceIdParam) {
+			// Return to service details page
+			goto(`/services/${serviceIdParam}`);
+		} else if (fromParam === 'home') {
+			// Return to main page (home)
+			goto('/');
+		} else {
+			// Fallback: try browser history, otherwise go to main page based on role
+			if (typeof window !== 'undefined' && window.history.length > 1) {
+				// Check if we can safely go back
+				const referrer = document.referrer;
+				if (referrer && referrer.includes(window.location.origin)) {
+					window.history.back();
+					return;
+				}
+			}
+			// Default fallback: go to main page
+			goto('/');
+		}
+	}
 
 	const stepQuery = $derived(useStep(stepId));
 	const step = $derived(stepQuery.data);
@@ -231,8 +270,16 @@
 			onSuccess: () => {
 				successToast.updated('Etapa iniciada');
 			},
-			onError: () => {
-				errorToast.update('Etapa');
+			onError: (error: any) => {
+				// Show backend error message if available
+				if (error?.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+					const errorMessage = error.response.data.errors[0]?.message || 'Erro ao iniciar etapa';
+					showError(errorMessage);
+				} else if (error?.response?.data?.message) {
+					showError(error.response.data.message);
+				} else {
+					errorToast.update('Etapa');
+				}
 			},
 		});
 	}
@@ -461,7 +508,7 @@
 
 	<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
 		<div class="flex items-center gap-4">
-			<Button variant="ghost" size="sm" onclick={() => goto('/')}>
+			<Button variant="ghost" size="sm" onclick={handleBack}>
 				<ArrowLeft class="w-4 h-4 mr-2" />
 				Voltar
 			</Button>
@@ -491,14 +538,24 @@
 				</div>
 			{:else if isResponsable}
 				{#if step.status === 'PENDING'}
-					<LoadingButton
-						onclick={handleStart}
-						loading={isStarting}
-						class="w-full sm:w-auto"
-					>
-						<Play class="w-4 h-4 mr-2" />
-						Começar Etapa
-					</LoadingButton>
+					{@const canStartStep = step.canStart !== false && (step.dependsOnStepId === null || step.dependsOnStepId === undefined || step.dependsOn?.status === 'CONCLUDED')}
+					{@const blockReasonText = step.blockReason || (step.dependsOn && step.dependsOn.status !== 'CONCLUDED' ? 'Você precisa concluir a etapa anterior antes de iniciar esta.' : '')}
+					<div class="flex flex-col gap-2">
+						<LoadingButton
+							onclick={handleStart}
+							loading={isStarting}
+							disabled={!canStartStep}
+							class="w-full sm:w-auto"
+						>
+							<Play class="w-4 h-4 mr-2" />
+							Começar Etapa
+						</LoadingButton>
+						{#if !canStartStep && blockReasonText}
+							<p class="text-sm text-destructive">
+								{blockReasonText}
+							</p>
+						{/if}
+					</div>
 				{:else if step.status === 'IN_PROGRESS'}
 					<div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto">
 						<LoadingButton
@@ -538,7 +595,7 @@
 		<Card>
 			<CardContent class="p-6">
 				<div class="text-center">
-					<p class="text-lg font-medium text-red-600">Erro ao carregar etapa</p>
+					<p class="text-lg font-medium text-destructive">Erro ao carregar etapa</p>
 					<p class="text-sm text-muted-foreground mt-2">
 						{stepQuery.error?.message || 'Etapa não encontrada ou você não tem permissão para visualizá-la.'}
 					</p>
