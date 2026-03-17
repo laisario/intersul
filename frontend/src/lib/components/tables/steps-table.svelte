@@ -59,9 +59,9 @@
 	<Table>
 		<TableHeader>
 			<TableRow>
+				<TableHead>Cliente</TableHead>
 				<TableHead>Etapa</TableHead>
 				<TableHead>Serviço</TableHead>
-				<TableHead>Cliente</TableHead>
 				<TableHead>Prioridade</TableHead>
 				<TableHead>Status</TableHead>
 				<TableHead>Vencimento</TableHead>
@@ -92,6 +92,13 @@
 						onclick={() => onRowClick(step)}
 					>
 						<TableCell>
+							{#if step.service?.client}
+								<span class="text-sm">{step.service.client.name}</span>
+							{:else}
+								<span class="text-muted-foreground text-sm">-</span>
+							{/if}
+						</TableCell>
+						<TableCell>
 							<div class="flex flex-col">
 								<span class="font-medium">{step.name}</span>
 								{#if step.description}
@@ -102,13 +109,6 @@
 						<TableCell>
 							{#if step.service}
 								<span class="text-sm">Serviço #{step.service.id}</span>
-							{:else}
-								<span class="text-muted-foreground text-sm">-</span>
-							{/if}
-						</TableCell>
-						<TableCell>
-							{#if step.service?.client}
-								<span class="text-sm">{step.service.client.name}</span>
 							{:else}
 								<span class="text-muted-foreground text-sm">-</span>
 							{/if}
