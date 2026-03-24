@@ -223,7 +223,7 @@
 				</Drawer.Content>
 		</Drawer.Root>
 	{:else}
-		<!-- Desktop: Popover (unchanged) -->
+		<!-- Desktop: Popover anchored to field -->
 		<Popover.Root open={isOpen} onOpenChange={onOpenChange}>
 			<Popover.Trigger disabled={disabled} class={triggerClass}>
 				<span class={cn('truncate', triggerContent.isPlaceholder && 'text-muted-foreground')}>
@@ -233,8 +233,10 @@
 			</Popover.Trigger>
 			<Popover.Portal>
 				<Popover.Content
-					class="bg-popover text-popover-foreground z-50 min-w-[var(--bits-popover-trigger-width)] max-w-[var(--bits-popover-trigger-width)] rounded-md border p-0 shadow-md outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
+					class="bg-popover text-popover-foreground z-50 w-[var(--bits-popover-anchor-width,16rem)] min-w-0 max-w-[var(--bits-popover-anchor-width,16rem)] overflow-hidden rounded-md border p-0 shadow-md outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
+					side="bottom"
 					sideOffset={4}
+					align="start"
 				>
 					<div class="p-1">
 						<Input
