@@ -1,11 +1,14 @@
 <!--
   Searchable async client select with backend pagination and scroll-to-load-more.
-  Loads first page on open, fetches more on scroll, debounced search.
+  Mobile: Drawer (bottom sheet) for reliable touch selection.
+  Desktop: Popover (unchanged).
 -->
 
 <script lang="ts">
 	import { Popover } from 'bits-ui';
-	import { onMount, onDestroy } from 'svelte';
+	import { onDestroy } from 'svelte';
+	import * as Drawer from '$lib/components/ui/drawer/index.js';
+	import { IsMobile } from '$lib/hooks/is-mobile.svelte.js';
 	import { clientsApi } from '$lib/api/endpoints/clients.js';
 	import { useClient } from '$lib/hooks/queries/use-clients.svelte.js';
 	import { ChevronDownIcon, Loader2 } from 'lucide-svelte';
@@ -14,6 +17,7 @@
 	import { cn } from '$lib/utils.js';
 	import type { Client } from '$lib/api/types/client.types.js';
 
+	const isMobile = new IsMobile();
 	const DEBOUNCE_MS = 300;
 	const PAGE_SIZE = 20;
 	const SCROLL_THRESHOLD = 50;
@@ -43,10 +47,27 @@
 	let loadingMore = $state(false);
 	let requestId = 0;
 	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-	let listRef: HTMLDivElement | null = null;
+	let listRef = $state<HTMLDivElement | null>(null);
+	/** Cache do nome ao selecionar na lista (feedback imediato) */
+	let selectedClientCache = $state<{ id: number; name: string } | null>(null);
 
 	const selectedClientQuery = useClient(value);
-	const selectedClientName = $derived(value ? (selectedClientQuery.data?.name ?? '') : '');
+	const selectedClientName = $derived.by(() => {
+		if (!value) return '';
+		// Usa cache apenas quando bate com o valor atual (seleção recente na lista)
+		if (selectedClientCache?.id === value) return selectedClientCache.name;
+		return selectedClientQuery.data?.name ?? '';
+	});
+	const triggerClass = cn(
+		'border-input [&_svg:not([class*="text-"])]:text-muted-foreground shadow-xs flex h-9 w-full items-center justify-between gap-2 rounded-md border bg-transparent px-3 py-2 text-sm outline-none transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50',
+		'text-left'
+	);
+	const triggerContent = $derived.by(() => {
+		const display = value
+			? selectedClientName || (selectedClientQuery.isLoading ? 'Carregando...' : placeholder)
+			: placeholder;
+		return { display, isPlaceholder: !value && !selectedClientName };
+	});
 
 	function clearDebounce() {
 		if (debounceTimer) {
@@ -117,9 +138,14 @@
 
 	function selectClient(client: Client) {
 		value = client.id;
+		selectedClientCache = { id: client.id, name: client.name };
 		onValueChange?.(client.id, client);
 		isOpen = false;
 	}
+
+	$effect(() => {
+		if (!value) selectedClientCache = null;
+	});
 
 	onDestroy(clearDebounce);
 </script>
@@ -128,71 +154,136 @@
 	{#if label}
 		<Label for="client-async-select">{label}</Label>
 	{/if}
-	<Popover.Root open={isOpen} onOpenChange={onOpenChange}>
-		<Popover.Trigger
-			disabled={disabled}
-			class={cn(
-				'border-input [&_svg:not([class*="text-"])]:text-muted-foreground shadow-xs flex h-9 w-full items-center justify-between gap-2 rounded-md border bg-transparent px-3 py-2 text-sm outline-none transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50',
-				'text-left'
-			)}
-		>
-			<span class={cn('truncate', !value && !selectedClientName && 'text-muted-foreground')}>
-				{value ? selectedClientName || (selectedClientQuery.isLoading ? 'Carregando...' : placeholder) : placeholder}
-			</span>
-			<ChevronDownIcon class="size-4 shrink-0 opacity-50" />
-		</Popover.Trigger>
-		<Popover.Portal>
-			<Popover.Content
-				class="bg-popover text-popover-foreground z-50 min-w-[var(--bits-popover-trigger-width)] max-w-[var(--bits-popover-trigger-width)] rounded-md border p-0 shadow-md outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
-				sideOffset={4}
-			>
-				<div class="p-1">
-					<Input
-						type="text"
-						placeholder="Buscar cliente..."
-						value={searchTerm}
-						oninput={onSearchInput}
-						class="h-8 mb-1"
-					/>
-				</div>
-				<div
-					bind:this={listRef}
-					role="listbox"
-					class="max-h-[200px] overflow-y-auto"
-					onscroll={onScroll}
-					tabindex="-1"
-				>
-					{#if loading}
-						<div class="flex items-center justify-center py-8">
-							<Loader2 class="size-6 animate-spin text-muted-foreground" />
+
+	{#if isMobile.current}
+		<!-- Mobile: Drawer for reliable touch and integrated UX -->
+		<Drawer.Root direction="bottom" bind:open={isOpen} onOpenChange={(open) => open && onOpenChange(true)}>
+			<Drawer.Trigger disabled={disabled} class={triggerClass}>
+				<span class={cn('truncate', triggerContent.isPlaceholder && 'text-muted-foreground')}>
+					{triggerContent.display}
+				</span>
+				<ChevronDownIcon class="size-4 shrink-0 opacity-50" />
+			</Drawer.Trigger>
+			<Drawer.Content class="max-h-[70vh] flex flex-col">
+					<Drawer.Header class="border-b pb-3">
+						<Drawer.Title class="text-base">Selecionar cliente</Drawer.Title>
+						<div class="mt-2">
+							<Input
+								type="text"
+								placeholder="Buscar cliente..."
+								value={searchTerm}
+								oninput={onSearchInput}
+								class="h-10"
+								style="touch-action: manipulation;"
+							/>
 						</div>
-					{:else if options.length === 0}
-						<div class="py-6 text-center text-sm text-muted-foreground">
-							{searchTerm ? 'Nenhum cliente encontrado' : 'Digite para buscar'}
-						</div>
-					{:else}
-						{#each options as client (client.id)}
-							<button
-								type="button"
-								role="option"
-								aria-selected={value === client.id}
-								class={cn(
-									'w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground cursor-pointer rounded-sm',
-									value === client.id && 'bg-accent'
-								)}
-								onclick={() => selectClient(client)}
-							>
-								{client.name}
-							</button>
-						{/each}
-						{#if loadingMore}
-							<div class="flex justify-center py-2">
-								<Loader2 class="size-4 animate-spin text-muted-foreground" />
+					</Drawer.Header>
+					<div
+						bind:this={listRef}
+						role="listbox"
+						class="flex-1 min-h-0 overflow-y-auto overscroll-contain -mx-4 px-4"
+						onscroll={onScroll}
+						style="touch-action: manipulation; -webkit-overflow-scrolling: touch;"
+					>
+						{#if loading}
+							<div class="flex items-center justify-center py-10">
+								<Loader2 class="size-6 animate-spin text-muted-foreground" />
+							</div>
+						{:else if options.length === 0}
+							<div class="py-8 text-center text-sm text-muted-foreground">
+								{searchTerm ? 'Nenhum cliente encontrado' : 'Digite para buscar'}
+							</div>
+						{:else}
+							<div class="flex flex-col py-1">
+								{#each options as client (client.id)}
+									<button
+										type="button"
+										role="option"
+										aria-selected={value === client.id}
+										class={cn(
+											'w-full min-h-[44px] px-4 py-3 text-left text-sm border-b border-border/50 last:border-0 active:bg-accent',
+											'hover:bg-accent hover:text-accent-foreground cursor-pointer',
+											value === client.id && 'bg-accent'
+										)}
+										style="touch-action: manipulation; -webkit-tap-highlight-color: transparent;"
+										onclick={() => selectClient(client)}
+										onkeydown={(e) => e.key === 'Enter' && selectClient(client)}
+									>
+										{client.name}
+									</button>
+								{/each}
+								{#if loadingMore}
+									<div class="flex justify-center py-3">
+										<Loader2 class="size-5 animate-spin text-muted-foreground" />
+									</div>
+								{/if}
 							</div>
 						{/if}
-					{/if}
-				</div>
-			</Popover.Content>
-		</Popover.Portal>
-	</Popover.Root>
+					</div>
+				</Drawer.Content>
+		</Drawer.Root>
+	{:else}
+		<!-- Desktop: Popover (unchanged) -->
+		<Popover.Root open={isOpen} onOpenChange={onOpenChange}>
+			<Popover.Trigger disabled={disabled} class={triggerClass}>
+				<span class={cn('truncate', triggerContent.isPlaceholder && 'text-muted-foreground')}>
+					{triggerContent.display}
+				</span>
+				<ChevronDownIcon class="size-4 shrink-0 opacity-50" />
+			</Popover.Trigger>
+			<Popover.Portal>
+				<Popover.Content
+					class="bg-popover text-popover-foreground z-50 min-w-[var(--bits-popover-trigger-width)] max-w-[var(--bits-popover-trigger-width)] rounded-md border p-0 shadow-md outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
+					sideOffset={4}
+				>
+					<div class="p-1">
+						<Input
+							type="text"
+							placeholder="Buscar cliente..."
+							value={searchTerm}
+							oninput={onSearchInput}
+							class="h-8 mb-1"
+						/>
+					</div>
+					<div
+						bind:this={listRef}
+						role="listbox"
+						class="max-h-[200px] overflow-y-auto"
+						onscroll={onScroll}
+						tabindex="-1"
+					>
+						{#if loading}
+							<div class="flex items-center justify-center py-8">
+								<Loader2 class="size-6 animate-spin text-muted-foreground" />
+							</div>
+						{:else if options.length === 0}
+							<div class="py-6 text-center text-sm text-muted-foreground">
+								{searchTerm ? 'Nenhum cliente encontrado' : 'Digite para buscar'}
+							</div>
+						{:else}
+							{#each options as client (client.id)}
+								<button
+									type="button"
+									role="option"
+									aria-selected={value === client.id}
+									class={cn(
+										'w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground cursor-pointer rounded-sm',
+										value === client.id && 'bg-accent'
+									)}
+									onclick={() => selectClient(client)}
+								>
+									{client.name}
+								</button>
+							{/each}
+							{#if loadingMore}
+								<div class="flex justify-center py-2">
+									<Loader2 class="size-4 animate-spin text-muted-foreground" />
+								</div>
+							{/if}
+						{/if}
+					</div>
+				</Popover.Content>
+			</Popover.Portal>
+		</Popover.Root>
+	{/if}
 </div>
