@@ -175,8 +175,16 @@ export class StepService {
     if (updateStepDto.responsable_client !== undefined) {
       step.responsable_client = updateStepDto.responsable_client;
     }
+    if (updateStepDto.status !== undefined) {
+      step.status = updateStepDto.status;
+    }
 
     const savedStep = await this.stepsRepository.save(step);
+
+    if (step.service_id) {
+      await this.servicesService.recalculateStatus(step.service_id);
+    }
+
     return savedStep;
   }
 
@@ -244,9 +252,8 @@ export class StepService {
 
     const savedStep = await this.stepsRepository.save(step);
 
-    // Update service status if step has service_id
     if (step.service_id) {
-      await this.servicesService.updateServiceStatus(step.service_id);
+      await this.servicesService.recalculateStatus(step.service_id);
     }
 
     return savedStep;
@@ -277,9 +284,8 @@ export class StepService {
 
     const savedStep = await this.stepsRepository.save(step);
 
-    // Update service status if step has service_id
     if (step.service_id) {
-      await this.servicesService.updateServiceStatus(step.service_id);
+      await this.servicesService.recalculateStatus(step.service_id);
 
       // If step is "Realizar pagamento" from external service, update is_invoiced
       if (step.name === 'Realizar pagamento' && step.service_id) {
@@ -321,9 +327,8 @@ export class StepService {
 
     const savedStep = await this.stepsRepository.save(step);
 
-    // Update service status if step has service_id
     if (step.service_id) {
-      await this.servicesService.updateServiceStatus(step.service_id);
+      await this.servicesService.recalculateStatus(step.service_id);
     }
 
     return savedStep;

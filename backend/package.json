@@ -41,7 +41,8 @@
     "schema:drop": "typeorm-ts-node-commonjs schema:drop -d data-source.ts",
     "schema:sync": "typeorm-ts-node-commonjs schema:sync -d data-source.ts",
     "create-user": "ts-node -r tsconfig-paths/register src/scripts/create-user.ts",
-    "create:admin": "ts-node -r tsconfig-paths/register src/scripts/create-admin.ts"
+    "create:admin": "ts-node -r tsconfig-paths/register src/scripts/create-admin.ts",
+    "recalculate-service-statuses": "ts-node -r tsconfig-paths/register src/scripts/recalculate-service-statuses.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.968.0",

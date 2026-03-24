@@ -343,8 +343,10 @@ export class ServicesService {
         // Save again with dependencies set
         await transactionalEntityManager.save(Step, savedSteps);
       });
+
+      await this.recalculateStatus(savedService.id);
     }
-    
+
     return this.findOne(savedService.id);
   }
 
@@ -414,17 +416,18 @@ export class ServicesService {
       await this.stepsRepository.save(stepEntities);
     }
 
-    await this.updateServiceStatus(id);
+    await this.recalculateStatus(id);
 
     return this.findOne(id);
   }
 
   /**
-   * Update service status based on steps status
-   * If at least one step has status IN_PROGRESS, service status becomes IN_PROGRESS
-   * Only updates if service is currently PENDING (to avoid overriding manual status changes)
+   * Recalculates service status from step statuses (feature: service-status-from-steps).
+   * Business rules: no steps → PENDING; all PENDING → PENDING; all CONCLUDED → CONCLUDED;
+   * any IN_PROGRESS → IN_PROGRESS; mixed → IN_PROGRESS; all CANCELLED → CONCLUDED.
+   * Skips recalculation when service is CANCELLED (preserves manual cancellation).
    */
-  async updateServiceStatus(serviceId: number): Promise<void> {
+  async recalculateStatus(serviceId: number): Promise<void> {
     const service = await this.servicesRepository.findOne({
       where: { id: serviceId },
       relations: ['steps'],
@@ -434,23 +437,30 @@ export class ServicesService {
       return;
     }
 
-    // Don't update if service is manually set to CONCLUDED or CANCELLED
-    if (service.status === ServiceStatus.CONCLUDED || service.status === ServiceStatus.CANCELLED) {
+    if (service.status === ServiceStatus.CANCELLED) {
       return;
     }
 
-    // Only update if service is currently PENDING
-    // This ensures we don't override manual status changes
-    if (service.status !== ServiceStatus.PENDING) {
-      return;
+    const steps = service.steps ?? [];
+    const nonCancelled = steps.filter((s) => s.status !== StepStatus.CANCELLED);
+
+    let newStatus: ServiceStatus;
+    if (steps.length === 0) {
+      newStatus = ServiceStatus.PENDING;
+    } else if (nonCancelled.length === 0) {
+      newStatus = ServiceStatus.CONCLUDED;
+    } else if (nonCancelled.some((s) => s.status === StepStatus.IN_PROGRESS)) {
+      newStatus = ServiceStatus.IN_PROGRESS;
+    } else if (nonCancelled.every((s) => s.status === StepStatus.CONCLUDED)) {
+      newStatus = ServiceStatus.CONCLUDED;
+    } else if (nonCancelled.every((s) => s.status === StepStatus.PENDING)) {
+      newStatus = ServiceStatus.PENDING;
+    } else {
+      newStatus = ServiceStatus.IN_PROGRESS;
     }
 
-    // Check if at least one step has status IN_PROGRESS
-    const hasInProgressStep = service.steps?.some(step => step.status === StepStatus.IN_PROGRESS);
-
-    // If at least one step is IN_PROGRESS, change service status to IN_PROGRESS
-    if (hasInProgressStep) {
-      service.status = ServiceStatus.IN_PROGRESS;
+    if (service.status !== newStatus) {
+      service.status = newStatus;
       await this.servicesRepository.save(service);
     }
   }
