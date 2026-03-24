@@ -44,15 +44,28 @@
 	<SheetPrimitive.Content
 		bind:ref
 		data-slot="sheet-content"
-		class={cn(sheetVariants({ side }), className)}
+		class={cn(
+			sheetVariants({ side }),
+			className,
+			(side === "left" || side === "right") &&
+				"max-md:!inset-0 max-md:!left-0 max-md:!right-0 max-md:!top-0 max-md:!bottom-0 max-md:!w-full max-md:!h-full max-md:!max-w-none max-md:!max-h-none max-md:rounded-none"
+		)}
 		{...restProps}
 	>
-		{@render children?.()}
-		<SheetPrimitive.Close
-			class="ring-offset-background focus-visible:ring-ring rounded-xs focus-visible:outline-hidden absolute right-4 top-4 opacity-70 transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none"
-		>
-			<XIcon class="size-4" />
-			<span class="sr-only">Close</span>
-		</SheetPrimitive.Close>
+		<div class="flex min-h-0 flex-1 flex-col overflow-hidden">
+			<div
+				class="flex shrink-0 justify-end bg-background max-md:sticky max-md:top-0 max-md:z-20 max-md:py-4 max-md:pr-4 max-md:pl-4 max-md:pb-2 md:absolute md:right-4 md:top-4 md:py-0 md:pr-0 md:pl-0"
+			>
+				<SheetPrimitive.Close
+					class="ring-offset-background focus-visible:ring-ring rounded-xs focus-visible:outline-hidden opacity-70 transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none"
+				>
+					<XIcon class="size-4" />
+					<span class="sr-only">Close</span>
+				</SheetPrimitive.Close>
+			</div>
+			<div class="flex-1 min-h-0 overflow-y-auto max-md:px-4 max-md:pb-4">
+				{@render children?.()}
+			</div>
+		</div>
 	</SheetPrimitive.Content>
 </SheetPrimitive.Portal>
