@@ -8,14 +8,21 @@ import type {
   CreateClientDto, 
   UpdateClientDto, 
   ClientQueryParams,
-  ClientStats 
+  ClientStats,
+  ClientsPaginatedResponse 
 } from '../types/client.types.js';
 
 export const clientsApi = {
   /**
-   * Get all clients with optional filters
+   * Get all clients with optional filters (returns flat array when no pagination params)
    */
   getAll: (params?: ClientQueryParams): Promise<Client[]> =>
+    axios.get('/clients', { params }).then(res => res.data),
+
+  /**
+   * Get clients with backend search and pagination
+   */
+  getPaginated: (params: { search?: string; page?: number; limit?: number }): Promise<ClientsPaginatedResponse> =>
     axios.get('/clients', { params }).then(res => res.data),
 
   /**

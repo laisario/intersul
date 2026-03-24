@@ -34,6 +34,15 @@ export interface ClientQueryParams {
   limit?: number;
 }
 
+export interface ClientsPaginatedResponse {
+  data: Client[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  hasNextPage: boolean;
+}
+
 export interface ClientStats {
   total: number;
   newThisMonth: number;

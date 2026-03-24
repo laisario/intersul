@@ -8,8 +8,9 @@ import {
   Delete,
   UseGuards,
   ParseIntPipe,
+  Query,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { ClientsService } from './clients.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
@@ -23,8 +24,6 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 export class ClientsController {
   constructor(private readonly clientsService: ClientsService) {}
 
-
-  // criar dto para caso de criar cliente com maquina de copiar do cliente
   @Post()
   @ApiOperation({ summary: 'Create a new client' })
   @ApiResponse({ status: 201, description: 'Client created successfully', type: Client })
@@ -34,9 +33,23 @@ export class ClientsController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all clients' })
-  @ApiResponse({ status: 200, description: 'List of all clients', type: [Client] })
-  async findAll(): Promise<Client[]> {
+  @ApiOperation({ summary: 'Get all clients or paginated list with search' })
+  @ApiQuery({ name: 'search', required: false, description: 'Partial match by client name' })
+  @ApiQuery({ name: 'page', required: false, description: 'Page number for pagination' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Items per page' })
+  @ApiResponse({ status: 200, description: 'List of clients', type: [Client] })
+  async findAll(
+    @Query('search') search?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ): Promise<Client[] | { data: Client[]; total: number; page: number; limit: number; totalPages: number; hasNextPage: boolean }> {
+    if (search !== undefined || page !== undefined || limit !== undefined) {
+      return this.clientsService.findAllPaginated({
+        search: search || undefined,
+        page: page ? Number(page) : 1,
+        limit: limit ? Number(limit) : 20,
+      });
+    }
     return this.clientsService.findAll();
   }
 

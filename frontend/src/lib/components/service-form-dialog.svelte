@@ -17,7 +17,7 @@
 	import { showError, successToast } from '$lib/utils/toast.js';
 	import { SERVICE_PRIORITY } from '$lib/utils/constants.js';
 	import { useCreateService, useUpdateService, useService } from '$lib/hooks/queries/use-services.svelte.js';
-	import { useClients } from '$lib/hooks/queries/use-clients.svelte.js';
+	import ClientAsyncSelect from '$lib/components/client-async-select.svelte';
 	import { useCategories } from '$lib/hooks/queries/use-categories.svelte.js';
 	import { useUsers } from '$lib/hooks/queries/use-users.svelte.js';
 	import { useClientCopyMachines } from '$lib/hooks/queries/use-copy-machines.svelte.js';
@@ -50,7 +50,6 @@
 
 	const createMutation = useCreateService();
 	const updateMutation = useUpdateService();
-	const clientsQuery = useClients();
 	const categoriesQuery = useCategories();
 	const usersQuery = useUsers();
 	const serviceDetailsQuery = $derived(serviceId ? useService(serviceId) : null);
@@ -73,7 +72,6 @@
 
 	let errors = $state<{ clientId?: string; categoryId?: string; steps?: string; amountToReceive?: string; paymentMethod?: string }>({});
 
-	const clients = $derived(clientsQuery.data ?? []);
 	const categories = $derived(categoriesQuery.data ?? []);
 	// Filter to only active users for selects (defensive filtering)
 	const users = $derived((usersQuery.data ?? []).filter(u => u.active === true));
@@ -473,35 +471,14 @@
 
 					{#if !formData.isInternal}
 						<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-							<div class="space-y-2">
-								<Label>Cliente *</Label>
-								<Select
-									type="single"
-									value={formData.clientId ? formData.clientId.toString() : ''}
-									onValueChange={(value: string) => {
-										formData.clientId = value ? parseInt(value) : 0;
+							<div>
+								<ClientAsyncSelect
+									bind:value={formData.clientId}
+									onValueChange={() => {
 										formData.clientCopyMachineId = undefined;
 									}}
-								>
-									<SelectTrigger>
-										{formData.clientId
-											? clients.find((client) => client.id === formData.clientId)?.name || 'Selecione um cliente'
-											: 'Selecione um cliente'}
-									</SelectTrigger>
-									<SelectContent>
-										{#if clientsQuery.isLoading}
-											<SelectItem value="" disabled>Carregando clientes...</SelectItem>
-										{:else if clientsQuery.error}
-											<SelectItem value="" disabled>Erro ao carregar clientes</SelectItem>
-										{:else}
-											{#each clients as client (client.id)}
-												<SelectItem value={client.id.toString()}>
-													{client.name}
-												</SelectItem>
-											{/each}
-										{/if}
-									</SelectContent>
-								</Select>
+									placeholder="Selecione um cliente"
+								/>
 							</div>
 
 							<div class="space-y-2">

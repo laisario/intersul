@@ -4,7 +4,7 @@
 
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { useClients } from '$lib/hooks/queries/use-clients.svelte.js';
+	import ClientAsyncSelect from '$lib/components/client-async-select.svelte';
 	import { useCategories } from '$lib/hooks/queries/use-categories.svelte.js';
 	import { useCreateService } from '$lib/hooks/queries/use-services.svelte.js';
 	import { useCopyMachines } from '$lib/hooks/queries/use-copy-machines.svelte.js';
@@ -45,7 +45,6 @@
 	});
 
 	// API data
-	const { data: clients, isLoading: clientsLoading } = useClients();
 	const { data: categories, isLoading: categoriesLoading } = useCategories();
 	const { data: copyMachines, isLoading: machinesLoading } = useCopyMachines();
 	const { mutate: createService, isPending: isCreating } = useCreateService();
@@ -223,19 +222,13 @@
 					{#if !formData.isInternal}
 						<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 							<div>
-								<Label for="client">Cliente *</Label>
-								<Select bind:value={formData.clientId}>
-									<SelectTrigger>
-										<span class="text-muted-foreground">
-											{clientsLoading ? 'Carregando...' : 'Selecione um cliente'}
-										</span>
-									</SelectTrigger>
-									<SelectContent>
-										{#each clients?.data || [] as client}
-											<SelectItem value={client.id}>{client.name}</SelectItem>
-										{/each}
-									</SelectContent>
-								</Select>
+								<ClientAsyncSelect
+									bind:value={formData.clientId}
+									onValueChange={() => {
+										formData.clientCopyMachineId = 0;
+									}}
+									placeholder="Selecione um cliente"
+								/>
 							</div>
 
 							<div>

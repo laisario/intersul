@@ -6,6 +6,15 @@ import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 import { Service } from '../services/entities/service.entity';
 
+export interface ClientsPaginationResult {
+  data: Client[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  hasNextPage: boolean;
+}
+
 @Injectable()
 export class ClientsService {
   constructor(
@@ -24,6 +33,42 @@ export class ClientsService {
     return this.clientsRepository.find({
       order: { created_at: 'DESC' },
     });
+  }
+
+  async findAllPaginated(params?: {
+    search?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<ClientsPaginationResult> {
+    const page = Math.max(params?.page ?? 1, 1);
+    const limit = Math.min(Math.max(params?.limit ?? 20, 1), 100);
+    const search = params?.search?.trim();
+
+    const qb = this.clientsRepository
+      .createQueryBuilder('client')
+      .orderBy('client.name', 'ASC')
+      .addOrderBy('client.id', 'ASC');
+
+    if (search) {
+      qb.andWhere('client.name LIKE :search', { search: `%${search}%` });
+    }
+
+    const [data, total] = await qb
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
+    const totalPages = Math.ceil(total / limit) || 1;
+    const hasNextPage = page < totalPages;
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages,
+      hasNextPage,
+    };
   }
 
   async findOne(id: number): Promise<Client> {
