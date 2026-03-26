@@ -2,7 +2,7 @@
 	import { page } from '$app/stores';
 	import { useBilling, useUpdateBilling } from '$lib/hooks/queries/use-billings.svelte.js';
 	import { useUsers } from '$lib/hooks/queries/use-users.svelte.js';
-	import { formatDate, formatCurrency } from '$lib/utils/formatting.js';
+	import { formatDate, formatCurrency, getPaymentMethodLabel } from '$lib/utils/formatting.js';
 	import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
@@ -172,7 +172,9 @@
 								</div>
 								<div>
 									<p class="text-sm font-medium text-muted-foreground">Forma de Pagamento</p>
-									<p class="text-sm">{billing.paymentMethod || 'Não informado'}</p>
+									<p class="text-sm">
+										{billing.paymentMethod ? getPaymentMethodLabel(billing.paymentMethod) : 'Não informado'}
+									</p>
 								</div>
 							</div>
 							<div class="grid grid-cols-1 md:grid-cols-2 gap-4">

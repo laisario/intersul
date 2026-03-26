@@ -13,7 +13,7 @@
 	import { AcquisitionType } from '$lib/api/types/copy-machine.types.js';
 	import type { MachineUserMapping } from '$lib/api/types/billing.types.js';
 	import type { ClientCopyMachine } from '$lib/api/types/copy-machine.types.js';
-	import { formatCurrency } from '$lib/utils/formatting.js';
+	import { formatCurrency, getPaymentMethodLabel } from '$lib/utils/formatting.js';
 
 	interface Props {
 		open: boolean;
@@ -366,18 +366,9 @@
 													}}
 												>
 													<SelectTrigger id="payment-method-{machine.id}">
-														{machinePaymentMethodMap.get(machine.id) 
-															? (() => {
-																const method = machinePaymentMethodMap.get(machine.id);
-																if (method === 'Cash') return 'Dinheiro';
-																if (method === 'PIX') return 'PIX';
-																if (method === 'Debit Card') return 'Cartão de Débito';
-																if (method === 'Credit Card') return 'Cartão de Crédito';
-																if (method === 'Bank Slip') return 'Boleto';
-																if (method === 'Transfer') return 'Transferência';
-																if (method === 'Fiado') return 'Fiado';
-																return method || 'Selecione a forma de pagamento';
-															})()
+														{machinePaymentMethodMap.get(machine.id)
+															? getPaymentMethodLabel(machinePaymentMethodMap.get(machine.id)) ||
+																'Selecione a forma de pagamento'
 															: 'Selecione a forma de pagamento'}
 													</SelectTrigger>
 													<SelectContent>
@@ -388,7 +379,7 @@
 														<SelectItem value="Credit Card">Cartão de Crédito</SelectItem>
 														<SelectItem value="Bank Slip">Boleto</SelectItem>
 														<SelectItem value="Transfer">Transferência</SelectItem>
-														<SelectItem value="Fiado">Fiado</SelectItem>
+														<SelectItem value="Fiado">Faturado</SelectItem>
 													</SelectContent>
 												</Select>
 											</div>

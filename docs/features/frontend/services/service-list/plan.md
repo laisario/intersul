@@ -1,6 +1,6 @@
 # Feature: Service List
 
-Displays a paginated, filterable list of all services in the system. Shows service information including client, category, status, price, and creation date. Supports filtering by category, client, city, and acquisition type. Enables navigation to service detail pages and service creation.
+Displays a paginated, filterable list of all services. Columns include client, city, category, priority, **status** (with a **popover** listing each step’s name, step status, and responsible employee or “Não atribuído”), **Funcionários responsáveis** (unique names from step assignees, “—” if none), and creation date. Supports filters (category, city, acquisition type), **backend client name search** (debounced), **sorting** by priority, status, or creation date (disabled while search is active), and pagination. **API query params use snake_case**; the frontend axios layer decamelizes camelCase params on GET requests so filters reach the backend. Navigation to service detail and service creation (role-gated).
 
 ## User value
 
@@ -20,7 +20,11 @@ Displays a paginated, filterable list of all services in the system. Shows servi
 
 ### In scope
 - Display service list with pagination
-- Filter services by category, client, city, acquisition type
+- Filter services by category, city, acquisition type (query params: `category_id`, `city_id`, `acquisition_type`)
+- Buscar por cliente (`search`) with ~300ms debounce; while searching, backend orders by client name then creation date (see backend list-services doc)
+- Ordenar por prioridade, status ou data (`sort_by`, `sort_order`)
+- Status column: `ServiceStepsOverviewPopover` (`frontend/src/lib/components/service-steps-overview-popover.svelte`) — click badge to open popover with step overview (separators between steps, scrollable for many steps)
+- Column “Funcionários responsáveis”: deduplicated step assignee names
 - Show service details (client, category, status, price, date)
 - Display service price in list (if available)
 - Display payment information for external services (if applicable)
@@ -32,7 +36,11 @@ Displays a paginated, filterable list of all services in the system. Shows servi
 - Service editing from list
 - Bulk service operations
 - Service export functionality
-- Advanced search with full-text
+- Full-text search beyond client name substring on the backend
+
+## Payment method terminology (UI)
+
+Across the app, the payment method stored as **`Fiado`** is shown to users as **“Faturado”** (`getPaymentMethodLabel` in `frontend/src/lib/utils/formatting.ts`). The API and database continue to use the value `Fiado` unless a future migration changes it.
 
 ## User flow
 

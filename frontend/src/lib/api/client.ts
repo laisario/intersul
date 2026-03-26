@@ -26,6 +26,18 @@ const createAxiosInstance = ({ file = false } = {}) => {
     if (request.data && !file) {
       request.data = JSON.stringify(humps.decamelizeKeys(request.data));
     }
+
+    // GET query params: backend expects snake_case (Nest @Query('category_id') etc.)
+    const p = request.params;
+    if (
+      p &&
+      typeof p === 'object' &&
+      !Array.isArray(p) &&
+      !(p instanceof URLSearchParams) &&
+      Object.keys(p).length > 0
+    ) {
+      request.params = humps.decamelizeKeys(p) as typeof p;
+    }
     return request;
   });
 

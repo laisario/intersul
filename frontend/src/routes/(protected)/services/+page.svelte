@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onDestroy } from "svelte";
 	import { useServices, useDeleteService } from "$lib/hooks/queries/use-services.svelte.js";
 	import { useCategories, useDeleteCategory } from "$lib/hooks/queries/use-categories.svelte.js";
 	import { useClients } from "$lib/hooks/queries/use-clients.svelte.js";
@@ -11,7 +12,8 @@
 	import { Tabs, TabsContent, TabsList, TabsTrigger } from "$lib/components/ui/tabs/index.js";
 	import { Select, SelectTrigger, SelectContent, SelectItem } from "$lib/components/ui/select/index.js";
 	import { Label } from "$lib/components/ui/label/index.js";
-	import { Plus, Edit, Trash2, Wrench, FolderOpen, MoreVertical } from "lucide-svelte";
+	import { Popover } from "bits-ui";
+	import { Plus, Edit, Trash2, Wrench, FolderOpen, MoreVertical, ListFilter } from "lucide-svelte";
 	import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
 	import type { Service } from "$lib/api/types/service.types.js";
 	import type { Category } from "$lib/api/types/service.types.js";
@@ -21,12 +23,33 @@
 	import CategoryFormDialog from "$lib/components/category-form-dialog.svelte";
 	import CategoryPreviewDialog from "$lib/components/category-preview-dialog.svelte";
 	import ServiceFormDialog from "$lib/components/service-form-dialog.svelte";
+	import ServiceStepsOverviewPopover from "$lib/components/service-steps-overview-popover.svelte";
 	import PaginationControls from "$lib/components/pagination-controls.svelte";
 	import { showError, successToast } from "$lib/utils/toast.js";
-    import { ACQUISITION_TYPE, PAGINATION, getServiceStatusLabel, getServiceStatusVariant, getServicePriorityLabel, getServicePriorityVariant } from "$lib/utils/constants.js";
+	import { Input } from "$lib/components/ui/input/index.js";
+    import {
+		ACQUISITION_TYPE,
+		PAGINATION,
+		getServicePriorityLabel,
+		getServicePriorityVariant,
+	} from "$lib/utils/constants.js";
 	import type { AcquisitionType } from "$lib/api/types/copy-machine.types.js";
 	import { goto } from "$app/navigation";
 	import { canManageServices } from "$lib/stores/auth.svelte";
+
+	/** Preview length in the table; longer text opens a popover on click. */
+	const DESCRIPTION_TABLE_PREVIEW_MAX = 45;
+
+	function serviceDescriptionPreview(text: string): { preview: string; isTruncated: boolean } {
+		const d = text.trim();
+		if (d.length <= DESCRIPTION_TABLE_PREVIEW_MAX) {
+			return { preview: d, isTruncated: false };
+		}
+		return {
+			preview: `${d.slice(0, DESCRIPTION_TABLE_PREVIEW_MAX)}…`,
+			isTruncated: true,
+		};
+	}
 
 	// Services
 	let serviceFilters = $state<ServiceQueryParams>({ page: 1, limit: PAGINATION.DEFAULT_PAGE_SIZE });
@@ -89,6 +112,7 @@
 			? ACQUISITION_TYPE[selectedAcquisitionFilter as AcquisitionType]?.label ?? 'Tipo'
 			: 'Todos os tipos'
 	);
+	const hasClientSearch = $derived(Boolean(serviceFilters.search?.trim()));
 	const pageSizeOptions = $derived([...(PAGINATION.PAGE_SIZE_OPTIONS ?? [10, 25, 50, 100])]);
 	
 	// Delete mutations
@@ -146,8 +170,77 @@
 	}
 
 	function resetServiceFilters() {
+		clientSearchInput = "";
+		if (clientSearchDebounce) {
+			clearTimeout(clientSearchDebounce);
+			clientSearchDebounce = null;
+		}
 		serviceFilters = { page: 1, limit: PAGINATION.DEFAULT_PAGE_SIZE };
 	}
+
+	/** Local input value; debounced into serviceFilters.search */
+	let clientSearchInput = $state("");
+	let clientSearchDebounce: ReturnType<typeof setTimeout> | null = null;
+
+	function scheduleClientSearchCommit() {
+		if (clientSearchDebounce) clearTimeout(clientSearchDebounce);
+		clientSearchDebounce = setTimeout(() => {
+			clientSearchDebounce = null;
+			const q = clientSearchInput.trim();
+			updateServiceFilters(
+				{
+					search: q || undefined,
+				},
+				{ resetPage: true }
+			);
+		}, 300);
+	}
+
+	function onClientSearchInput(e: Event) {
+		const v = (e.target as HTMLInputElement).value;
+		clientSearchInput = v;
+		scheduleClientSearchCommit();
+	}
+
+	const sortOptionValue = $derived.by(() => {
+		const sb = serviceFilters.sortBy ?? "created_at";
+		const so = serviceFilters.sortOrder ?? "desc";
+		return `${sb}:${so}`;
+	});
+
+	const sortOptions = [
+		{ value: "created_at:desc", label: "Data (mais recentes)" },
+		{ value: "created_at:asc", label: "Data (mais antigos)" },
+		{ value: "priority:asc", label: "Prioridade (A → Z)" },
+		{ value: "priority:desc", label: "Prioridade (Z → A)" },
+		{ value: "status:asc", label: "Status (A → Z)" },
+		{ value: "status:desc", label: "Status (Z → A)" },
+	] as const;
+
+	function onSortChange(value: string) {
+		const [sortBy, sortOrder] = value.split(":") as ["priority" | "status" | "created_at", "asc" | "desc"];
+		updateServiceFilters({ sortBy, sortOrder }, { resetPage: true });
+	}
+
+	let statusStepsPopoverId = $state<number | null>(null);
+
+	/** On small screens filters are collapsed until the user opens them. */
+	let mobileServicesFiltersOpen = $state(false);
+
+	function uniqueStepResponsibleNames(service: Service): string {
+		const steps = service.steps ?? [];
+		const names = new Set<string>();
+		for (const s of steps) {
+			const n = s.responsable?.name?.trim();
+			if (n) names.add(n);
+		}
+		if (names.size === 0) return "";
+		return [...names].sort((a, b) => a.localeCompare(b, "pt-BR")).join(", ");
+	}
+
+	onDestroy(() => {
+		if (clientSearchDebounce) clearTimeout(clientSearchDebounce);
+	});
 
 	function handlePageChange(page: number) {
 		const maxPage = servicesResponse?.totalPages ?? 1;
@@ -295,111 +388,176 @@
 						</div>
 					</CardHeader>
 					<CardContent>
-						<div class="flex flex-col gap-4 mb-6">
-							<div class="grid grid-cols-2 gap-2 lg:grid-cols-4">
-								<div class="flex flex-col gap-2 col-span-2 md:col-span-1">
-									<Label>Categoria</Label>
-									<Select
-										type="single"
-										value={selectedCategoryFilter}
-										onValueChange={(value: string) =>
-											updateServiceFilters(
-												{
-													categoryId: value ? parseInt(value) : undefined
-												},
-												{ resetPage: true }
-											)
-										}
-									>
-										<SelectTrigger>
-											{#if !selectedCategoryFilter}
-												Todas as categorias
-											{:else}
-												{categories.find((category) => category.id.toString() === selectedCategoryFilter)?.name || 'Categoria'}
-											{/if}
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value="">Todas as categorias</SelectItem>
-											{#if isLoadingCategories}
-												<SelectItem value="" disabled>Carregando...</SelectItem>
-											{:else}
-												{#each categories as category (category.id)}
-													<SelectItem value={category.id.toString()}>{category.name}</SelectItem>
-												{/each}
-											{/if}
-										</SelectContent>
-									</Select>
-								</div>
-	
-								<div class="flex flex-col gap-2 col-span-2 md:col-span-1">
-									<Label>Cidade</Label>
-									<Select
-										type="single"
-										value={selectedCityFilter}
-										onValueChange={(value: string) =>
-											updateServiceFilters(
-												{
-													cityId: value ? parseInt(value) : undefined
-												},
-												{ resetPage: true }
-											)
-										}
-									>
-										<SelectTrigger>
-											{#if !selectedCityFilter}
-												Todas as cidades
-											{:else}
-												{cityOptions.find((option) => option.id.toString() === selectedCityFilter)?.label || 'Cidade'}
-											{/if}
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value="">Todas as cidades</SelectItem>
-											{#if clientsQuery.isLoading}
-												<SelectItem value="" disabled>Carregando...</SelectItem>
-											{:else if !cityOptions.length}
-												<SelectItem value="" disabled>Nenhuma cidade disponível</SelectItem>
-											{:else}
-												{#each cityOptions as option (option.id)}
-													<SelectItem value={option.id.toString()}>{option.label}</SelectItem>
-												{/each}
-											{/if}
-										</SelectContent>
-									</Select>
-								</div>
-	
-								<div class="flex flex-col gap-2 col-span-2 md:col-span-1">
-									<Label>Tipo de aquisição</Label>
-									<Select
-										type="single"
-										value={selectedAcquisitionFilter}
-										onValueChange={(value: string) =>
-											updateServiceFilters(
-												{
-													acquisitionType: value ? (value as AcquisitionType) : undefined
-												},
-												{ resetPage: true }
-											)
-										}
-									>
-										<SelectTrigger>
-											{selectedAcquisitionLabel}
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value="">Todos os tipos</SelectItem>
-											{#each acquisitionOptions as option (option.value)}
-												<SelectItem value={option.value}>{option.label}</SelectItem>
-											{/each}
-										</SelectContent>
-									</Select>
+						<div class="mb-6 flex flex-col gap-4">
+							<div class="flex md:hidden">
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									class="w-full justify-center gap-2"
+									aria-expanded={mobileServicesFiltersOpen}
+									aria-controls="services-filters-panel"
+									onclick={() => (mobileServicesFiltersOpen = !mobileServicesFiltersOpen)}
+								>
+									<ListFilter class="h-4 w-4 shrink-0" />
+									{mobileServicesFiltersOpen ? "Fechar filtros" : "Abrir filtros"}
+								</Button>
+							</div>
+
+							<div
+								id="services-filters-panel"
+								class="flex-col gap-4 {mobileServicesFiltersOpen ? 'flex' : 'hidden md:flex'}"
+							>
+								<div
+									class="flex flex-col gap-3 xl:flex-row xl:items-end xl:gap-4"
+								>
+								<!-- Busca por cliente (primeiro) -->
+								<div class="flex w-full min-w-0 flex-col gap-2 xl:max-w-sm xl:shrink-0">
+									<Label for="service-client-search">Buscar por cliente</Label>
+									<Input
+										id="service-client-search"
+										type="search"
+										placeholder="Nome do cliente…"
+										value={clientSearchInput}
+										oninput={onClientSearchInput}
+										autocomplete="off"
+									/>
+									{#if hasClientSearch}
+										<p class="text-xs text-muted-foreground">
+											Ordenação manual desativada: resultados ordenados por nome do cliente e data.
+										</p>
+									{/if}
 								</div>
 
-								<div class="flex items-end justify-end gap-2 col-span-2 md:col-span-1">
-									<Button type="button" variant="outline" size="sm" onclick={resetServiceFilters} class="w-full md:w-auto">
+								<!-- Demais filtros agrupados -->
+								<div
+									class="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4"
+								>
+									<div class="flex flex-col gap-2">
+										<Label>Categoria</Label>
+										<Select
+											type="single"
+											value={selectedCategoryFilter}
+											onValueChange={(value: string) =>
+												updateServiceFilters(
+													{
+														categoryId: value ? parseInt(value) : undefined
+													},
+													{ resetPage: true }
+												)
+											}
+										>
+											<SelectTrigger>
+												{#if !selectedCategoryFilter}
+													Todas as categorias
+												{:else}
+													{categories.find((category) => category.id.toString() === selectedCategoryFilter)?.name || 'Categoria'}
+												{/if}
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="">Todas as categorias</SelectItem>
+												{#if isLoadingCategories}
+													<SelectItem value="" disabled>Carregando...</SelectItem>
+												{:else}
+													{#each categories as category (category.id)}
+														<SelectItem value={category.id.toString()}>{category.name}</SelectItem>
+													{/each}
+												{/if}
+											</SelectContent>
+										</Select>
+									</div>
+
+									<div class="flex flex-col gap-2">
+										<Label>Cidade</Label>
+										<Select
+											type="single"
+											value={selectedCityFilter}
+											onValueChange={(value: string) =>
+												updateServiceFilters(
+													{
+														cityId: value ? parseInt(value) : undefined
+													},
+													{ resetPage: true }
+												)
+											}
+										>
+											<SelectTrigger>
+												{#if !selectedCityFilter}
+													Todas as cidades
+												{:else}
+													{cityOptions.find((option) => option.id.toString() === selectedCityFilter)?.label || 'Cidade'}
+												{/if}
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="">Todas as cidades</SelectItem>
+												{#if clientsQuery.isLoading}
+													<SelectItem value="" disabled>Carregando...</SelectItem>
+												{:else if !cityOptions.length}
+													<SelectItem value="" disabled>Nenhuma cidade disponível</SelectItem>
+												{:else}
+													{#each cityOptions as option (option.id)}
+														<SelectItem value={option.id.toString()}>{option.label}</SelectItem>
+													{/each}
+												{/if}
+											</SelectContent>
+										</Select>
+									</div>
+
+									<div class="flex flex-col gap-2">
+										<Label>Tipo de aquisição</Label>
+										<Select
+											type="single"
+											value={selectedAcquisitionFilter}
+											onValueChange={(value: string) =>
+												updateServiceFilters(
+													{
+														acquisitionType: value ? (value as AcquisitionType) : undefined
+													},
+													{ resetPage: true }
+												)
+											}
+										>
+											<SelectTrigger>
+												{selectedAcquisitionLabel}
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="">Todos os tipos</SelectItem>
+												{#each acquisitionOptions as option (option.value)}
+													<SelectItem value={option.value}>{option.label}</SelectItem>
+												{/each}
+											</SelectContent>
+										</Select>
+									</div>
+
+									<div class="flex flex-col gap-2">
+										<Label>Ordenar por</Label>
+										<Select
+											type="single"
+											value={sortOptionValue}
+											onValueChange={(value: string) => value && onSortChange(value)}
+											disabled={hasClientSearch}
+										>
+											<SelectTrigger>
+												{sortOptions.find((o) => o.value === sortOptionValue)?.label ?? "Ordenação"}
+											</SelectTrigger>
+											<SelectContent>
+												{#each sortOptions as opt (opt.value)}
+													<SelectItem value={opt.value}>{opt.label}</SelectItem>
+												{/each}
+											</SelectContent>
+										</Select>
+									</div>
+								</div>
+
+								<!-- Limpar filtros por último -->
+								<div class="flex shrink-0 flex-row items-end justify-end gap-2">
+									<Button type="button" variant="outline" size="sm" onclick={resetServiceFilters}>
 										Limpar filtros
 									</Button>
 									{#if isFetchingServices}
-										<Skeleton class="h-8 w-16" />
+										<Skeleton class="h-9 w-16 shrink-0" />
 									{/if}
+								</div>
 								</div>
 							</div>
 						</div>
@@ -426,10 +584,12 @@
 									<TableRow>
 										<TableHead>ID</TableHead>
 										<TableHead>Cliente</TableHead>
+										<TableHead class="min-w-[10rem] max-w-[22rem]">Descrição</TableHead>
 										<TableHead>Cidade</TableHead>
 										<TableHead>Categoria</TableHead>
 										<TableHead>Prioridade</TableHead>
 										<TableHead>Status</TableHead>
+										<TableHead class="min-w-[10rem]">Funcionários responsáveis</TableHead>
 										<TableHead>Data de Criação</TableHead>
 										{#if userCanManageServices}
 											<TableHead class="w-[100px] text-center">Ações</TableHead>
@@ -437,13 +597,48 @@
 									</TableRow>
 								</TableHeader>
 								<TableBody>
-									{#each services as service}
+									{#each services as service (service.id)}
+										{@const responsibles = uniqueStepResponsibleNames(service)}
 										<TableRow
 											class="hover:bg-muted/50 cursor-pointer"
 											onclick={() => handleRowClick(service.id)}
 										>
 											<TableCell class="font-medium">#{service.id}</TableCell>
 											<TableCell>{service.client?.name || '-'}</TableCell>
+											<TableCell
+												class="max-w-[22rem] align-top text-sm"
+												onclick={(e) => e.stopPropagation()}
+											>
+												{#if service.description?.trim()}
+													{@const desc = service.description.trim()}
+													{@const { preview, isTruncated } = serviceDescriptionPreview(desc)}
+													{#if isTruncated}
+														<Popover.Root>
+															<Popover.Trigger
+																class="inline-flex max-w-full cursor-pointer rounded border-0 bg-transparent p-0 text-left text-foreground underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+																type="button"
+															>
+																{preview}
+															</Popover.Trigger>
+															<Popover.Portal>
+																<Popover.Content
+																	class="bg-popover text-popover-foreground z-50 w-[min(100vw-2rem,28rem)] max-w-[28rem] rounded-md border p-3 shadow-md outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
+																	side="bottom"
+																	align="start"
+																	sideOffset={6}
+																	onclick={(e) => e.stopPropagation()}
+																>
+																	<p class="whitespace-pre-wrap break-words text-sm">{desc}</p>
+																</Popover.Content>
+															</Popover.Portal>
+														</Popover.Root>
+													{:else}
+														<span class="text-foreground">{preview}</span>
+													{/if}
+												{:else}
+													<span class="text-muted-foreground">—</span>
+												{/if}
+											</TableCell>
 											<TableCell class="font-medium">
 												{service?.client?.address?.neighborhood?.city?.name || '-'}
 											</TableCell>
@@ -461,15 +656,22 @@
 										<span class="text-muted-foreground text-sm">-</span>
 									{/if}
 											</TableCell>
-											<TableCell>
-												{#if service.status}
-												<Badge
-													variant={getServiceStatusVariant(service.status)}
-												>
-														{getServiceStatusLabel(service.status)}
-													</Badge>
+											<TableCell class="align-top" onclick={(e) => e.stopPropagation()}>
+												<ServiceStepsOverviewPopover
+													{service}
+													open={statusStepsPopoverId === service.id}
+													onOpenChange={(open) => {
+														statusStepsPopoverId = open ? service.id : null;
+													}}
+												/>
+											</TableCell>
+											<TableCell class="max-w-[14rem] text-sm align-top">
+												{#if responsibles}
+													<span class="line-clamp-3" title={responsibles}>
+														{responsibles}
+													</span>
 												{:else}
-													<span class="text-muted-foreground text-sm">-</span>
+													<span class="text-muted-foreground">—</span>
 												{/if}
 											</TableCell>
 											<TableCell>{formatDate(service.createdAt)}</TableCell>

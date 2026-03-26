@@ -16,6 +16,7 @@
 	import { Loader2, ClipboardList, Plus, Trash2, Check } from 'lucide-svelte';
 	import { showError, successToast } from '$lib/utils/toast.js';
 	import { SERVICE_PRIORITY } from '$lib/utils/constants.js';
+	import { getPaymentMethodLabel } from '$lib/utils/formatting.js';
 	import { useCreateService, useUpdateService, useService } from '$lib/hooks/queries/use-services.svelte.js';
 	import ClientAsyncSelect from '$lib/components/client-async-select.svelte';
 	import { useCategories } from '$lib/hooks/queries/use-categories.svelte.js';
@@ -1076,7 +1077,9 @@
 									onValueChange={(value: string) => formData.paymentMethod = value || undefined}
 								>
 									<SelectTrigger>
-										{formData.paymentMethod || 'Selecione o método de pagamento'}
+										{formData.paymentMethod
+											? getPaymentMethodLabel(formData.paymentMethod)
+											: 'Selecione o método de pagamento'}
 									</SelectTrigger>
 									<SelectContent>
 										<SelectItem value="Cash">Dinheiro</SelectItem>
@@ -1085,7 +1088,7 @@
 										<SelectItem value="Credit Card">Cartão de Crédito</SelectItem>
 										<SelectItem value="Bank Slip">Boleto</SelectItem>
 										<SelectItem value="Transfer">Transferência</SelectItem>
-										<SelectItem value="Fiado">Fiado</SelectItem>
+										<SelectItem value="Fiado">Faturado</SelectItem>
 									</SelectContent>
 								</Select>
 							</div>

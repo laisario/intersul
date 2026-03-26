@@ -140,13 +140,19 @@ export interface UpdateServiceDto extends Partial<CreateServiceDto> {
   id: number;
 }
 
+export type ServiceListSortBy = 'priority' | 'status' | 'created_at';
+export type ServiceListSortOrder = 'asc' | 'desc';
+
 export interface ServiceQueryParams {
   categoryId?: number;
   clientId?: number;
   clientCopyMachineId?: number;
   cityId?: number;
   acquisitionType?: AcquisitionType;
+  /** Client name substring search (backend); when set, sort_by/sort_order are ignored */
   search?: string;
+  sortBy?: ServiceListSortBy;
+  sortOrder?: ServiceListSortOrder;
   page?: number;
   limit?: number;
 }

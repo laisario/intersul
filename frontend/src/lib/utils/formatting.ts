@@ -248,3 +248,30 @@ export function isValidCPF(cpf: string): boolean {
   
   return digits[10] === checkDigit2;
 }
+
+/** Exact API / form values → Portuguese labels (stored value may stay "Fiado"). */
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  Fiado: 'Faturado',
+  Cash: 'Dinheiro',
+  PIX: 'PIX',
+  'Debit Card': 'Cartão de Débito',
+  'Credit Card': 'Cartão de Crédito',
+  'Bank Slip': 'Boleto',
+  Transfer: 'Transferência',
+};
+
+/**
+ * Display label for payment method strings stored in the API.
+ * Persisted value remains "Fiado" where applicable; UI shows "Faturado".
+ */
+export function getPaymentMethodLabel(method?: string | null): string {
+  if (!method) return '';
+  const normalized = method.trim();
+  if (PAYMENT_METHOD_LABELS[normalized]) return PAYMENT_METHOD_LABELS[normalized];
+  const lower = normalized.toLowerCase();
+  if (lower === 'bank slip' || lower === 'boleto') return 'Boleto';
+  if (lower === 'pix') return 'PIX';
+  if (lower === 'cash' || lower === 'dinheiro') return 'Dinheiro';
+  if (lower === 'credit card' || lower === 'cartão' || lower === 'cartao') return 'Cartão';
+  return normalized;
+}

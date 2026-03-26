@@ -245,6 +245,43 @@ export function getServicePriorityVariant(priority?: string | null): 'priority-l
   return 'outline';
 }
 
+/** Step status labels (backend enums: PENDING, IN_PROGRESS, CONCLUDED, CANCELLED; legacy lowercase supported) */
+const STEP_STATUS_LABELS: Record<string, string> = {
+  PENDING: 'Pendente',
+  IN_PROGRESS: 'Em andamento',
+  CONCLUDED: 'Concluída',
+  CANCELLED: 'Cancelada',
+  SKIPPED: 'Pulada',
+  pending: 'Pendente',
+  in_progress: 'Em andamento',
+  concluded: 'Concluída',
+  completed: 'Concluída',
+  cancelled: 'Cancelada',
+  skipped: 'Pulada',
+};
+
+export function getStepStatusLabel(status?: string | null): string {
+  if (!status) return 'Não informado';
+  const upper = status.toUpperCase();
+  return STEP_STATUS_LABELS[upper] ?? STEP_STATUS_LABELS[status] ?? status;
+}
+
+/**
+ * Badge variant for step status (same semantic colors as service status badges).
+ */
+export function getStepStatusVariant(
+  status?: string | null
+): 'pending' | 'in-progress' | 'concluded' | 'destructive' | 'secondary' | 'outline' {
+  if (!status) return 'outline';
+  const key = status.toUpperCase().replace(/-/g, '_');
+  if (key === 'PENDING') return 'pending';
+  if (key === 'IN_PROGRESS') return 'in-progress';
+  if (key === 'CONCLUDED' || key === 'COMPLETED') return 'concluded';
+  if (key === 'CANCELLED') return 'destructive';
+  if (key === 'SKIPPED') return 'secondary';
+  return 'outline';
+}
+
 // Acquisition type configuration
 export const ACQUISITION_TYPE = {
   [AcquisitionType.RENT]: {

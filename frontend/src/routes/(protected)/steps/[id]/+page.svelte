@@ -1,20 +1,7 @@
 <script lang="ts">
 	import { useStep, useUpdateStep, useStartStep, useConcludeStep, useCancelStep, useStepImages } from '$lib/hooks/queries/use-steps.svelte.js';
 	import { errorToast, successToast, showError } from '$lib/utils/toast.js';
-	import { formatDate, formatCurrency } from '$lib/utils/formatting.js';
-
-	// Translate payment method to Portuguese
-	function getPaymentMethodLabel(method: string): string {
-		const translations: Record<string, string> = {
-			'Cash': 'Dinheiro',
-			'PIX': 'PIX',
-			'Debit Card': 'Cartão de Débito',
-			'Credit Card': 'Cartão de Crédito',
-			'Bank Slip': 'Boleto',
-			'Transfer': 'Transferência',
-		};
-		return translations[method] || method;
-	}
+	import { formatDate, formatCurrency, getPaymentMethodLabel } from '$lib/utils/formatting.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { LoadingButton } from '$lib/components/ui/loading-button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
@@ -799,7 +786,7 @@
 													<SelectItem value="Credit Card">Cartão de Crédito</SelectItem>
 													<SelectItem value="Bank Slip">Boleto</SelectItem>
 													<SelectItem value="Transfer">Transferência</SelectItem>
-													<SelectItem value="Fiado">Fiado</SelectItem>
+													<SelectItem value="Fiado">Faturado</SelectItem>
 												</SelectContent>
 											</Select>
 										</div>

@@ -1,6 +1,25 @@
 # Feature: List Services
 
-Retrieves paginated list of services with optional filters (category, client, city, acquisition type). Supports pagination and returns service data with relations including price and payment fields (for external services).
+Retrieves a **paginated** list of services with optional filters (category, client, copy machine, city, acquisition type), **optional client name search**, and **sorting** by priority, status, or creation date. List items include **steps** and each step’s **responsible user** (`responsable`) loaded in a second query to avoid N+1 and broken pagination. Response includes payment-related fields for external services where applicable.
+
+## Query parameters (`GET /services`)
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `category_id` | number | Filter by category |
+| `client_id` | number | Filter by client |
+| `client_copy_machine_id` | number | Filter by client copy machine |
+| `city_id` | number | Filter by client city |
+| `acquisition_type` | enum | Filter by machine acquisition type |
+| `search` | string | Substring match on `client.name`. When set, results are ordered by **`client.name` ASC**, then **`service.created_at` DESC** (TypeORM-safe; raw `CASE WHEN client.name …` in `ORDER BY` is not used because TypeORM mis-parses expressions that contain `client.name`). **`sort_by` / `sort_order` are ignored** while `search` is present. |
+| `sort_by` | `priority` \| `status` \| `created_at` | Sort field (only when `search` is empty). Invalid values fall back to `created_at`. |
+| `sort_order` | `asc` \| `desc` | Sort direction (default `desc` for `created_at`; use `asc`/`desc` for priority/status). |
+| `page` | number | Page (1-based) |
+| `limit` | number | Page size (max 100) |
+
+## Response shape
+
+Paginated envelope: `{ data, total, page, limit, totalPages }`. Each service includes relations needed for the list UI: `client` (with address → neighborhood → city → state), `category`, `clientCopyMachine` (+ catalog), **`steps`** sorted by `id`, each step with **`responsable`** (user name for assignee).
 
 ## User value
 
@@ -22,7 +41,7 @@ Retrieves paginated list of services with optional filters (category, client, ci
 - Authentication and authorization checks
 
 ### Out of scope
-- Advanced filtering and search (if not implemented)
+- Full-text / fuzzy search beyond client name `LIKE`
 - Bulk operations
 - Export functionality
 - Advanced reporting

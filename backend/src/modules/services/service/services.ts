@@ -40,6 +40,9 @@ export class ServicesService {
     client_copy_machine_id?: number;
     city_id?: number;
     acquisition_type?: AcquisitionType;
+    search?: string;
+    sort_by?: 'priority' | 'status' | 'created_at';
+    sort_order?: 'asc' | 'desc';
     page?: number;
     limit?: number;
   }): Promise<{ data: Service[]; total: number; page: number; limit: number; totalPages: number }> {
@@ -47,6 +50,7 @@ export class ServicesService {
     const limit = Math.max(Math.min(filters?.limit ?? 10, 100), 1);
     const skip = (page - 1) * limit;
 
+    // No `steps` join here: avoids inflated row counts and broken pagination.
     const query = this.servicesRepository
       .createQueryBuilder('service')
       .leftJoinAndSelect('service.client', 'client')
@@ -56,8 +60,7 @@ export class ServicesService {
       .leftJoinAndSelect('city.state', 'state')
       .leftJoinAndSelect('service.category', 'category')
       .leftJoinAndSelect('service.clientCopyMachine', 'clientCopyMachine')
-      .leftJoinAndSelect('clientCopyMachine.catalogCopyMachine', 'catalogCopyMachine')
-      .leftJoinAndSelect('service.steps', 'steps')
+      .leftJoinAndSelect('clientCopyMachine.catalogCopyMachine', 'catalogCopyMachine');
 
     if (filters?.category_id) {
       query.andWhere('service.category_id = :category_id', { category_id: filters.category_id });
@@ -66,7 +69,9 @@ export class ServicesService {
       query.andWhere('service.client_id = :client_id', { client_id: filters.client_id });
     }
     if (filters?.client_copy_machine_id) {
-      query.andWhere('service.client_copy_machine_id = :client_copy_machine_id', { client_copy_machine_id: filters.client_copy_machine_id });
+      query.andWhere('service.client_copy_machine_id = :client_copy_machine_id', {
+        client_copy_machine_id: filters.client_copy_machine_id,
+      });
     }
     if (filters?.city_id) {
       query.andWhere('city.id = :city_id', { city_id: filters.city_id });
@@ -77,16 +82,64 @@ export class ServicesService {
       });
     }
 
-    const [data, total] = await query
-      .orderBy('service.created_at', 'DESC')
-      .take(limit)
-      .skip(skip)
-      .getManyAndCount();
+    const searchTrim = filters?.search?.trim();
+    if (searchTrim) {
+      query.andWhere('client.name LIKE :clientSearchLike', {
+        clientSearchLike: `%${searchTrim}%`,
+      });
+      query.orderBy('client.name', 'ASC').addOrderBy('service.created_at', 'DESC');
+    } else {
+      const sortOrder = filters?.sort_order === 'asc' ? 'ASC' : 'DESC';
+      const sortBy = filters?.sort_by;
+      const allowedSort: Array<'priority' | 'status' | 'created_at'> = ['priority', 'status', 'created_at'];
+      const effectiveSort = sortBy && allowedSort.includes(sortBy) ? sortBy : 'created_at';
 
+      if (effectiveSort === 'priority') {
+        query.orderBy('service.priority', sortOrder).addOrderBy('service.created_at', 'DESC');
+      } else if (effectiveSort === 'status') {
+        query.orderBy('service.status', sortOrder).addOrderBy('service.created_at', 'DESC');
+      } else {
+        query.orderBy('service.created_at', sortOrder);
+      }
+    }
+
+    const [pageRows, total] = await query.take(limit).skip(skip).getManyAndCount();
     const totalPages = Math.ceil(total / limit) || 1;
 
+    const ids = pageRows.map((s) => s.id);
+    if (ids.length === 0) {
+      return { data: [], total, page, limit, totalPages };
+    }
+
+    const listRelations = [
+      'client',
+      'client.address',
+      'client.address.neighborhood',
+      'client.address.neighborhood.city',
+      'client.address.neighborhood.city.state',
+      'category',
+      'clientCopyMachine',
+      'clientCopyMachine.catalogCopyMachine',
+      'steps',
+      'steps.responsable',
+    ] as const;
+
+    const withSteps = await this.servicesRepository.find({
+      where: { id: In(ids) },
+      relations: [...listRelations],
+    });
+
+    for (const s of withSteps) {
+      if (s.steps?.length) {
+        s.steps.sort((a, b) => a.id - b.id);
+      }
+    }
+
+    const orderMap = new Map(ids.map((id, i) => [id, i]));
+    withSteps.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));
+
     return {
-      data,
+      data: withSteps,
       total,
       page,
       limit,

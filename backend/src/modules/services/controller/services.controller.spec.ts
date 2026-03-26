@@ -21,6 +21,14 @@ describe('ServicesController', () => {
 
   const mockServices: Service[] = [mockService];
 
+  const mockListResponse = {
+    data: mockServices,
+    total: 1,
+    page: 1,
+    limit: 10,
+    totalPages: 1,
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ServicesController],
@@ -43,67 +51,88 @@ describe('ServicesController', () => {
   });
 
   describe('findAll', () => {
-    it('should return all services without filters', async () => {
-      jest.spyOn(servicesService, 'findAll').mockResolvedValue(mockServices);
+    it('should return paginated services without filters', async () => {
+      jest.spyOn(servicesService, 'findAll').mockResolvedValue(mockListResponse);
 
       const result = await servicesController.findAll();
 
-      expect(result).toBe(mockServices);
+      expect(result).toBe(mockListResponse);
       expect(servicesService.findAll).toHaveBeenCalledWith({});
     });
 
     it('should return filtered services by category_id', async () => {
-      const categoryId = 1;
-      jest.spyOn(servicesService, 'findAll').mockResolvedValue(mockServices);
+      const categoryId = '1';
+      jest.spyOn(servicesService, 'findAll').mockResolvedValue(mockListResponse);
 
       const result = await servicesController.findAll(categoryId);
 
-      expect(result).toBe(mockServices);
-      expect(servicesService.findAll).toHaveBeenCalledWith({ category_id: categoryId });
+      expect(result).toBe(mockListResponse);
+      expect(servicesService.findAll).toHaveBeenCalledWith({ category_id: 1 });
     });
 
     it('should return filtered services by client_id', async () => {
-      const clientId = 1;
-      jest.spyOn(servicesService, 'findAll').mockResolvedValue(mockServices);
+      jest.spyOn(servicesService, 'findAll').mockResolvedValue(mockListResponse);
 
-      const result = await servicesController.findAll(undefined, clientId);
+      const result = await servicesController.findAll(undefined, '2');
 
-      expect(result).toBe(mockServices);
-      expect(servicesService.findAll).toHaveBeenCalledWith({ client_id: clientId });
+      expect(result).toBe(mockListResponse);
+      expect(servicesService.findAll).toHaveBeenCalledWith({ client_id: 2 });
     });
 
     it('should return filtered services by client_copy_machine_id', async () => {
-      const clientCopyMachineId = 1;
-      jest.spyOn(servicesService, 'findAll').mockResolvedValue(mockServices);
+      jest.spyOn(servicesService, 'findAll').mockResolvedValue(mockListResponse);
 
-      const result = await servicesController.findAll(undefined, undefined, clientCopyMachineId);
+      const result = await servicesController.findAll(undefined, undefined, '3');
 
-      expect(result).toBe(mockServices);
-      expect(servicesService.findAll).toHaveBeenCalledWith({ client_copy_machine_id: clientCopyMachineId });
+      expect(result).toBe(mockListResponse);
+      expect(servicesService.findAll).toHaveBeenCalledWith({ client_copy_machine_id: 3 });
     });
 
     it('should return filtered services with multiple filters', async () => {
-      const categoryId = 1;
-      const clientId = 1;
-      const clientCopyMachineId = 1;
-      jest.spyOn(servicesService, 'findAll').mockResolvedValue(mockServices);
+      jest.spyOn(servicesService, 'findAll').mockResolvedValue(mockListResponse);
 
-      const result = await servicesController.findAll(categoryId, clientId, clientCopyMachineId);
+      const result = await servicesController.findAll('1', '2', '3');
 
-      expect(result).toBe(mockServices);
+      expect(result).toBe(mockListResponse);
       expect(servicesService.findAll).toHaveBeenCalledWith({
-        category_id: categoryId,
-        client_id: clientId,
-        client_copy_machine_id: clientCopyMachineId,
+        category_id: 1,
+        client_id: 2,
+        client_copy_machine_id: 3,
       });
     });
 
-    it('should return empty array when no services exist', async () => {
-      jest.spyOn(servicesService, 'findAll').mockResolvedValue([]);
+    it('should pass search, sort_by and sort_order', async () => {
+      jest.spyOn(servicesService, 'findAll').mockResolvedValue(mockListResponse);
+
+      await servicesController.findAll(
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        'Acme',
+        'priority',
+        'asc',
+        '2',
+        '25',
+      );
+
+      expect(servicesService.findAll).toHaveBeenCalledWith({
+        search: 'Acme',
+        sort_by: 'priority',
+        sort_order: 'asc',
+        page: 2,
+        limit: 25,
+      });
+    });
+
+    it('should return empty data when no services exist', async () => {
+      const empty = { data: [], total: 0, page: 1, limit: 10, totalPages: 1 };
+      jest.spyOn(servicesService, 'findAll').mockResolvedValue(empty);
 
       const result = await servicesController.findAll();
 
-      expect(result).toEqual([]);
+      expect(result).toEqual(empty);
       expect(servicesService.findAll).toHaveBeenCalledWith({});
     });
   });

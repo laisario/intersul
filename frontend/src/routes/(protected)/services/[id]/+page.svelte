@@ -2,7 +2,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { useService, useServices, useUpdateService } from '$lib/hooks/queries/use-services.svelte.js';
-	import { formatDate, formatCurrency } from '$lib/utils/formatting.js';
+	import { formatDate, formatCurrency, getPaymentMethodLabel } from '$lib/utils/formatting.js';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -507,7 +507,7 @@
 								{#if service.paymentMethod}
 									<div class="mb-2">
 										<span class="font-medium text-muted-foreground block">Método de Pagamento</span>
-										<span class="mt-1 block">{service.paymentMethod}</span>
+										<span class="mt-1 block">{getPaymentMethodLabel(service.paymentMethod)}</span>
 									</div>
 								{/if}
 								{#if service.isInvoiced !== undefined}

@@ -43,25 +43,67 @@ export class ServicesController {
   })
   @ApiQuery({ name: 'page', required: false, description: 'Page number for pagination' })
   @ApiQuery({ name: 'limit', required: false, description: 'Number of records per page' })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    description: 'Filter by client name (substring match); when set, results ordered by name relevance then newest first',
+  })
+  @ApiQuery({
+    name: 'sort_by',
+    required: false,
+    description: 'Sort field when search is empty',
+    enum: ['priority', 'status', 'created_at'],
+  })
+  @ApiQuery({
+    name: 'sort_order',
+    required: false,
+    description: 'asc or desc (default desc for created_at; asc/desc for priority and status)',
+    enum: ['asc', 'desc'],
+  })
   async findAll(
     @Query('category_id') category_id?: string,
     @Query('client_id') client_id?: string,
     @Query('client_copy_machine_id') client_copy_machine_id?: string,
     @Query('city_id') city_id?: string,
     @Query('acquisition_type') acquisition_type?: AcquisitionType,
+    @Query('search') search?: string,
+    @Query('sort_by') sort_by?: string,
+    @Query('sort_order') sort_order?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ): Promise<{ data: Service[]; total: number; page: number; limit: number; totalPages: number }> {
-    const filters: any = {};
+    const filters: Record<string, unknown> = {};
     if (category_id) filters.category_id = Number(category_id);
     if (client_id) filters.client_id = Number(client_id);
     if (client_copy_machine_id) filters.client_copy_machine_id = Number(client_copy_machine_id);
     if (city_id) filters.city_id = Number(city_id);
     if (acquisition_type) filters.acquisition_type = acquisition_type;
+    if (search !== undefined && search !== null && String(search).trim() !== '') {
+      filters.search = String(search).trim();
+    }
+    if (sort_by === 'priority' || sort_by === 'status' || sort_by === 'created_at') {
+      filters.sort_by = sort_by;
+    }
+    if (sort_order === 'asc' || sort_order === 'desc') {
+      filters.sort_order = sort_order;
+    }
     if (page) filters.page = Number(page);
     if (limit) filters.limit = Number(limit);
 
-    return this.servicesService.findAll(filters);
+    return this.servicesService.findAll(
+      filters as {
+        category_id?: number;
+        client_id?: number;
+        client_copy_machine_id?: number;
+        city_id?: number;
+        acquisition_type?: AcquisitionType;
+        search?: string;
+        sort_by?: 'priority' | 'status' | 'created_at';
+        sort_order?: 'asc' | 'desc';
+        page?: number;
+        limit?: number;
+      },
+    );
   }
 
   @Get('stats')
