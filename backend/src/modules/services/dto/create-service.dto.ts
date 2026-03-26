@@ -111,6 +111,21 @@ export class CreateServiceDto {
   is_internal?: boolean;
 
   @ApiProperty({
+    example: true,
+    description:
+      'When false (external service), no payment step is created and payment fields are cleared. When omitted on create, inferred from amount_to_receive / payment_method for backward compatibility.',
+    required: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === 'true' || value === true) return true;
+    if (value === 'false' || value === false) return false;
+    return undefined;
+  })
+  has_payment?: boolean;
+
+  @ApiProperty({
     example: 100.00,
     description: 'Amount to receive (optional for external services)',
     required: false,

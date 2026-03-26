@@ -2,7 +2,7 @@
 
 ## Feature summary
 
-Creates a new service record in the system. Services represent work orders for copy machine maintenance, rentals, sales, or supplies. The service is associated with a client, category, and optionally a client copy machine. Service creation may automatically generate workflow steps based on the service category. Services can include a price/value field. External services (is_internal = false) require payment fields (amount_to_receive, payment_method, is_invoiced) and automatically create payment-related steps.
+Creates a new service record in the system. Services represent work orders for copy machine maintenance, rentals, sales, or supplies. The service is associated with a client, category, and optionally a client copy machine. Service creation may automatically generate workflow steps based on the service category. **Payment-related fields and automatic payment/boleto steps apply only when the client sends `has_payment: true` for an external service (`is_internal = false`).** When `has_payment` is false or omitted without legacy payment hints, no payment step is created and payment columns are stored as empty/null.
 
 ## User value
 
@@ -10,7 +10,7 @@ Creates a new service record in the system. Services represent work orders for c
 - Enables service providers to create new work orders
 - Establishes service records for tracking and workflow management
 - Links services to clients and copy machines
-- Initiates service workflow with automatic step creation
+- Initiates service workflow with automatic step creation when configured
 
 **Who benefits:**
 - Service managers creating new service orders
@@ -21,139 +21,57 @@ Creates a new service record in the system. Services represent work orders for c
 
 ### In scope
 - Service creation with client, category, and optional copy machine
-- Service price/value field (optional)
-- Automatic workflow step generation based on category
+- Service price/value field when payment is enabled (optional)
+- Automatic workflow step generation from category suggestions (frontend) and/or payload steps
 - Service status initialization (typically PENDING)
-- Service type assignment (maintenance, rental, sale, supplies)
-- External service payment fields (amount_to_receive, payment_method, is_invoiced) - required when is_internal = false
-- Automatic step creation for external services: "Realizar pagamento" step
-- Automatic step creation for boleto payment method: "Cobrança de boleto" step
+- External vs internal service (`is_internal`)
+- **Explicit payment flag:** `has_payment` (boolean) for external services
+- When `has_payment` is true: optional `amount_to_receive`, `payment_method`, `is_invoiced`; automatic **"Realizar pagamento"** step; if method is boleto/bank slip, automatic **"Cobrança de boleto"** step
+- **Legacy API compatibility:** if `has_payment` is omitted on create and the body still includes a positive `amount_to_receive` and/or a non-empty `payment_method`, payment behavior is treated as enabled (same as before for integrations that never sent the flag)
 
 ### Out of scope
-- Service editing (separate feature)
-- Manual step creation during service creation
+- Service editing (same form component handles edit; dedicated doc may cover PATCH nuances)
 - Service duplication
-- Bulk service creation
+- Bulk service creation (except billing flows elsewhere)
 
 ## User flow
 
-1. User fills out service creation form (client, category, copy machine, price, etc.)
-2. User selects service type (internal or external)
-3. If external service (is_internal = false):
-   - User must fill payment fields: amount_to_receive, payment_method, is_invoiced
-   - System validates payment fields are provided
-4. System validates required fields (client, category)
-5. System validates external service payment fields if is_internal = false
-6. System creates service record
-7. System generates workflow steps based on category template
-8. If external service:
-   - System automatically creates "Realizar pagamento" step
-   - If payment_method is BOLETO, system creates additional "Cobrança de boleto" step
-9. System assigns steps to users (if assignment rules exist)
-10. System returns created service with steps
-11. **Error state**: Missing required fields → 400 Bad Request
-12. **Error state**: Invalid client/category → 400 Bad Request
-13. **Error state**: External service missing payment fields → 400 Bad Request
+1. User fills out service creation form (client, category, copy machine, description, etc.).
+2. User selects service type (internal or external).
+3. If external: user may enable **“Serviço com pagamento”**.
+4. Only if payment is enabled: user can fill payment fields and sees payment/boleto step previews.
+5. System creates the service; payment columns are null when payment is disabled.
+6. If external and payment enabled: system creates **"Realizar pagamento"** (and boleto step when applicable); if disabled, those steps are not auto-created.
+7. **Error state**: Invalid client/category → 400; invalid amounts when provided → 400.
 
 ## Acceptance criteria
 
-- Service with valid data is created successfully
-- Service price field can be set (optional)
-- Workflow steps are automatically generated from category template
-- Service is associated with correct client and category
-- Service status is initialized appropriately
-- Response includes service with generated steps
-- Only ADMIN and MANAGER roles can create services
-- External services (is_internal = false) require amount_to_receive, payment_method, and is_invoiced fields
-- External services automatically create "Realizar pagamento" step
-- External services with BOLETO payment method automatically create "Cobrança de boleto" step
+- External service with `has_payment: false` (and no legacy amount/method) is created **without** automatic payment or boleto steps; payment fields remain empty.
+- External service with `has_payment: true` behaves like the previous “always payment” flow: payment step (+ boleto when method matches).
+- Internal services never create payment steps and clear payment fields.
+- Legacy: external create without `has_payment` but with amount or method still enables payment steps.
+- `POST /services` documents `has_payment` in OpenAPI/Swagger.
 
-## Backend/Frontend behavior
+## Backend behavior
 
-### Backend behavior
+**Endpoints:** `POST /services` (`CreateServiceDto`), `PATCH /services/:id` (`UpdateServiceDto` inherits fields).
 
-**Endpoints/actions involved:**
-- `POST /services`: Accepts CreateServiceDto, creates service and steps, returns service
-
-**Main rules/validations:**
-- Requires JWT authentication
-- Requires ADMIN or MANAGER role
-- Client must exist
-- Category must exist
-- Client copy machine must exist (if provided)
-- Service price field is optional
-- If is_internal = false (external service):
-  - amount_to_receive is required (must be a positive number)
-  - payment_method is required (must be a valid payment method string)
-  - is_invoiced is required (boolean, defaults to false)
-- Steps are generated from category's step templates
-- External services automatically create "Realizar pagamento" step with:
-  - Name: "Realizar pagamento"
-  - Description: Instructions to check the amount_to_receive value from the service
-  - Allows responsable user selection
-  - Inherits all default step properties
-- If payment_method is "BOLETO" or "Bank Slip", automatically creates additional step:
-  - Category: "Cobrança de boleto"
-  - Created at the same time as "Realizar pagamento" step
+**Rules:**
+- `has_payment` optional boolean.
+- **Create:** `has_payment === false` → no auto payment/boleto steps; `amount_to_receive`, `payment_method` cleared; `is_invoiced` false. `has_payment === true` → existing payment + step rules. **Omit** + external → legacy inference from `amount_to_receive` / `payment_method`.
+- **Update:** `has_payment` false clears payment columns and removes existing steps named **"Realizar pagamento"** or **"Cobrança de boleto"** (and does not auto-create them). Omit uses legacy + existing service state for partial patches.
+- Payload steps matching those auto names are ignored when `has_payment` is false.
 
 ## Data & permissions
 
-**Entities/tables/collections:**
-- `Service`: Create operation (includes price field, payment fields for external services)
-- `Step`: Create operations for workflow steps (including automatic payment steps)
-- `Category`: Read operation for step templates and "Cobrança de boleto" category
-- `Client`: Read operation for validation
-- `ClientCopyMachine`: Read operation for validation
+- `Service` stores `amount_to_receive`, `payment_method`, `is_invoiced` (nullable / defaulted per rules above).
+- `has_payment` is **not** a database column; it is request-only metadata.
 
-**Roles/permissions:**
-- Requires JWT authentication
-- Requires ADMIN or MANAGER role
-- Regular users cannot create services
+## Edge cases
 
-## Edge cases & failures
-
-**Validation errors:**
-- Missing client: Returns 400 Bad Request
-- Missing category: Returns 400 Bad Request
-- Invalid client ID: Returns 400 Bad Request
-- Invalid category ID: Returns 400 Bad Request
-- External service missing amount_to_receive: Returns 400 Bad Request
-- External service missing payment_method: Returns 400 Bad Request
-- External service missing is_invoiced: Returns 400 Bad Request
-- Invalid amount_to_receive (negative or zero): Returns 400 Bad Request
-- Invalid payment_method: Returns 400 Bad Request
-
-**Missing data:**
-- Client not found: Returns 400 Bad Request or 404 Not Found
-- Category not found: Returns 400 Bad Request or 404 Not Found
-- Category has no step templates: Service created without steps (or error - needs confirmation)
-- "Cobrança de boleto" category not found when creating boleto step: Returns 500 error or creates category automatically
-
-**Permission denied:**
-- Non-admin/manager user: Returns 403 Forbidden
-- Missing authentication: Returns 401 Unauthorized
-
-**Network / integration failure cases:**
-- Database connection failure: Returns 500 error
-- Step generation failure: Returns 500 error or partial creation
+- Turning payment off after editing must not leave orphan **"Realizar pagamento"** steps on the service (cleanup on update).
+- Concluding a **"Realizar pagamento"** step still sets `is_invoiced` on the service when that step exists (unchanged).
 
 ## Observability
 
-**Logs/events:**
-- Service creation should be logged
-- Step generation should be logged
-- Failed service creation attempts can be logged
-
-**Metrics (optional):**
-- Services created per day
-- Average service creation time
-- Step generation success rate
-
-## Open questions
-
-- What happens if category has no step templates?
-- Are steps automatically assigned to users during creation?
-- Can services be created without copy machines?
-- What is the default service status?
-- How does service price impact billing calculations?
-- Should service price be included in reports and dashboards?
+- Service and step creation failures should be traceable via existing application logging.

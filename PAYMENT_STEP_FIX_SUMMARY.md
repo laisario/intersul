@@ -1,7 +1,13 @@
 # Payment Step Creation & Boleto Validation Fix - Implementation Summary
 
-## Overview
-Fixed the Create Service flow to always generate payment steps for external services (regardless of `amount_to_receive`) and made responsable optional for boleto steps. Improved error handling with field-level error messages.
+## Update (conditional payment)
+
+External services no longer always get a payment step. The API accepts **`has_payment`** (boolean). The main UI (`service-form-dialog.svelte`) defaults payment off and sends payment fields only when **“Serviço com pagamento”** is checked. If **`has_payment` is omitted** on create but the body still has a positive **`amount_to_receive`** and/or non-empty **`payment_method`**, payment steps are still created (**legacy** for older clients). See `docs/features/backend/services/create-service/plan.md`.
+
+---
+
+## Overview (historical)
+Previously fixed the Create Service flow so payment steps could be generated for external services even without `amount_to_receive`, with responsable optional for boleto steps. Field-level error handling was improved.
 
 ## Files Changed
 

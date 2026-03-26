@@ -161,12 +161,14 @@ export class ServicesService {
   }
 
   async create(createServiceDto: CreateServiceDto): Promise<Service> {
-    const { steps, ...serviceData } = createServiceDto;
+    const { steps: rawSteps, has_payment, ...serviceData } = createServiceDto;
 
     const isInternal = serviceData.is_internal;
+    const hasPayment = this.resolveHasPaymentForCreate(has_payment, serviceData, !!isInternal);
+    const steps = this.filterStepsForPaymentMode(rawSteps, hasPayment);
 
     // Validate external service payment fields (amount_to_receive is now optional)
-    if (!isInternal && serviceData.amount_to_receive !== undefined && serviceData.amount_to_receive !== null) {
+    if (hasPayment && !isInternal && serviceData.amount_to_receive !== undefined && serviceData.amount_to_receive !== null) {
       if (serviceData.amount_to_receive <= 0) {
         throw new BadRequestException('amount_to_receive must be a positive number');
       }
@@ -210,9 +212,9 @@ export class ServicesService {
       description: serviceData.description,
       priority: serviceData.priority,
       is_internal: serviceData.is_internal,
-      amount_to_receive: isInternal ? null : serviceData.amount_to_receive,
-      payment_method: isInternal ? null : serviceData.payment_method,
-      is_invoiced: isInternal ? false : (serviceData.is_invoiced ?? false),
+      amount_to_receive: isInternal ? null : hasPayment ? serviceData.amount_to_receive : null,
+      payment_method: isInternal ? null : hasPayment ? serviceData.payment_method : null,
+      is_invoiced: isInternal ? false : hasPayment ? (serviceData.is_invoiced ?? false) : false,
     };
 
     const service = this.servicesRepository.create(cleanServiceData);
@@ -308,8 +310,8 @@ export class ServicesService {
       stepEntities.push(...payloadStepEntities);
     }
 
-    // Auto-generate payment step for external services (always, regardless of amount_to_receive)
-    if (!isInternal) {
+    // Auto-generate payment step only when external service explicitly has payment
+    if (!isInternal && hasPayment) {
       const paymentStepName = 'Realizar pagamento';
       const hasPaymentStep = existingStepNames.has(paymentStepName.toLowerCase()) ||
         stepEntities.some(se => se?.name.toLowerCase() === paymentStepName.toLowerCase());
@@ -344,10 +346,10 @@ export class ServicesService {
         }
       }
 
-      // Auto-generate boleto step if payment method is Boleto
-      const isBoleto = serviceData.payment_method?.toLowerCase() === 'bank slip' || 
+      // Auto-generate boleto step if payment method is Boleto (only when payment is enabled)
+      const isBoleto = serviceData.payment_method?.toLowerCase() === 'bank slip' ||
                        serviceData.payment_method?.toLowerCase() === 'boleto';
-      
+
       if (isBoleto) {
         const boletoStepName = 'Cobrança de boleto';
         const hasBoletoStep = existingStepNames.has(boletoStepName.toLowerCase()) ||
@@ -404,19 +406,70 @@ export class ServicesService {
   }
 
   async update(id: number, updateServiceDto: UpdateServiceDto): Promise<Service> {
-    const { steps, ...serviceData } = updateServiceDto;
+    const { steps, has_payment, ...serviceData } = updateServiceDto;
     const service = await this.findOne(id);
 
-    Object.assign(service, serviceData);
+    const isInternal =
+      serviceData.is_internal !== undefined ? serviceData.is_internal : service.is_internal;
+
+    let effectiveHasPayment: boolean;
+    if (isInternal) {
+      effectiveHasPayment = false;
+    } else if (has_payment === true) {
+      effectiveHasPayment = true;
+    } else if (has_payment === false) {
+      effectiveHasPayment = false;
+    } else {
+      effectiveHasPayment =
+        this.inferLegacyHasPaymentFromServiceData(serviceData) || this.inferExistingServiceHasPayment(service);
+    }
+
+    const {
+      amount_to_receive,
+      payment_method,
+      is_invoiced,
+      is_internal: _isInternalPatch,
+      ...servicePatch
+    } = serviceData;
+
+    Object.assign(service, servicePatch);
+    if (serviceData.is_internal !== undefined) {
+      service.is_internal = serviceData.is_internal;
+    }
+
+    if (isInternal) {
+      service.client_id = null;
+      service.client_copy_machine_id = null;
+      service.amount_to_receive = null;
+      service.payment_method = null;
+      service.is_invoiced = false;
+    } else if (effectiveHasPayment) {
+      if (amount_to_receive !== undefined) {
+        service.amount_to_receive = amount_to_receive;
+      }
+      if (payment_method !== undefined) {
+        service.payment_method = payment_method;
+      }
+      if (is_invoiced !== undefined) {
+        service.is_invoiced = is_invoiced;
+      }
+    } else {
+      service.amount_to_receive = null;
+      service.payment_method = null;
+      service.is_invoiced = false;
+    }
+
     await this.servicesRepository.save(service);
 
     if (steps && steps.length > 0) {
+      const stepsToPersist = this.filterStepsForPaymentMode(steps, effectiveHasPayment) ?? [];
+
       if (service.steps && service.steps.length > 0) {
         await this.stepsRepository.remove(service.steps);
       }
 
       const stepEntities = await Promise.all(
-        steps.map(async (step) => {
+        stepsToPersist.map(async (step) => {
           let responsableUser: User | null = null;
           if (step.responsable_id !== undefined) {
             if (step.responsable_id === null) {
@@ -429,7 +482,7 @@ export class ServicesService {
                 throw new BadRequestException({
                   message: 'Validation failed',
                   errors: [{
-                    field: `steps[${steps.findIndex(s => s.name === step.name)}].responsable_id`,
+                    field: `steps[${stepsToPersist.findIndex(s => s.name === step.name)}].responsable_id`,
                     message: `User with ID ${step.responsable_id} not found`
                   }]
                 });
@@ -439,7 +492,7 @@ export class ServicesService {
                 throw new BadRequestException({
                   message: 'Validation failed',
                   errors: [{
-                    field: `steps[${steps.findIndex(s => s.name === step.name)}].responsable_id`,
+                    field: `steps[${stepsToPersist.findIndex(s => s.name === step.name)}].responsable_id`,
                     message: `Responsável selecionado está inativo`
                   }]
                 });
@@ -467,6 +520,14 @@ export class ServicesService {
       );
         
       await this.stepsRepository.save(stepEntities);
+    }
+
+    if (!isInternal && !effectiveHasPayment) {
+      const existingSteps = await this.stepsRepository.find({ where: { service_id: id } });
+      const toRemove = existingSteps.filter((s) => this.isAutoPaymentOrBoletoStepName(s.name));
+      if (toRemove.length) {
+        await this.stepsRepository.remove(toRemove);
+      }
     }
 
     await this.recalculateStatus(id);
@@ -650,6 +711,66 @@ export class ServicesService {
       thisWeek,
       thisMonth,
     };
+  }
+
+  private resolveHasPaymentForCreate(
+    has_payment: boolean | undefined,
+    serviceData: Omit<CreateServiceDto, 'steps' | 'has_payment'>,
+    isInternal: boolean,
+  ): boolean {
+    if (isInternal) {
+      return false;
+    }
+    if (has_payment === true) {
+      return true;
+    }
+    if (has_payment === false) {
+      return false;
+    }
+    return this.inferLegacyHasPaymentFromServiceData(serviceData);
+  }
+
+  private inferLegacyHasPaymentFromServiceData(
+    serviceData: Partial<Pick<CreateServiceDto, 'amount_to_receive' | 'payment_method'>>,
+  ): boolean {
+    const hasAmount =
+      serviceData.amount_to_receive != null && Number(serviceData.amount_to_receive) > 0;
+    const hasMethod = !!(serviceData.payment_method && String(serviceData.payment_method).trim());
+    return hasAmount || hasMethod;
+  }
+
+  private inferExistingServiceHasPayment(service: Service): boolean {
+    if (service.is_internal) {
+      return false;
+    }
+    const hasAmount =
+      service.amount_to_receive != null && Number(service.amount_to_receive) > 0;
+    const hasMethod = !!(service.payment_method && String(service.payment_method).trim());
+    if (hasAmount || hasMethod || service.is_invoiced) {
+      return true;
+    }
+    const stepNames = (service.steps || []).map((s) => s.name.toLowerCase());
+    return stepNames.some(
+      (n) => n === 'realizar pagamento' || n === 'cobrança de boleto' || n.includes('cobrança de boleto'),
+    );
+  }
+
+  private isAutoPaymentOrBoletoStepName(name: string): boolean {
+    const n = name.trim().toLowerCase();
+    return n === 'realizar pagamento' || n === 'cobrança de boleto';
+  }
+
+  private filterStepsForPaymentMode(
+    steps: CreateStepDto[] | undefined,
+    hasPayment: boolean,
+  ): CreateStepDto[] | undefined {
+    if (!steps?.length) {
+      return steps;
+    }
+    if (hasPayment) {
+      return steps;
+    }
+    return steps.filter((s) => !this.isAutoPaymentOrBoletoStepName(s.name));
   }
 }
 

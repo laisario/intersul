@@ -64,6 +64,7 @@
 		clientCopyMachineId: undefined as number | undefined,
 		description: '',
 		priority: '' as string | undefined,
+		hasPayment: false,
 		amountToReceive: undefined as number | undefined,
 		paymentMethod: '' as string | undefined,
 		isInvoiced: false
@@ -71,7 +72,7 @@
 
 	let steps = $state<FormStep[]>([]);
 
-	let errors = $state<{ clientId?: string; categoryId?: string; steps?: string; amountToReceive?: string; paymentMethod?: string }>({});
+	let errors = $state<Record<string, string>>({});
 
 	const categories = $derived(categoriesQuery.data ?? []);
 	// Filter to only active users for selects (defensive filtering)
@@ -92,6 +93,7 @@
 			clientCopyMachineId: undefined,
 			description: '',
 			priority: undefined,
+			hasPayment: false,
 			amountToReceive: undefined,
 			paymentMethod: undefined,
 			isInvoiced: false
@@ -102,6 +104,26 @@
 		errors = {};
 	}
 
+	function inferHasPaymentFromService(serviceData: Service): boolean {
+		if (serviceData.isInternal) return false;
+		const amt =
+			serviceData.amountToReceive != null && Number(serviceData.amountToReceive) > 0;
+		const pm = !!(serviceData.paymentMethod && String(serviceData.paymentMethod).trim());
+		if (amt || pm || serviceData.isInvoiced) return true;
+		const stepNames = (serviceData.steps || []).map((s) => s.name.trim().toLowerCase());
+		return stepNames.some(
+			(n) =>
+				n === 'realizar pagamento' ||
+				n === 'cobrança de boleto' ||
+				n.includes('cobrança de boleto')
+		);
+	}
+
+	function isAutoPaymentOrBoletoStepName(name: string): boolean {
+		const n = name.trim().toLowerCase();
+		return n === 'realizar pagamento' || n === 'cobrança de boleto';
+	}
+
 	function fillFromService(serviceData: Service) {
 		formData.isInternal = serviceData.isInternal ?? false;
 		formData.clientId = serviceData.clientId || 0;
@@ -109,6 +131,7 @@
 		formData.clientCopyMachineId = serviceData.clientCopyMachineId ?? undefined;
 		formData.description = serviceData.description || '';
 		formData.priority = serviceData.priority || undefined;
+		formData.hasPayment = inferHasPaymentFromService(serviceData);
 		formData.amountToReceive = serviceData.amountToReceive;
 		formData.paymentMethod = serviceData.paymentMethod;
 		formData.isInvoiced = serviceData.isInvoiced ?? false;
@@ -180,13 +203,12 @@
 	}
 
 	// Previews extras calculados (não modificam steps)
-	// Payment step is always shown for external services (regardless of amount)
-	const shouldShowPaymentPreview = $derived(!formData.isInternal);
-	
+	const shouldShowPaymentPreview = $derived(!formData.isInternal && formData.hasPayment);
+
 	const shouldShowBoletoPreview = $derived(() => {
-		if (formData.isInternal) return false;
+		if (formData.isInternal || !formData.hasPayment) return false;
 		const method = formData.paymentMethod?.toLowerCase() || '';
-		return method === 'boleto' || method === 'bank slip' || method === 'bankslip' || method === 'bank slip';
+		return method === 'boleto' || method === 'bank slip' || method === 'bankslip';
 	});
 	
 	// Função auxiliar para verificar se método é boleto (usado no submit)
@@ -196,19 +218,16 @@
 		return lowerMethod === 'boleto' || lowerMethod === 'bank slip' || lowerMethod === 'bankslip';
 	}
 
-	// Inicializar previews quando necessário
-	// Payment step preview is always available for external services
+	// Inicializar previews quando necessário (somente com pagamento habilitado)
 	$effect(() => {
 		if (!initialized) return;
-		
-		// Always initialize payment step preview for external services
+
 		if (shouldShowPaymentPreview && !paymentStepPreview) {
 			paymentStepPreview = { responsableId: undefined, datetimeExpiration: undefined };
 		} else if (!shouldShowPaymentPreview && paymentStepPreview) {
 			paymentStepPreview = null;
 		}
-		
-		// Boleto step preview only for boleto payment method
+
 		if (shouldShowBoletoPreview() && !boletoStepPreview) {
 			boletoStepPreview = { responsableId: undefined, datetimeExpiration: undefined };
 		} else if (!shouldShowBoletoPreview() && boletoStepPreview) {
@@ -224,25 +243,37 @@
 		);
 	}
 
+	function toggleSuggestionStep(suggestion: Step) {
+		if (isSuggestionAdded(suggestion)) {
+			const idx = steps.findIndex(
+				(existing) =>
+					existing.name.trim().toLowerCase() === suggestion.name.trim().toLowerCase() &&
+					existing.description.trim().toLowerCase() === suggestion.description.trim().toLowerCase()
+			);
+			if (idx !== -1) {
+				steps = steps.filter((_, i) => i !== idx);
+			}
+			return;
+		}
+		addSuggestionStep(suggestion);
+	}
+
 	function validateForm() {
 		errors = {};
 
-		const invalidStep = steps.some((step) => !step.name.trim() || !step.description.trim());
+		const stepsToValidate = formData.hasPayment
+			? steps
+			: steps.filter((s) => !isAutoPaymentOrBoletoStepName(s.name));
+		const invalidStep = stepsToValidate.some((step) => !step.name.trim() || !step.description.trim());
 		if (invalidStep) {
 			errors.steps = 'Todas as etapas devem ter nome e descrição preenchidos';
 		}
 
-		// Validate external service payment fields
-		if (!formData.isInternal) {
-			// amount_to_receive is now optional, but if provided, must be positive
+		if (!formData.isInternal && formData.hasPayment) {
 			if (formData.amountToReceive !== undefined && formData.amountToReceive !== null && formData.amountToReceive <= 0) {
 				errors.amountToReceive = 'Valor a receber deve ser um número positivo';
 				return false;
 			}
-			
-			// Payment step is always generated for external services
-			// Responsable is optional (can be set later in step details)
-			// Boleto step responsable is also optional
 		}
 
 		return Object.keys(errors).length === 0;
@@ -259,10 +290,12 @@
 		payload.isInternal = formData.isInternal;
 		
 		if (!formData.isInternal) {
+			payload.hasPayment = formData.hasPayment;
+
 			if (formData.clientId > 0) {
 				payload.clientId = formData.clientId;
 			}
-			
+
 			if (formData.clientCopyMachineId) {
 				payload.clientCopyMachineId = formData.clientCopyMachineId;
 			}
@@ -280,36 +313,36 @@
 			payload.priority = formData.priority;
 		}
 
-		if (!formData.isInternal) {
+		if (!formData.isInternal && formData.hasPayment) {
 			payload.amountToReceive = formData.amountToReceive;
 			if (formData.paymentMethod) {
 				payload.paymentMethod = formData.paymentMethod;
 			}
 			payload.isInvoiced = formData.isInvoiced;
 		}
-		
-		// Montar array de steps (normais + automáticos se EXTERNO)
+
 		const stepsArray: CreateServiceStepDto[] = [];
-		
-		// Adicionar steps normais do formulário
-		if (steps.length > 0) {
-			stepsArray.push(...steps.map<CreateServiceStepDto>((step) => ({
+
+		const stepsForPayload = formData.hasPayment
+			? steps
+			: steps.filter((s) => !isAutoPaymentOrBoletoStepName(s.name));
+
+		if (stepsForPayload.length > 0) {
+			stepsArray.push(...stepsForPayload.map<CreateServiceStepDto>((step) => ({
 				name: step.name.trim(),
 				description: step.description.trim(),
 				responsableId: step.responsableId ? Number(step.responsableId) : undefined,
 				datetimeExpiration: step.datetimeExpiration || undefined
 			})));
 		}
-		
-		// Adicionar step de pagamento automaticamente se EXTERNO (sempre, mesmo sem amount_to_receive)
-		// Backend will auto-generate this, but we include it in payload if user configured responsable/expiration
-		if (!formData.isInternal) {
-			// Verificar se já não existe step de pagamento
-			const hasPaymentStep = stepsArray.some(step => 
-				step.name.toLowerCase().includes('realizar pagamento') || 
-				step.name.toLowerCase() === 'realizar pagamento'
+
+		if (!formData.isInternal && formData.hasPayment) {
+			const hasPaymentStep = stepsArray.some(
+				(step) =>
+					step.name.toLowerCase().includes('realizar pagamento') ||
+					step.name.toLowerCase() === 'realizar pagamento'
 			);
-			
+
 			if (!hasPaymentStep && paymentStepPreview) {
 				// Build description based on whether amount is provided
 				let description = 'Realizar pagamento.';
@@ -328,10 +361,8 @@
 				});
 			}
 		}
-		
-		// Adicionar step de boleto automaticamente se método for Boleto
-		// Backend will auto-generate this, but we include it in payload if user configured responsable/expiration
-		if (!formData.isInternal && isBoletoPaymentMethod(formData.paymentMethod)) {
+
+		if (!formData.isInternal && formData.hasPayment && isBoletoPaymentMethod(formData.paymentMethod)) {
 			// Verificar se já não existe step de boleto
 			const hasBoletoStep = stepsArray.some(step => 
 				step.name.toLowerCase().includes('cobrança de boleto') || 
@@ -441,33 +472,112 @@
 			<Card>
 				<CardHeader>
 					<CardTitle class="text-lg">Informações do Serviço</CardTitle>
-					<CardDescription>Defina o cliente, categoria e descrição do serviço.</CardDescription>
 				</CardHeader>
-				<CardContent class="space-y-4">
+				<CardContent class="space-y-3">
+					<div class="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+						<div class="space-y-2">
+							<Label>Tipo de Serviço *</Label>
+							<Select
+								type="single"
+								value={formData.isInternal ? 'internal' : 'external'}
+								onValueChange={(value: string) => {
+									formData.isInternal = value === 'internal';
+									if (formData.isInternal) {
+										formData.clientId = 0;
+										formData.clientCopyMachineId = undefined;
+										formData.hasPayment = false;
+										formData.amountToReceive = undefined;
+										formData.paymentMethod = undefined;
+										formData.isInvoiced = false;
+										paymentStepPreview = null;
+										boletoStepPreview = null;
+									}
+								}}
+							>
+								<SelectTrigger>
+									{formData.isInternal ? 'Interno' : 'Externo'}
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="external">Externo</SelectItem>
+									<SelectItem value="internal">Interno</SelectItem>
+								</SelectContent>
+							</Select>
+						</div>
+
+						<div class="space-y-2">
+							<Label>Categoria</Label>
+							<Select
+								type="single"
+								value={formData.categoryId ? formData.categoryId.toString() : ''}
+								onValueChange={(value: string) => {
+									formData.categoryId = value ? parseInt(value) : 0;
+									const cat = categories.find((c) => c.id === (value ? parseInt(value) : 0));
+									if (cat && cat.name.toLowerCase().includes('cobrança')) {
+										formData.priority = 'high';
+									}
+								}}
+							>
+								<SelectTrigger>
+									{formData.categoryId
+										? categories.find((category) => category.id === formData.categoryId)?.name || 'Selecione uma categoria'
+										: 'Selecione uma categoria'}
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="">
+										<span class="text-muted-foreground">Sem categoria</span>
+									</SelectItem>
+									{#if categoriesQuery.isLoading}
+										<SelectItem value="" disabled>Carregando categorias...</SelectItem>
+									{:else if categoriesQuery.error}
+										<SelectItem value="" disabled>Erro ao carregar categorias</SelectItem>
+									{:else}
+										{#each categories as category (category.id)}
+											<SelectItem value={category.id.toString()}>
+												{category.name}
+											</SelectItem>
+										{/each}
+									{/if}
+								</SelectContent>
+							</Select>
+						</div>
+
+						<div class="space-y-2">
+							<Label>Prioridade</Label>
+							<Select
+								type="single"
+								value={formData.priority || ''}
+								onValueChange={(value: string) => (formData.priority = value || undefined)}
+							>
+								<SelectTrigger>
+									{formData.priority
+										? (() => {
+												const priorityKey = formData.priority!.toUpperCase() as keyof typeof SERVICE_PRIORITY;
+												return SERVICE_PRIORITY[priorityKey]?.label || formData.priority;
+											})()
+										: 'Selecione uma prioridade'}
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="">
+										<span class="text-muted-foreground">Sem prioridade</span>
+									</SelectItem>
+									<SelectItem value="LOW">Baixa</SelectItem>
+									<SelectItem value="MEDIUM">Média</SelectItem>
+									<SelectItem value="HIGH">Alta</SelectItem>
+									<SelectItem value="URGENT">Urgente</SelectItem>
+								</SelectContent>
+							</Select>
+						</div>
+					</div>
+
 					<div class="space-y-2">
-						<Label>Tipo de Serviço *</Label>
-						<Select
-							type="single"
-							value={formData.isInternal ? 'internal' : 'external'}
-							onValueChange={(value: string) => {
-								formData.isInternal = value === 'internal';
-								if (formData.isInternal) {
-									formData.clientId = 0;
-									formData.clientCopyMachineId = undefined;
-								}
-							}}
-						>
-							<SelectTrigger>
-								{formData.isInternal ? 'Interno' : 'Externo'}
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="external">Externo</SelectItem>
-								<SelectItem value="internal">Interno</SelectItem>
-							</SelectContent>
-						</Select>
-						<p class="text-xs text-muted-foreground">
-							Serviços internos não requerem cliente ou equipamento associado
-						</p>
+						<Label>Descrição do Serviço</Label>
+						<textarea
+							value={formData.description}
+							oninput={(e) => formData.description = e.currentTarget.value}
+							rows="2"
+							placeholder="Descreva o serviço em detalhes"
+							class="flex min-h-[64px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+						></textarea>
 					</div>
 
 					{#if !formData.isInternal}
@@ -524,143 +634,97 @@
 										{/if}
 									</SelectContent>
 								</Select>
-								<p class="text-xs text-muted-foreground">Se este serviço envolver máquina, escolha uma.</p>
 							</div>
 						</div>
 					{/if}
 
-					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-						<div class="space-y-2">
-							<Label>Categoria</Label>
-							<Select
-								type="single"
-								value={formData.categoryId ? formData.categoryId.toString() : ''}
-								onValueChange={(value: string) => {
-									formData.categoryId = value ? parseInt(value) : 0;
-									// Auto-set priority to HIGH for "Cobrança" category
-									const selectedCategory = categories.find((cat) => cat.id === (value ? parseInt(value) : 0));
-									if (selectedCategory && selectedCategory.name.toLowerCase().includes('cobrança')) {
-										formData.priority = 'high';
+					{#if !formData.isInternal}
+					<div class="rounded-lg border bg-muted/20 p-3 space-y-2">
+						<Label class="flex items-start gap-3 cursor-pointer">
+							<input
+								type="checkbox"
+								checked={formData.hasPayment}
+								onchange={(e) => {
+									const checked = e.currentTarget.checked;
+									formData.hasPayment = checked;
+									if (!checked) {
+										formData.amountToReceive = undefined;
+										formData.paymentMethod = undefined;
+										formData.isInvoiced = false;
+										paymentStepPreview = null;
+										boletoStepPreview = null;
+										steps = steps.filter((s) => !isAutoPaymentOrBoletoStepName(s.name));
 									}
 								}}
-							>
-								<SelectTrigger>
-									{formData.categoryId
-										? categories.find((category) => category.id === formData.categoryId)?.name || 'Selecione uma categoria'
-										: 'Selecione uma categoria'}
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="">
-										<span class="text-muted-foreground">Sem categoria</span>
-									</SelectItem>
-									{#if categoriesQuery.isLoading}
-										<SelectItem value="" disabled>Carregando categorias...</SelectItem>
-									{:else if categoriesQuery.error}
-										<SelectItem value="" disabled>Erro ao carregar categorias</SelectItem>
-									{:else}
-										{#each categories as category (category.id)}
-											<SelectItem value={category.id.toString()}>
-												{category.name}
-											</SelectItem>
-										{/each}
-									{/if}
-								</SelectContent>
-							</Select>
-							<p class="text-xs text-muted-foreground">Ideal preencher, mas não é obrigatório.</p>
-						</div>
-
-						<div class="space-y-2">
-							<Label>Prioridade</Label>
-							<Select
-								type="single"
-								value={formData.priority || ''}
-								onValueChange={(value: string) => formData.priority = value || undefined}
-							>
-								<SelectTrigger>
-									{formData.priority
-										? (() => {
-											const priorityKey = formData.priority.toUpperCase() as keyof typeof SERVICE_PRIORITY;
-											return SERVICE_PRIORITY[priorityKey]?.label || formData.priority;
-										})()
-										: 'Selecione uma prioridade'}
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="">
-										<span class="text-muted-foreground">Sem prioridade</span>
-									</SelectItem>
-									<SelectItem value="LOW">Baixa</SelectItem>
-									<SelectItem value="MEDIUM">Média</SelectItem>
-									<SelectItem value="HIGH">Alta</SelectItem>
-									<SelectItem value="URGENT">Urgente</SelectItem>
-								</SelectContent>
-							</Select>
-						</div>
+								class="mt-1 h-4 w-4 rounded border-gray-300"
+							/>
+							<span>
+								<span class="font-medium">Serviço com pagamento</span>
+								<span class="block text-xs font-normal text-muted-foreground mt-0.5">
+									Ative apenas se houver cobrança ou etapas de pagamento. Campos e etapas automáticas ficam ocultos até então.
+								</span>
+							</span>
+						</Label>
 					</div>
-
-					<div class="space-y-2">
-						<Label>Descrição do Serviço</Label>
-						<textarea
-							value={formData.description}
-							oninput={(e) => formData.description = e.currentTarget.value}
-							rows="3"
-							placeholder="Descreva o serviço em detalhes"
-							class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-						></textarea>
-					</div>
-				</CardContent>
-			</Card>
-
-			<Card>
-				<CardHeader class="flex flex-row items-start justify-between gap-4">
-					<div>
-						<CardTitle class="text-lg">Etapas Sugeridas</CardTitle>
-						<CardDescription>
-							Selecione as etapas sugeridas pela categoria e personalize conforme necessário.
-						</CardDescription>
-					</div>
-					<Button
-						type="button"
-						variant="outline"
-						size="sm"
-						onclick={addAllSuggestions}
-						disabled={!suggestionSteps.length}
-					>
-						<Plus class="w-4 h-4 mr-2" />
-						Adicionar todas
-					</Button>
-				</CardHeader>
-				<CardContent>
-					{#if !selectedCategory}
-						<p class="text-sm text-muted-foreground">Selecione uma categoria para visualizar as etapas sugeridas.</p>
-					{:else if !suggestionSteps.length}
-						<p class="text-sm text-muted-foreground">A categoria selecionada não possui etapas sugeridas.</p>
-					{:else}
-						<div class="space-y-3">
-							{#each suggestionSteps as suggestion}
-								<div class="border rounded-lg p-4 flex items-start justify-between gap-4">
-									<div>
-										<p class="font-medium text-sm">{suggestion.name}</p>
-										<p class="text-sm text-muted-foreground mt-1">{suggestion.description}</p>
-									</div>
-									<Button
-										type="button"
-										variant="outline"
-										size="sm"
-										onclick={() => addSuggestionStep(suggestion)}
-										disabled={isSuggestionAdded(suggestion)}
-									>
-										{#if isSuggestionAdded(suggestion)}
-											<Check class="w-4 h-4" />
-										{:else}
-											<Plus class="w-4 h-4" />
-										{/if}
-									</Button>
-								</div>
-							{/each}
-						</div>
 					{/if}
 				</CardContent>
 			</Card>
+
+			{#if selectedCategory}
+				<Card>
+					<CardHeader class="flex flex-row items-start justify-between gap-3 py-4">
+						<div>
+							<CardTitle class="text-lg">Etapas Sugeridas</CardTitle>
+							<CardDescription>
+								Clique para adicionar ou remover a etapa do serviço.
+							</CardDescription>
+						</div>
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							onclick={addAllSuggestions}
+							disabled={!suggestionSteps.length}
+						>
+							<Plus class="w-4 h-4 mr-2" />
+							Adicionar todas
+						</Button>
+					</CardHeader>
+					<CardContent class="pt-0">
+						{#if !suggestionSteps.length}
+							<p class="text-sm text-muted-foreground">A categoria selecionada não possui etapas sugeridas.</p>
+						{:else}
+							<div class="divide-y rounded-lg border">
+								{#each suggestionSteps as suggestion}
+									<button
+										type="button"
+										class={`w-full text-left p-3 flex items-start justify-between gap-3 border transition-colors cursor-pointer ${
+											isSuggestionAdded(suggestion)
+												? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/25 dark:border-emerald-900/60'
+												: 'border-transparent hover:bg-muted/30'
+										}`}
+										onclick={() => toggleSuggestionStep(suggestion)}
+									>
+										<div class="min-w-0">
+											<p class="font-medium text-sm truncate">{suggestion.name}</p>
+											{#if suggestion.description}
+												<p class="text-xs text-muted-foreground mt-0.5 line-clamp-2">{suggestion.description}</p>
+											{/if}
+										</div>
+										<span class="shrink-0">
+											{#if isSuggestionAdded(suggestion)}
+												<Check class="w-4 h-4 text-muted-foreground" />
+											{:else}
+												<Plus class="w-4 h-4" />
+											{/if}
+										</span>
+									</button>
+								{/each}
+							</div>
+						{/if}
+					</CardContent>
+				</Card>
+			{/if}
 
 			<Card>
 				<CardHeader class="flex flex-row items-start justify-between gap-4">
@@ -684,9 +748,9 @@
 					{#if steps.length === 0 && !shouldShowPaymentPreview && !shouldShowBoletoPreview()}
 						<p class="text-sm text-muted-foreground">Nenhuma etapa adicionada. Utilize as sugestões ou crie uma etapa manualmente.</p>
 					{:else}
-						<div class="space-y-4">
+						<div class="space-y-3">
 							{#each steps as step, index (index)}
-								<div class="border rounded-lg p-4 space-y-4">
+								<div class="border rounded-lg p-3 space-y-3">
 									<div class="flex items-center justify-between">
 										<div class="flex items-center gap-2">
 											<Badge variant="outline">Etapa {index + 1}</Badge>
@@ -722,96 +786,98 @@
 										<textarea
 											value={step.description}
 											oninput={(e) => updateStepField(index, 'description', e.currentTarget.value)}
-											rows="3"
+											rows="2"
 											placeholder="Descreva o que precisa ser feito nesta etapa"
 											class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
 										></textarea>
 									</div>
 
-									<div class="space-y-2">
-										<Label>Responsável</Label>
-										<Select
-											type="single"
-											value={step.responsableId ? step.responsableId.toString() : ''}
-											onValueChange={(value: string) => updateStepField(index, 'responsableId', value ? parseInt(value) : undefined)}
-										>
-											<SelectTrigger class="w-full md:w-[220px]">
-												{step.responsableId
-													? users.find((user) => user.id === step.responsableId)?.name || 'Selecione um responsável'
-													: 'Selecione um responsável'}
-											</SelectTrigger>
-											<SelectContent>
-												<SelectItem value="">
-													<span class="text-muted-foreground">Sem responsável</span>
-												</SelectItem>
-												{#if usersQuery.isLoading}
-													<SelectItem value="" disabled>Carregando usuários...</SelectItem>
-												{:else if usersQuery.error}
-													<SelectItem value="" disabled>Erro ao carregar usuários</SelectItem>
-												{:else}
-													{#each users as user (user.id)}
-														<SelectItem value={user.id.toString()}>
-															{user.name}
-														</SelectItem>
-													{/each}
-												{/if}
-											</SelectContent>
-										</Select>
-									</div>
+									<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+										<div class="space-y-2">
+											<Label>Responsável</Label>
+											<Select
+												type="single"
+												value={step.responsableId ? step.responsableId.toString() : ''}
+												onValueChange={(value: string) => updateStepField(index, 'responsableId', value ? parseInt(value) : undefined)}
+											>
+												<SelectTrigger class="w-full">
+													{step.responsableId
+														? users.find((user) => user.id === step.responsableId)?.name || 'Selecione um responsável'
+														: 'Selecione um responsável'}
+												</SelectTrigger>
+												<SelectContent>
+													<SelectItem value="">
+														<span class="text-muted-foreground">Sem responsável</span>
+													</SelectItem>
+													{#if usersQuery.isLoading}
+														<SelectItem value="" disabled>Carregando usuários...</SelectItem>
+													{:else if usersQuery.error}
+														<SelectItem value="" disabled>Erro ao carregar usuários</SelectItem>
+													{:else}
+														{#each users as user (user.id)}
+															<SelectItem value={user.id.toString()}>
+																{user.name}
+															</SelectItem>
+														{/each}
+													{/if}
+												</SelectContent>
+											</Select>
+										</div>
 
-									<div class="space-y-2">
-										<Label>Expira em</Label>
-										<Input
-											type="text"
-											value={step.datetimeExpiration 
-												? (() => {
-													const date = new Date(step.datetimeExpiration);
-													const day = String(date.getDate()).padStart(2, '0');
-													const month = String(date.getMonth() + 1).padStart(2, '0');
-													const year = date.getFullYear();
-													return `${day}/${month}/${year}`;
-												})()
-												: ''}
-											oninput={(e) => {
-												let value = e.currentTarget.value.replace(/\D/g, ''); // Remove non-digits
-												
-												// Limit to 8 digits (ddmmyyyy)
-												if (value.length > 8) {
-													value = value.slice(0, 8);
-												}
-												
-												// Format as dd/mm/yyyy
-												let formatted = value;
-												if (value.length > 2) {
-													formatted = value.slice(0, 2) + '/' + value.slice(2);
-												}
-												if (value.length > 4) {
-													formatted = value.slice(0, 2) + '/' + value.slice(2, 4) + '/' + value.slice(4, 8);
-												}
-												
-												// Update the input value
-												e.currentTarget.value = formatted;
-												
-												// Parse and convert to ISO string when complete
-												if (value.length === 8) {
-													const day = parseInt(value.slice(0, 2), 10);
-													const month = parseInt(value.slice(2, 4), 10) - 1; // Month is 0-indexed
-													const year = parseInt(value.slice(4, 8), 10);
+										<div class="space-y-2">
+											<Label>Expira em</Label>
+											<Input
+												type="text"
+												value={step.datetimeExpiration 
+													? (() => {
+														const date = new Date(step.datetimeExpiration);
+														const day = String(date.getDate()).padStart(2, '0');
+														const month = String(date.getMonth() + 1).padStart(2, '0');
+														const year = date.getFullYear();
+														return `${day}/${month}/${year}`;
+													})()
+													: ''}
+												oninput={(e) => {
+													let value = e.currentTarget.value.replace(/\D/g, ''); // Remove non-digits
 													
-													if (day >= 1 && day <= 31 && month >= 0 && month <= 11 && year >= 1900) {
-														const date = new Date(year, month, day);
-														date.setHours(23, 59, 59, 999);
-														updateStepField(index, 'datetimeExpiration', date.toISOString());
-													} else {
+													// Limit to 8 digits (ddmmyyyy)
+													if (value.length > 8) {
+														value = value.slice(0, 8);
+													}
+													
+													// Format as dd/mm/yyyy
+													let formatted = value;
+													if (value.length > 2) {
+														formatted = value.slice(0, 2) + '/' + value.slice(2);
+													}
+													if (value.length > 4) {
+														formatted = value.slice(0, 2) + '/' + value.slice(2, 4) + '/' + value.slice(4, 8);
+													}
+													
+													// Update the input value
+													e.currentTarget.value = formatted;
+													
+													// Parse and convert to ISO string when complete
+													if (value.length === 8) {
+														const day = parseInt(value.slice(0, 2), 10);
+														const month = parseInt(value.slice(2, 4), 10) - 1; // Month is 0-indexed
+														const year = parseInt(value.slice(4, 8), 10);
+														
+														if (day >= 1 && day <= 31 && month >= 0 && month <= 11 && year >= 1900) {
+															const date = new Date(year, month, day);
+															date.setHours(23, 59, 59, 999);
+															updateStepField(index, 'datetimeExpiration', date.toISOString());
+														} else {
+															updateStepField(index, 'datetimeExpiration', undefined);
+														}
+													} else if (value.length === 0) {
 														updateStepField(index, 'datetimeExpiration', undefined);
 													}
-												} else if (value.length === 0) {
-													updateStepField(index, 'datetimeExpiration', undefined);
-												}
-											}}
-											placeholder="dd/mm/aaaa"
-											maxlength={10}
-										/>
+												}}
+												placeholder="dd/mm/aaaa"
+												maxlength={10}
+											/>
+										</div>
 									</div>
 								</div>
 							{/each}
@@ -930,7 +996,7 @@
 								<div class="border rounded-lg p-4 space-y-4 bg-muted/30">
 									<div class="flex items-center justify-between">
 										<div class="flex items-center gap-2">
-											<Badge variant="outline">Etapa {steps.length + (shouldShowPaymentPreview ? 2 : 1)}</Badge>
+											<Badge variant="outline">Etapa {steps.length + 2}</Badge>
 											<Badge variant="secondary" class="text-xs">Automática - Boleto</Badge>
 										</div>
 									</div>
@@ -1039,12 +1105,12 @@
 				</CardContent>
 			</Card>
 
-			{#if !formData.isInternal}
+			{#if !formData.isInternal && formData.hasPayment}
 				<Card>
 					<CardHeader>
 						<CardTitle class="text-lg">Informações de Pagamento</CardTitle>
 						<CardDescription>
-							Configure as informações de pagamento para serviços externos.
+							Valores e método de cobrança deste serviço (somente quando há pagamento).
 						</CardDescription>
 					</CardHeader>
 					<CardContent class="space-y-4">

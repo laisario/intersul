@@ -119,6 +119,8 @@ export interface CreateServiceDto {
   priority?: string;
   steps?: CreateServiceStepDto[];
   isInternal?: boolean;
+  /** When true on an external service, payment fields apply and payment/boleto steps may be created. */
+  hasPayment?: boolean;
   amountToReceive?: number;
   paymentMethod?: string;
   isInvoiced?: boolean;
