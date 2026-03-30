@@ -584,12 +584,12 @@
 									<TableRow>
 										<TableHead>ID</TableHead>
 										<TableHead>Cliente</TableHead>
-										<TableHead class="min-w-[10rem] max-w-[22rem]">Descrição</TableHead>
-										<TableHead>Cidade</TableHead>
-										<TableHead>Categoria</TableHead>
-										<TableHead>Prioridade</TableHead>
 										<TableHead>Status</TableHead>
+										<TableHead>Prioridade</TableHead>
+										<TableHead>Categoria</TableHead>
+										<TableHead class="min-w-[10rem] max-w-[22rem]">Descrição</TableHead>
 										<TableHead class="min-w-[10rem]">Funcionários responsáveis</TableHead>
+										<TableHead>Cidade</TableHead>
 										<TableHead>Data de Criação</TableHead>
 										{#if userCanManageServices}
 											<TableHead class="w-[100px] text-center">Ações</TableHead>
@@ -605,6 +605,29 @@
 										>
 											<TableCell class="font-medium">#{service.id}</TableCell>
 											<TableCell>{service.client?.name || '-'}</TableCell>
+											<TableCell class="align-top" onclick={(e) => e.stopPropagation()}>
+												<ServiceStepsOverviewPopover
+													{service}
+													open={statusStepsPopoverId === service.id}
+													onOpenChange={(open) => {
+														statusStepsPopoverId = open ? service.id : null;
+													}}
+												/>
+											</TableCell>
+											<TableCell>
+									{#if service.priority}
+										<Badge variant={getServicePriorityVariant(service.priority)}>
+											{getServicePriorityLabel(service.priority)}
+										</Badge>
+									{:else}
+										<span class="text-muted-foreground text-sm">-</span>
+									{/if}
+											</TableCell>
+											<TableCell>
+												<Badge variant="outline">
+													{service?.category?.name || '-'}
+												</Badge>
+											</TableCell>
 											<TableCell
 												class="max-w-[22rem] align-top text-sm"
 												onclick={(e) => e.stopPropagation()}
@@ -639,32 +662,6 @@
 													<span class="text-muted-foreground">—</span>
 												{/if}
 											</TableCell>
-											<TableCell class="font-medium">
-												{service?.client?.address?.neighborhood?.city?.name || '-'}
-											</TableCell>
-											<TableCell>
-												<Badge variant="outline">
-													{service?.category?.name || '-'}
-												</Badge>
-											</TableCell>
-											<TableCell>
-									{#if service.priority}
-										<Badge variant={getServicePriorityVariant(service.priority)}>
-											{getServicePriorityLabel(service.priority)}
-										</Badge>
-									{:else}
-										<span class="text-muted-foreground text-sm">-</span>
-									{/if}
-											</TableCell>
-											<TableCell class="align-top" onclick={(e) => e.stopPropagation()}>
-												<ServiceStepsOverviewPopover
-													{service}
-													open={statusStepsPopoverId === service.id}
-													onOpenChange={(open) => {
-														statusStepsPopoverId = open ? service.id : null;
-													}}
-												/>
-											</TableCell>
 											<TableCell class="max-w-[14rem] text-sm align-top">
 												{#if responsibles}
 													<span class="line-clamp-3" title={responsibles}>
@@ -673,6 +670,9 @@
 												{:else}
 													<span class="text-muted-foreground">—</span>
 												{/if}
+											</TableCell>
+											<TableCell class="font-medium">
+												{service?.client?.address?.neighborhood?.city?.name || '-'}
 											</TableCell>
 											<TableCell>{formatDate(service.createdAt)}</TableCell>
 											{#if userCanManageServices}
