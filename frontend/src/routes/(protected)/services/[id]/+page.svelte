@@ -10,7 +10,7 @@
 	import { ArrowLeft, CheckCircle, Clock, User, Printer, MapPin, Phone, Mail, Calendar, FileText, XCircle, Loader2 } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
 	import { ACQUISITION_TYPE, getServiceStatusLabel, getServiceStatusVariant, getServicePriorityLabel, getServicePriorityVariant } from '$lib/utils/constants.js';
-	import { successToast, errorToast } from '$lib/utils/toast.js';
+	import { successToast, showError, getApiErrorMessage } from '$lib/utils/toast.js';
 	import ConfirmationDialog from '$lib/components/confirmation-dialog.svelte';
 	import type { AcquisitionType, ClientCopyMachine } from '$lib/api/types/copy-machine.types.js';
 	import type { Client } from '$lib/api/types/client.types.js';
@@ -185,14 +185,14 @@
 		try {
 			await updateServiceMutation.mutateAsync({
 				id: service.id,
-				data: { status: 'CONCLUDED' } as any
+				data: { status: 'CONCLUDED' }
 			});
 			successToast.updated('serviço');
 			showConcludeDialog = false;
 			serviceQuery.refetch();
 		} catch (error: any) {
-			errorToast.update('serviço');
 			console.error('Error concluding service:', error);
+			showError(getApiErrorMessage(error, 'Erro ao atualizar o serviço. Tente novamente.'));
 		} finally {
 			isConcluding = false;
 		}
@@ -207,15 +207,18 @@
 		try {
 			await updateServiceMutation.mutateAsync({
 				id: service.id,
-				data: { status: 'CANCELLED', reason_cancellament: cancelReason.trim() } as any
+				data: {
+					status: 'CANCELLED',
+					reasonCancellament: cancelReason.trim()
+				}
 			});
 			successToast.updated('serviço');
 			showCancelDialog = false;
 			cancelReason = '';
 			serviceQuery.refetch();
 		} catch (error: any) {
-			errorToast.update('serviço');
 			console.error('Error cancelling service:', error);
+			showError(getApiErrorMessage(error, 'Erro ao atualizar o serviço. Tente novamente.'));
 		} finally {
 			isCancelling = false;
 		}

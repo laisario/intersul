@@ -139,7 +139,10 @@ export interface UpdateCategoryDto {
 }
 
 export interface UpdateServiceDto extends Partial<CreateServiceDto> {
-  id: number;
+  id?: number;
+  /** Backend ServiceStatus (e.g. CONCLUDED, CANCELLED) */
+  status?: string;
+  reasonCancellament?: string;
 }
 
 export type ServiceListSortBy = 'priority' | 'status' | 'created_at';

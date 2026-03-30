@@ -1,5 +1,11 @@
 <script lang="ts">
-	import { useClients, useCreateClient, useUpdateClient, useToggleClientActive } from '$lib/hooks/queries/use-clients.svelte.js';
+	import {
+		useClients,
+		useCreateClient,
+		useUpdateClient,
+		useToggleClientActive,
+		useDeleteClient
+	} from '$lib/hooks/queries/use-clients.svelte.js';
 	import { errorToast, successToast, showError } from '$lib/utils/toast.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { LoadingButton } from '$lib/components/ui/loading-button/index.js';
@@ -9,7 +15,8 @@
 	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
 	import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '$lib/components/ui/sheet/index.js';
 	import { Select, SelectContent, SelectItem, SelectTrigger } from '$lib/components/ui/select/index.js';
-	import { Plus, Search, MoreVertical } from 'lucide-svelte';
+	import { Plus, Search, MoreVertical, Pencil, Trash2 } from 'lucide-svelte';
+	import ConfirmationDialog from '$lib/components/confirmation-dialog.svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { goto } from '$app/navigation';
@@ -35,6 +42,8 @@
 	let statusFilter = $state<StatusFilterOption>('all');
 	let showFormModal = $state(false);
 	let editingClient = $state<Client | null>(null);
+	let showDeleteConfirmation = $state(false);
+	let clientToDelete = $state<Client | null>(null);
 	let isSubmitting = $state(false);
 	let currentPage = $state(1);
 	let pageSize = $state(10);
@@ -60,6 +69,7 @@
 	const createClientMutation = useCreateClient();
 	const updateClientMutation = useUpdateClient();
 	const { mutate: toggleActive, isPending: isToggling } = useToggleClientActive();
+	const deleteClientMutation = useDeleteClient();
 	
 	let clients = $derived(clientsQuery.data || []);
 	let clientsLoading = $derived(clientsQuery.isLoading);
@@ -245,8 +255,10 @@ function handlePageSizeChange(size: number) {
 			closeModal();
 		} catch (err: any) {
 			console.error('Error saving client:', err);
-			if (err.response?.data?.message) {
-				showError(err.response.data.message);
+			const raw = err.response?.data?.message;
+			const apiMessage = Array.isArray(raw) ? raw.join(' ') : raw;
+			if (typeof apiMessage === 'string' && apiMessage.trim()) {
+				showError(apiMessage.trim());
 			} else if (err.message) {
 				showError(err.message);
 			} else {
@@ -263,7 +275,7 @@ function handlePageSizeChange(size: number) {
 			name: client.name,
 			cnpj: client.cnpj || '',
 			cpf: client.cpf || '',
-			email: client.email,
+			email: client.email ?? '',
 			phone: client.phone || '',
 			how_met_company: client.howMetCompany,
 			address: client.address ? {
@@ -297,6 +309,36 @@ function handlePageSizeChange(size: number) {
 			},
 		});
 	}
+
+	function openDeleteConfirmation(client: Client) {
+		clientToDelete = client;
+		showDeleteConfirmation = true;
+	}
+
+	async function confirmDeleteClient() {
+		if (!clientToDelete) return;
+		try {
+			await deleteClientMutation.mutateAsync(clientToDelete.id);
+			successToast.deleted(`Cliente ${clientToDelete.name}`);
+			showDeleteConfirmation = false;
+			clientToDelete = null;
+		} catch (err: any) {
+			console.error('Error deleting client:', err);
+			if (err.response?.data?.message) {
+				showError(err.response.data.message);
+			} else if (err.message) {
+				showError(err.message);
+			} else {
+				errorToast.unknown();
+			}
+		}
+	}
+
+	function openCreateModal() {
+		editingClient = null;
+		resetForm();
+		showFormModal = true;
+	}
 </script>
 
 <svelte:head>
@@ -310,7 +352,7 @@ function handlePageSizeChange(size: number) {
 			<p class="text-muted-foreground">Gerencie os clientes</p>
 		</div>
 		<div class="flex gap-2">
-			<Button onclick={() => showFormModal = true} class="md:w-auto">
+			<Button onclick={openCreateModal} class="md:w-auto">
 				<Plus class="w-4 h-4 mr-2" />
 				Novo Cliente
 			</Button>
@@ -417,10 +459,26 @@ function handlePageSizeChange(size: number) {
 												</DropdownMenu.Trigger>
 												<DropdownMenu.Content align="end">
 													<DropdownMenu.Item
+														onclick={() => {
+															handleOpenEditModal(client);
+														}}
+													>
+														<Pencil class="w-4 h-4" />
+														Editar
+													</DropdownMenu.Item>
+													<DropdownMenu.Item
 														onclick={() => handleToggleActive(client)}
 														disabled={isToggling}
 													>
 														{client.active ? 'Desativar' : 'Ativar'}
+													</DropdownMenu.Item>
+													<DropdownMenu.Item
+														variant="destructive"
+														onclick={() => openDeleteConfirmation(client)}
+														disabled={deleteClientMutation.isPending}
+													>
+														<Trash2 class="w-4 h-4" />
+														Excluir
 													</DropdownMenu.Item>
 												</DropdownMenu.Content>
 											</DropdownMenu.Root>
@@ -570,4 +628,22 @@ function handlePageSizeChange(size: number) {
 		</form>
 	</SheetContent>
 </Sheet>
+
+<ConfirmationDialog
+	bind:open={showDeleteConfirmation}
+	title="Excluir cliente"
+	description={clientToDelete
+		? `Tem certeza que deseja excluir o cliente "${clientToDelete.name}"? Esta ação não pode ser desfeita.`
+		: 'Tem certeza que deseja excluir este cliente? Esta ação não pode ser desfeita.'}
+	confirmText="Excluir"
+	cancelText="Cancelar"
+	variant="destructive"
+	icon="trash"
+	loading={deleteClientMutation.isPending}
+	onConfirm={confirmDeleteClient}
+	onCancel={() => {
+		showDeleteConfirmation = false;
+		clientToDelete = null;
+	}}
+/>
 

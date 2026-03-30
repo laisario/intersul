@@ -7,6 +7,7 @@ import { StepStatus } from '../../../common/enums/step-status.enum';
 import { ServicesService } from './services';
 import { Service } from '../entities/service.entity';
 import { User } from '../../auth/entities/user.entity';
+import { isFranchiseClosingCategoryName } from '../../../common/constants/service-category-names';
 
 @Injectable()
 export class StepService {
@@ -80,7 +81,20 @@ export class StepService {
     // First, try to find the step by ID (without responsable_id check)
     const step = await this.stepsRepository.findOne({
       where: { id },
-      relations: ['service', 'service.client', 'category', 'responsable', 'images', 'billing', 'billing.copyMachine', 'billing.copyMachine.franchise', 'billing.client', 'billing.responsibleUser', 'dependsOn'],
+      relations: [
+        'service',
+        'service.client',
+        'service.category',
+        'category',
+        'responsable',
+        'images',
+        'billing',
+        'billing.copyMachine',
+        'billing.copyMachine.franchise',
+        'billing.client',
+        'billing.responsibleUser',
+        'dependsOn',
+      ],
     });
 
     if (!step) {
@@ -91,18 +105,22 @@ export class StepService {
     let canStart = false;
     let blockReason: string | undefined = undefined;
 
+    const serviceCategoryName = step.service?.category?.name;
+    const isFranchiseClosing = isFranchiseClosingCategoryName(serviceCategoryName);
+
+    const priorStepAllowsStart = (s: StepStatus | undefined): boolean =>
+      s === StepStatus.CONCLUDED || s === StepStatus.CANCELLED;
+
     if (step.status === StepStatus.PENDING) {
-      if (step.depends_on_step_id === null || step.depends_on_step_id === undefined) {
-        // First step, can start
+      if (isFranchiseClosing) {
+        canStart = true;
+      } else if (step.depends_on_step_id === null || step.depends_on_step_id === undefined) {
+        canStart = true;
+      } else if (step.dependsOn && priorStepAllowsStart(step.dependsOn.status)) {
         canStart = true;
       } else {
-        // Check if depends on step is concluded
-        if (step.dependsOn && step.dependsOn.status === StepStatus.CONCLUDED) {
-          canStart = true;
-        } else {
-          canStart = false;
-          blockReason = 'Você precisa concluir a etapa anterior antes de iniciar esta.';
-        }
+        canStart = false;
+        blockReason = 'Você precisa concluir ou cancelar a etapa anterior antes de iniciar esta.';
       }
     }
 
@@ -192,7 +210,20 @@ export class StepService {
     // First, find the step by ID with its dependency
     const step = await this.stepsRepository.findOne({
       where: { id },
-      relations: ['service', 'service.client', 'category', 'responsable', 'images', 'billing', 'billing.copyMachine', 'billing.copyMachine.franchise', 'billing.client', 'billing.responsibleUser', 'dependsOn'],
+      relations: [
+        'service',
+        'service.client',
+        'service.category',
+        'category',
+        'responsable',
+        'images',
+        'billing',
+        'billing.copyMachine',
+        'billing.copyMachine.franchise',
+        'billing.client',
+        'billing.responsibleUser',
+        'dependsOn',
+      ],
     });
 
     if (!step) {
@@ -208,41 +239,56 @@ export class StepService {
       throw new BadRequestException('Step can only be started if it is pending');
     }
 
-    // Validate dependency: if step depends on another step, that step must be CONCLUDED
-    if (step.depends_on_step_id !== null && step.depends_on_step_id !== undefined) {
+    const isFranchiseClosing = isFranchiseClosingCategoryName(step.service?.category?.name);
+    const priorStepAllowsStart = (s: StepStatus) =>
+      s === StepStatus.CONCLUDED || s === StepStatus.CANCELLED;
+
+    // Validate dependency: prior step must be CONCLUDED or CANCELLED (skipped for Fechamento de Franquia — no enforced order)
+    if (
+      !isFranchiseClosing &&
+      step.depends_on_step_id !== null &&
+      step.depends_on_step_id !== undefined
+    ) {
       const dependsOnStep = step.dependsOn;
       if (!dependsOnStep) {
-        // If depends_on_step_id is set but step not found, load it explicitly
         const loadedDependsOnStep = await this.stepsRepository.findOne({
           where: { id: step.depends_on_step_id },
         });
         if (!loadedDependsOnStep) {
           throw new BadRequestException({
             message: 'Validation failed',
-            errors: [{
-              field: 'depends_on_step_id',
-              message: `Dependent step with ID ${step.depends_on_step_id} not found`,
-            }],
+            errors: [
+              {
+                field: 'depends_on_step_id',
+                message: `Dependent step with ID ${step.depends_on_step_id} not found`,
+              },
+            ],
           });
         }
-        if (loadedDependsOnStep.status !== StepStatus.CONCLUDED) {
+        if (!priorStepAllowsStart(loadedDependsOnStep.status)) {
           throw new BadRequestException({
             message: 'Validation failed',
-            errors: [{
-              field: 'status',
-              message: 'Não é possível iniciar esta etapa porque a etapa anterior ainda não foi concluída.',
-              dependsOnStepId: step.depends_on_step_id,
-            }],
+            errors: [
+              {
+                field: 'status',
+                message:
+                  'Não é possível iniciar esta etapa porque a etapa anterior ainda não foi concluída ou cancelada.',
+                dependsOnStepId: step.depends_on_step_id,
+              },
+            ],
           });
         }
-      } else if (dependsOnStep.status !== StepStatus.CONCLUDED) {
+      } else if (!priorStepAllowsStart(dependsOnStep.status)) {
         throw new BadRequestException({
           message: 'Validation failed',
-          errors: [{
-            field: 'status',
-            message: 'Não é possível iniciar esta etapa porque a etapa anterior ainda não foi concluída.',
-            dependsOnStepId: step.depends_on_step_id,
-          }],
+          errors: [
+            {
+              field: 'status',
+              message:
+                'Não é possível iniciar esta etapa porque a etapa anterior ainda não foi concluída ou cancelada.',
+              dependsOnStepId: step.depends_on_step_id,
+            },
+          ],
         });
       }
     }

@@ -14,6 +14,7 @@ import { CreateStepDto } from '../dto/create-step.dto';
 import { AcquisitionType } from '../../../common/enums/acquisition-type.enum';
 import { StepStatus } from '../../../common/enums/step-status.enum';
 import { ServiceStatus } from '../../../common/enums/service-status.enum';
+import { isFranchiseClosingCategoryName } from '../../../common/constants/service-category-names';
 
 @Injectable()
 export class ServicesService {
@@ -381,20 +382,37 @@ export class ServicesService {
     // Save all step entities and set dependencies based on order (atomically in transaction)
     const validStepEntities = stepEntities.filter(step => step !== null) as Step[];
     if (validStepEntities.length > 0) {
+      let skipDependsChain = false;
+      if (savedService.category_id != null) {
+        const serviceCategory = await this.categoriesRepository.findOne({
+          where: { id: savedService.category_id },
+        });
+        skipDependsChain = serviceCategory
+          ? isFranchiseClosingCategoryName(serviceCategory.name)
+          : false;
+      }
+
       // Use transaction to ensure atomicity
       await this.stepsRepository.manager.transaction(async (transactionalEntityManager) => {
         // Save steps first to get their IDs
         const savedSteps = await transactionalEntityManager.save(Step, validStepEntities);
-        
-        // Set dependencies: step[0] has no dependency, step[i] depends on step[i-1]
-        for (let i = 0; i < savedSteps.length; i++) {
-          if (i === 0) {
+
+        // Fechamento de Franquia: no enforced step order — all depends_on_step_id null
+        if (skipDependsChain) {
+          for (let i = 0; i < savedSteps.length; i++) {
             savedSteps[i].depends_on_step_id = null;
-          } else {
-            savedSteps[i].depends_on_step_id = savedSteps[i - 1].id;
+          }
+        } else {
+          // Set dependencies: step[0] has no dependency, step[i] depends on step[i-1]
+          for (let i = 0; i < savedSteps.length; i++) {
+            if (i === 0) {
+              savedSteps[i].depends_on_step_id = null;
+            } else {
+              savedSteps[i].depends_on_step_id = savedSteps[i - 1].id;
+            }
           }
         }
-        
+
         // Save again with dependencies set
         await transactionalEntityManager.save(Step, savedSteps);
       });

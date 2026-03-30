@@ -114,7 +114,8 @@ export const useDeleteClient = () => {
         queryClient.setQueryData(['clients'], context.previousClients);
       }
     },
-    onSuccess: () => {
+    onSuccess: (_void, deletedId) => {
+      queryClient.removeQueries({ queryKey: ['client', deletedId] });
       queryClient.invalidateQueries({ queryKey: ['clients'] });
     },
   }));

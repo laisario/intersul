@@ -134,7 +134,6 @@ export class ServicesController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @ApiOperation({ summary: 'Update service' })
   @ApiResponse({ status: 200, description: 'Service updated successfully', type: Service })
   @ApiResponse({ status: 404, description: 'Service not found' })

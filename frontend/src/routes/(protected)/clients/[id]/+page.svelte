@@ -29,7 +29,9 @@ import { ACQUISITION_TYPE, getServiceStatusLabel, getServiceStatusVariant } from
 		DollarSign,
 		FileText,
 		Clock,
-		History
+		History,
+		IdCard,
+		Building2
 	} from 'lucide-svelte';
 	import { goto } from '$app/navigation';
 	import CopyMachineFormDialog from '$lib/components/copymachine-form-dialog.svelte';
@@ -335,6 +337,26 @@ const isLoadingServiceHistory = $derived(serviceHistoryQuery.isLoading);
 							<div class="flex items-center space-x-3">
 								<Phone class="w-4 h-4 text-muted-foreground" />
 								<span class="text-sm">{client.phone}</span>
+							</div>
+						{/if}
+
+						{#if client.cpf?.trim()}
+							<div class="flex items-center space-x-3">
+								<IdCard class="w-4 h-4 text-muted-foreground shrink-0" />
+								<div class="text-sm">
+									<span class="text-muted-foreground">CPF: </span>
+									<span>{client.cpf.trim()}</span>
+								</div>
+							</div>
+						{/if}
+
+						{#if client.cnpj?.trim()}
+							<div class="flex items-center space-x-3">
+								<Building2 class="w-4 h-4 text-muted-foreground shrink-0" />
+								<div class="text-sm">
+									<span class="text-muted-foreground">CNPJ: </span>
+									<span>{client.cnpj.trim()}</span>
+								</div>
 							</div>
 						{/if}
 						

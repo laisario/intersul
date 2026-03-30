@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, Repository } from 'typeorm';
+import { Between, QueryFailedError, Repository } from 'typeorm';
 import { Client } from './entities/client.entity';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
@@ -26,7 +26,11 @@ export class ClientsService {
 
   async create(createClientDto: CreateClientDto): Promise<Client> {
     const client = this.clientsRepository.create(createClientDto);
-    return this.clientsRepository.save(client);
+    try {
+      return await this.clientsRepository.save(client);
+    } catch (err) {
+      this.rethrowIfDuplicateClient(err);
+    }
   }
 
   async findAll(): Promise<Client[]> {
@@ -87,12 +91,50 @@ export class ClientsService {
   async update(id: number, updateClientDto: UpdateClientDto): Promise<Client> {
     const client = await this.findOne(id);
     Object.assign(client, updateClientDto);
-    return this.clientsRepository.save(client);
+    try {
+      return await this.clientsRepository.save(client);
+    } catch (err) {
+      this.rethrowIfDuplicateClient(err);
+    }
   }
 
   async remove(id: number): Promise<void> {
     const client = await this.findOne(id);
     await this.clientsRepository.remove(client);
+  }
+
+  /**
+   * Maps MySQL duplicate key on unique indexes (cpf, cnpj, email) to a clear 400 message.
+   * Index names match InitialSchema migration on `clients`.
+   */
+  private rethrowIfDuplicateClient(err: unknown): never {
+    if (!(err instanceof QueryFailedError)) {
+      throw err;
+    }
+    const driverError = (err as QueryFailedError & { driverError?: { errno?: number; code?: string } })
+      .driverError;
+    const isDup = driverError?.errno === 1062 || driverError?.code === 'ER_DUP_ENTRY';
+    if (!isDup) {
+      throw err;
+    }
+    const full = err.message;
+    const keyMatch = full.match(/for key ['`]([^'`]+)['`]/);
+    const keyRef = keyMatch?.[1] ?? '';
+    // UNIQUE (`cpf`)
+    if (keyRef.includes('IDX_4245ac34add1ceeb505efc9877')) {
+      throw new BadRequestException('Este CPF já está cadastrado para outro cliente.');
+    }
+    // UNIQUE (`cnpj`)
+    if (keyRef.includes('IDX_c2528f5ea78df3e939950b861c')) {
+      throw new BadRequestException('Este CNPJ já está cadastrado para outro cliente.');
+    }
+    // UNIQUE (`email`)
+    if (keyRef.includes('IDX_b48860677afe62cd96e1265948')) {
+      throw new BadRequestException('Este e-mail já está cadastrado para outro cliente.');
+    }
+    throw new BadRequestException(
+      'Já existe um cadastro com este dado. Verifique CPF, CNPJ ou e-mail.',
+    );
   }
 
   async toggleActive(id: number): Promise<Client> {

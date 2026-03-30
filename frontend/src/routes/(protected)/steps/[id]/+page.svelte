@@ -25,6 +25,7 @@
 	import { page } from '$app/stores';
 	import { userRole } from '$lib/stores/auth.svelte.js';
 	import { UserRole } from '$lib/api/types/auth.types.js';
+	import { FRANCHISE_CLOSING_CATEGORY_NAME } from '$lib/constants/service-categories.js';
 
 	const props = $props<{ data: { id: string } }>();
 	const stepId = Number.parseInt(props.data.id, 10);
@@ -525,8 +526,24 @@
 				</div>
 			{:else if isResponsable}
 				{#if step.status === 'PENDING'}
-					{@const canStartStep = step.canStart !== false && (step.dependsOnStepId === null || step.dependsOnStepId === undefined || step.dependsOn?.status === 'CONCLUDED')}
-					{@const blockReasonText = step.blockReason || (step.dependsOn && step.dependsOn.status !== 'CONCLUDED' ? 'Você precisa concluir a etapa anterior antes de iniciar esta.' : '')}
+					{@const franchiseClosing =
+						(step.service?.category?.name ?? '').trim() === FRANCHISE_CLOSING_CATEGORY_NAME}
+					{@const priorOk =
+						step.dependsOn?.status === 'CONCLUDED' ||
+						step.dependsOn?.status === 'CANCELLED' ||
+						step.dependsOn?.status === 'concluded' ||
+						step.dependsOn?.status === 'cancelled'}
+					{@const canStartStep =
+						step.canStart !== false &&
+						(franchiseClosing ||
+							step.dependsOnStepId === null ||
+							step.dependsOnStepId === undefined ||
+							priorOk)}
+					{@const blockReasonText =
+						step.blockReason ||
+						(!franchiseClosing && step.dependsOn && !priorOk
+							? 'Você precisa concluir ou cancelar a etapa anterior antes de iniciar esta.'
+							: '')}
 					<div class="flex flex-col gap-2">
 						<LoadingButton
 							onclick={handleStart}

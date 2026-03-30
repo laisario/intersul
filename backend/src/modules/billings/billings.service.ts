@@ -14,6 +14,7 @@ import { User } from '../auth/entities/user.entity';
 import { AcquisitionType } from '../../common/enums/acquisition-type.enum';
 import { ServiceStatus } from '../../common/enums/service-status.enum';
 import { StepStatus } from '../../common/enums/step-status.enum';
+import { FRANCHISE_CLOSING_CATEGORY_NAME } from '../../common/constants/service-category-names';
 
 @Injectable()
 export class BillingsService {
@@ -280,12 +281,12 @@ export class BillingsService {
    */
   private async ensureBillingCategory(): Promise<Category> {
     let category = await this.categoriesRepository.findOne({
-      where: { name: 'Fechamento de Franquia' },
+      where: { name: FRANCHISE_CLOSING_CATEGORY_NAME },
     });
 
     if (!category) {
       category = this.categoriesRepository.create({
-        name: 'Fechamento de Franquia',
+        name: FRANCHISE_CLOSING_CATEGORY_NAME,
         description: 'Categoria para fechamentos de franquia',
       });
       category = await this.categoriesRepository.save(category);
