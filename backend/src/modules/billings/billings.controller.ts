@@ -35,17 +35,26 @@ export class BillingsController {
   @ApiResponse({ status: 200, description: 'List of billings', type: [Billing] })
   @ApiQuery({ name: 'city_id', required: false, description: 'Filter by city ID' })
   @ApiQuery({ name: 'client_id', required: false, description: 'Filter by client ID' })
+  @ApiQuery({ name: 'payment_method', required: false, description: 'Filter by payment method' })
+  @ApiQuery({ name: 'sort_by', required: false, description: 'Sort field', enum: ['date', 'payment_method', 'created_at'] })
+  @ApiQuery({ name: 'sort_order', required: false, description: 'asc or desc', enum: ['asc', 'desc'] })
   @ApiQuery({ name: 'page', required: false, description: 'Page number for pagination' })
   @ApiQuery({ name: 'limit', required: false, description: 'Number of records per page' })
   async findAll(
     @Query('city_id') city_id?: string,
     @Query('client_id') client_id?: string,
+    @Query('payment_method') payment_method?: string,
+    @Query('sort_by') sort_by?: string,
+    @Query('sort_order') sort_order?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ): Promise<{ data: Billing[]; total: number; page: number; limit: number; totalPages: number }> {
     const filters: any = {};
     if (city_id) filters.city_id = Number(city_id);
     if (client_id) filters.client_id = Number(client_id);
+    if (payment_method) filters.payment_method = payment_method;
+    if (sort_by) filters.sort_by = sort_by;
+    if (sort_order) filters.sort_order = sort_order;
     if (page) filters.page = Number(page);
     if (limit) filters.limit = Number(limit);
 

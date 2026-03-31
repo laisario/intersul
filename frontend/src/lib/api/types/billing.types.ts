@@ -40,6 +40,7 @@ export interface MachineUserMapping {
   copyMachineId: number;
   responsibleUserId: number;
   datetimeExpiration?: string;
+  previousCounter?: number;
   paymentMethod?: string;
   isInvoiced?: boolean;
   boletoServiceResponsibleUserId?: number;
@@ -54,6 +55,9 @@ export interface GenerateBillingsDto {
 export interface BillingQueryParams {
   cityId?: number;
   clientId?: number;
+  paymentMethod?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
   page?: number;
   limit?: number;
 }

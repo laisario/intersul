@@ -29,6 +29,16 @@ export class MachineUserMapping {
   datetime_expiration?: string;
 
   @ApiProperty({
+    example: 12345,
+    description: 'Previous counter at the moment of billing generation (optional)',
+    required: false,
+  })
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  previous_counter?: number;
+
+  @ApiProperty({
     example: 'PIX',
     description: 'Payment method (optional)',
     required: false,

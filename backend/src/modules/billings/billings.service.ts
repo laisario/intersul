@@ -38,6 +38,9 @@ export class BillingsService {
   async findAll(filters?: {
     city_id?: number;
     client_id?: number;
+    payment_method?: string;
+    sort_by?: 'date' | 'payment_method' | 'created_at';
+    sort_order?: 'asc' | 'desc';
     page?: number;
     limit?: number;
   }): Promise<{ data: Billing[]; total: number; page: number; limit: number; totalPages: number }> {
@@ -61,10 +64,22 @@ export class BillingsService {
     if (filters?.client_id) {
       query.andWhere('billing.client_id = :client_id', { client_id: filters.client_id });
     }
+    const pm = filters?.payment_method?.trim();
+    if (pm) {
+      query.andWhere('billing.payment_method = :payment_method', { payment_method: pm });
+    }
+
+    const sortOrder = filters?.sort_order === 'asc' ? 'ASC' : 'DESC';
+    const sortBy = filters?.sort_by ?? 'date';
+    if (sortBy === 'payment_method') {
+      query.orderBy('billing.payment_method', sortOrder).addOrderBy('billing.date', 'DESC');
+    } else if (sortBy === 'created_at') {
+      query.orderBy('billing.created_at', sortOrder);
+    } else {
+      query.orderBy('billing.date', sortOrder).addOrderBy('billing.created_at', 'DESC');
+    }
 
     const [data, total] = await query
-      .orderBy('billing.date', 'DESC')
-      .addOrderBy('billing.created_at', 'DESC')
       .take(limit)
       .skip(skip)
       .getManyAndCount();
@@ -390,7 +405,7 @@ export class BillingsService {
       throw new BadRequestException('No template steps found for Boleto Billing category. Please run migrations.');
     }
 
-    // Get responsable user if provided
+    // Get responsable user if provided (any active user is allowed; no role restriction)
     let responsableUser: User | null = null;
     if (responsibleUserId && responsibleUserId > 0) {
       responsableUser = await this.usersRepository.findOne({
@@ -398,6 +413,9 @@ export class BillingsService {
       });
       if (!responsableUser) {
         throw new BadRequestException(`User with ID ${responsibleUserId} not found`);
+      }
+      if (!responsableUser.active) {
+        throw new BadRequestException(`User with ID ${responsibleUserId} is inactive`);
       }
     }
 
@@ -542,9 +560,15 @@ export class BillingsService {
         const machineMapping = generateDto.machines.find((m) => m.copy_machine_id === machine.id);
         if (!machineMapping) continue;
 
-        // Get last billing for previous_counter
+        // previous_counter: prefer value provided at generation time (secretaria),
+        // otherwise fallback to last billing/current machine last counter.
+        const mappedPreviousCounter =
+          (machineMapping as any).previous_counter !== undefined
+            ? (machineMapping as any).previous_counter
+            : undefined;
         const lastBilling = await this.getLastBilling(machine.id);
-        const previousCounter = lastBilling?.current_counter || machine.ultimo_contador || null;
+        const previousCounter =
+          mappedPreviousCounter ?? lastBilling?.current_counter ?? machine.ultimo_contador ?? null;
 
         // Calculate amount_to_receive (initially 0, will be calculated when counters are filled)
         // The amount is calculated based on: (current_counter - previous_counter - franchise.quantity) * unit_price

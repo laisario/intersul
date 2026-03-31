@@ -29,7 +29,6 @@
 	const usersQuery = useUsers();
 	const clients = $derived(clientsQuery.data ?? []);
 	const users = $derived(usersQuery.data?.filter((u) => u.active) ?? []);
-	const managerUsers = $derived(users.filter((u) => u.role === 'MANAGER'));
 
 	// Filter clients by city
 	const cityClients = $derived(
@@ -39,6 +38,9 @@
 	let machineUserMap = $state<Map<number, number>>(new Map());
 	let machineExpirationMap = $state<Map<number, string>>(new Map());
 	let machinePaymentMethodMap = $state<Map<number, string>>(new Map());
+	let machinePreviousCounterMap = $state<Map<number, number>>(new Map());
+	// Draft string so the input can be cleared/edited without immediately falling back to ultimoContador.
+	let machinePreviousCounterDraftMap = $state<Map<number, string>>(new Map());
 	let machineBoletoServiceUserMap = $state<Map<number, number>>(new Map());
 	let machineBoletoServiceExpirationMap = $state<Map<number, string>>(new Map());
 
@@ -47,6 +49,8 @@
 			machineUserMap.clear();
 			machineExpirationMap.clear();
 			machinePaymentMethodMap.clear();
+			machinePreviousCounterMap.clear();
+			machinePreviousCounterDraftMap.clear();
 			machineBoletoServiceUserMap.clear();
 			machineBoletoServiceExpirationMap.clear();
 		}
@@ -66,6 +70,33 @@
 		return machine.ultimoContador ?? null;
 	}
 
+	function handlePreviousCounterChange(machineId: number, value: string) {
+		// Store draft exactly as typed (allows empty string)
+		machinePreviousCounterDraftMap.set(machineId, value);
+		machinePreviousCounterDraftMap = new Map(machinePreviousCounterDraftMap);
+
+		const v = value.trim();
+		if (!v) {
+			machinePreviousCounterMap.delete(machineId);
+			machinePreviousCounterMap = new Map(machinePreviousCounterMap);
+			return;
+		}
+		const parsed = Number(v);
+		if (!Number.isFinite(parsed)) return;
+
+		machinePreviousCounterMap.set(machineId, parsed);
+		machinePreviousCounterMap = new Map(machinePreviousCounterMap);
+	}
+
+	function getPreviousCounterInputValue(machine: ClientCopyMachine): string {
+		const draft = machinePreviousCounterDraftMap.get(machine.id);
+		if (draft !== undefined) return draft;
+		const explicit = machinePreviousCounterMap.get(machine.id);
+		if (explicit !== undefined) return String(explicit);
+		const fallback = getLastCounter(machine);
+		return fallback === null ? '' : String(fallback);
+	}
+
 	function getSuggestedPrice(machine: ClientCopyMachine): number | null {
 		if (!machine.franchise) return null;
 		const quantity = machine.franchise.quantity ?? 0;
@@ -80,15 +111,17 @@
 			if (userId) {
 				const expirationDate = machineExpirationMap.get(machineId);
 				const paymentMethod = machinePaymentMethodMap.get(machineId);
+				const previousCounter = machinePreviousCounterMap.get(machineId);
 				const boletoServiceUserId = machineBoletoServiceUserMap.get(machineId);
 				const boletoServiceExpiration = machineBoletoServiceExpirationMap.get(machineId);
 				machines.push({
-					copy_machine_id: machineId,
-					responsible_user_id: userId,
-					datetime_expiration: expirationDate || undefined,
-					payment_method: paymentMethod || undefined,
-					boleto_service_responsible_user_id: boletoServiceUserId || undefined,
-					boleto_service_expiration_date: boletoServiceExpiration || undefined,
+					copyMachineId: machineId,
+					responsibleUserId: userId,
+					datetimeExpiration: expirationDate || undefined,
+					previousCounter: previousCounter ?? undefined,
+					paymentMethod: paymentMethod || undefined,
+					boletoServiceResponsibleUserId: boletoServiceUserId || undefined,
+					boletoServiceExpirationDate: boletoServiceExpiration || undefined,
 				});
 			}
 		});
@@ -101,6 +134,8 @@
 		machineUserMap.clear();
 		machineExpirationMap.clear();
 		machinePaymentMethodMap.clear();
+		machinePreviousCounterMap.clear();
+		machinePreviousCounterDraftMap.clear();
 		machineBoletoServiceUserMap.clear();
 		machineBoletoServiceExpirationMap.clear();
 	}
@@ -109,6 +144,8 @@
 		machineUserMap.clear();
 		machineExpirationMap.clear();
 		machinePaymentMethodMap.clear();
+		machinePreviousCounterMap.clear();
+		machinePreviousCounterDraftMap.clear();
 		machineBoletoServiceUserMap.clear();
 		machineBoletoServiceExpirationMap.clear();
 		onCancel();
@@ -346,6 +383,20 @@
 												/>
 											</div>
 											<div class="space-y-2">
+												<Label for="previous-counter-{machine.id}">Contador anterior</Label>
+												<Input
+													id="previous-counter-{machine.id}"
+													type="number"
+													min="0"
+													value={getPreviousCounterInputValue(machine)}
+													oninput={(e) => handlePreviousCounterChange(machine.id, e.currentTarget.value)}
+													placeholder="Ex: 12345"
+												/>
+												<p class="text-xs text-muted-foreground">
+													Se não preencher, será usado o último fechamento (ou último contador da máquina).
+												</p>
+											</div>
+											<div class="space-y-2">
 												<Label for="payment-method-{machine.id}">Forma de Pagamento</Label>
 												<Select
 													type="single"
@@ -405,24 +456,24 @@
 														>
 															<SelectTrigger id="boleto-service-user-{machine.id}">
 																{#if !machineBoletoServiceUserMap.get(machine.id)}
-																	<span class="text-muted-foreground">Selecione um gerente</span>
+																	<span class="text-muted-foreground">Selecione um usuário</span>
 																{:else}
-																	{managerUsers.find((u) => u.id === machineBoletoServiceUserMap.get(machine.id))?.name || 'Gerente'}
+																	{users.find((u) => u.id === machineBoletoServiceUserMap.get(machine.id))?.name || 'Usuário'}
 																{/if}
 															</SelectTrigger>
 															<SelectContent>
 																{#if usersQuery.isLoading}
 																	<SelectItem value="" disabled>Carregando...</SelectItem>
-																{:else if !managerUsers.length}
-																	<SelectItem value="" disabled>Nenhum gerente disponível</SelectItem>
+																{:else if !users.length}
+																	<SelectItem value="" disabled>Nenhum usuário disponível</SelectItem>
 																{:else}
-																	{#each managerUsers as manager (manager.id)}
-																		<SelectItem value={manager.id.toString()}>{manager.name}</SelectItem>
+																	{#each users as user (user.id)}
+																		<SelectItem value={user.id.toString()}>{user.name}</SelectItem>
 																	{/each}
 																{/if}
 															</SelectContent>
 														</Select>
-														<p class="text-xs text-muted-foreground">Apenas usuários com role de Gerente podem ser responsáveis pelo serviço de boleto</p>
+														<p class="text-xs text-muted-foreground">Selecione quem será responsável pelo serviço de boleto</p>
 													</div>
 
 													<div class="space-y-2">

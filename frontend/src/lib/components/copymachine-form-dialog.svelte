@@ -10,9 +10,10 @@
 		SheetDescription
 	} from '$lib/components/ui/sheet/index.js';
 	import { showError, showSuccess } from '$lib/utils/toast.js';
-	import { useCopyMachines, useFranchises, useCreateClientCopyMachine, useUpdateClientCopyMachine } from '$lib/hooks/queries/use-copy-machines.svelte.js';
-	import { AcquisitionType, type CreateClientCopyMachineDto, type CopyMachineCatalog, type UpdateClientCopyMachineDto, type ClientCopyMachine } from '$lib/api/types/copy-machine.types.js';
+	import { useCopyMachine, useFranchises, useCreateClientCopyMachine, useUpdateClientCopyMachine } from '$lib/hooks/queries/use-copy-machines.svelte.js';
+	import { AcquisitionType, type CreateClientCopyMachineDto, type CopyMachineCatalog, type UpdateClientCopyMachineDto, type ClientCopyMachine, type Franchise } from '$lib/api/types/copy-machine.types.js';
 	import { Loader2, Info } from 'lucide-svelte';
+	import CatalogMachineAsyncSelect from '$lib/components/catalog-machine-async-select.svelte';
 
 	interface Props {
 		open: boolean;
@@ -24,7 +25,6 @@
 	let { open = $bindable(false), clientId, machine, onSuccess }: Props = $props();
 
 	// TanStack Query hooks for data fetching
-	const catalogQuery = useCopyMachines('', 1, 100);
 	const franchisesQuery = useFranchises();
 	const createMutation = useCreateClientCopyMachine();
 	const updateMutation = useUpdateClientCopyMachine();
@@ -32,9 +32,7 @@
 	let isEditing = $derived(!!machine);
 
 	// Derived data from queries (filter out disabled items)
-	let catalogMachines = $derived((catalogQuery.data?.data || []).filter((m: CopyMachineCatalog) => !m.isDisabled));
 	let franchises = $derived((franchisesQuery.data || []).filter((f: Franchise) => !f.isDisabled));
-	let isLoadingCatalog = $derived(catalogQuery.isLoading || catalogQuery.isFetching);
 	let isLoadingFranchises = $derived(franchisesQuery.isLoading || franchisesQuery.isFetching);
 
 	// Initialize form state based on whether we're editing or creating
@@ -71,7 +69,10 @@
 	// Form state - initialized based on machine prop (using camelCase, humps converts to snake_case on send)
 	let formData = $state<Partial<CreateClientCopyMachineDto>>(getInitialFormData());
 
-	let selectedCatalogMachine = $state<CopyMachineCatalog | null>(null);
+	const selectedCatalogQuery = $derived(
+		formData.catalogCopyMachineId ? useCopyMachine(formData.catalogCopyMachineId) : null
+	);
+	let selectedCatalogMachine = $derived(selectedCatalogQuery?.data ?? null);
 
 	// Derived states
 	let showCatalogSelect = $derived(
@@ -89,30 +90,10 @@
 		selectedCatalogMachine?.price ? `R$ ${Number(selectedCatalogMachine.price).toFixed(2)}` : ''
 	);
 
-	// Handle catalog machine selection
-	function handleCatalogMachineChange(value: string) {
-		if (!value || value === '') {
-			formData.catalogCopyMachineId = undefined;
-			selectedCatalogMachine = null;
-			return;
-		}
-		
-		const machineId = parseInt(value, 10);
-		if (isNaN(machineId) || machineId <= 0) {
-			console.error('Invalid catalog machine ID:', value);
-			formData.catalogCopyMachineId = undefined;
-			selectedCatalogMachine = null;
-			return;
-		}
-		
-		formData.catalogCopyMachineId = machineId;
-		
-		// Find the selected machine
-		selectedCatalogMachine = catalogMachines.find(m => m.id === machineId) || null;
-		
-		// If SOLD, suggest the price
-		if (formData.acquisitionType === AcquisitionType.SOLD && selectedCatalogMachine?.price) {
-			formData.value = Number(selectedCatalogMachine.price);
+	function handleCatalogMachineSelect(id: number, machine?: CopyMachineCatalog) {
+		formData.catalogCopyMachineId = id || undefined;
+		if (formData.acquisitionType === AcquisitionType.SOLD && machine?.price != null) {
+			formData.value = Number(machine.price);
 		}
 	}
 
@@ -125,7 +106,6 @@
 			formData.catalogCopyMachineId = undefined;
 			formData.franchiseId = undefined;
 			formData.value = undefined;
-			selectedCatalogMachine = null;
 		} else if (value === AcquisitionType.RENT) {
 			formData.externalModel = '';
 			formData.externalManufacturer = '';
@@ -241,8 +221,6 @@
 				franchiseId: formData.franchiseId
 			};
 
-			console.log('Submitting payload:', payload);
-
 			createMutation.mutate(payload, {
 				onSuccess: () => {
 					showSuccess('Máquina cadastrada com sucesso!');
@@ -274,7 +252,6 @@
 		formData.externalDescription = '';
 		formData.value = undefined;
 		formData.franchiseId = undefined;
-		selectedCatalogMachine = null;
 	}
 
 	// Update form data when dialog opens or machine prop changes
@@ -303,25 +280,7 @@
 		formData.clientId = clientId;
 	});
 	
-	// Set selected catalog machine when catalog loads and we're editing
-	$effect(() => {
-		if (isEditing && machine?.catalogCopyMachineId && catalogMachines.length > 0) {
-			selectedCatalogMachine = catalogMachines.find(m => m.id === machine.catalogCopyMachineId) || null;
-		} else if (!isEditing || !machine?.catalogCopyMachineId) {
-			selectedCatalogMachine = null;
-		}
-	});
-	
-	// Reset form when dialog closes
-	$effect(() => {
-		if (!open) {
-			selectedCatalogMachine = null;
-		}
-	});
-
-	$effect(() => {
-		console.log(franchises, "ccc");
-	});
+	// selectedCatalogMachine is derived from the selected catalog id query
 
 </script>
 
@@ -366,58 +325,25 @@
 			<!-- Catalog Machine Select (for RENT and SOLD) -->
 			{#if showCatalogSelect}
 				<div class="space-y-2">
-					<Label for="catalog_machine">Máquina do Catálogo *</Label>
-					{#if isLoadingCatalog}
-						<div class="flex items-center justify-center p-4 border rounded-md">
-							<Loader2 class="w-4 h-4 animate-spin mr-2" />
-							<span class="text-sm text-muted-foreground">Carregando máquinas...</span>
-						</div>
-					{:else if catalogMachines.length === 0}
-						<div class="text-sm text-muted-foreground p-4 border rounded-md">
-							Nenhuma máquina disponível no catálogo
-						</div>
-					{:else}
-						<select
-							id="catalogMachine"
-							value={formData.catalogCopyMachineId?.toString() || ''}
-							onchange={(e) => {
-								console.log('Select changed, value:', e.currentTarget.value, 'type:', typeof e.currentTarget.value);
-								handleCatalogMachineChange(e.currentTarget.value);
-							}}
-							required
-							disabled={createMutation.isPending || updateMutation.isPending}
-							class="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-						>
-							<option value="">Selecione uma máquina</option>
-							{#each catalogMachines as machine}
-								<option value={machine.id?.toString() || ''}>
-									{machine.manufacturer} - {machine.model}
-									{#if machine.price != null}
-										(R$ {Number(machine.price).toFixed(2)})
-									{/if}
-									{#if machine.quantity !== undefined && machine.quantity !== null}
-										{@const stock = machine.quantity ?? 0}
-										{@const stockText = stock < 0 ? `[Estoque: ${stock}]` : stock === 0 ? '[Estoque: 0]' : `[Estoque: ${stock}]`}
-										- {stockText}
-									{/if}
-								</option>
-							{/each}
-						</select>
-						{#if selectedCatalogMachine && selectedCatalogMachine.quantity !== undefined && selectedCatalogMachine.quantity !== null}
-							{@const stock = selectedCatalogMachine.quantity ?? 0}
-							{#if stock <= 0}
-								<p class="text-xs mt-1 {stock < 0 ? 'text-destructive' : 'text-yellow-600'}">
-									{#if stock < 0}
-										⚠️ Estoque negativo: {stock} unidade(s)
-									{:else}
-										⚠️ Estoque zerado
-									{/if}
-								</p>
-							{:else}
-								<p class="text-xs mt-1 text-muted-foreground">
-									Estoque disponível: {stock} unidade(s)
-								</p>
-							{/if}
+					<CatalogMachineAsyncSelect
+						bind:value={formData.catalogCopyMachineId}
+						onValueChange={handleCatalogMachineSelect}
+						disabled={createMutation.isPending || updateMutation.isPending}
+					/>
+					{#if selectedCatalogMachine && selectedCatalogMachine.quantity !== undefined && selectedCatalogMachine.quantity !== null}
+						{@const stock = selectedCatalogMachine.quantity ?? 0}
+						{#if stock <= 0}
+							<p class="text-xs mt-1 {stock < 0 ? 'text-destructive' : 'text-yellow-600'}">
+								{#if stock < 0}
+									⚠️ Estoque negativo: {stock} unidade(s)
+								{:else}
+									⚠️ Estoque zerado
+								{/if}
+							</p>
+						{:else}
+							<p class="text-xs mt-1 text-muted-foreground">
+								Estoque disponível: {stock} unidade(s)
+							</p>
 						{/if}
 					{/if}
 				</div>

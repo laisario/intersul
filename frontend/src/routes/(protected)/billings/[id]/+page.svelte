@@ -9,6 +9,7 @@
 	import { ArrowLeft } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
 	import { errorToast, successToast, showError } from '$lib/utils/toast.js';
+	import { LoadingButton } from '$lib/components/ui/loading-button/index.js';
 
 	const billingId = $derived.by(() => {
 		const id = $page.params.id;
@@ -49,6 +50,29 @@
 		}
 	});
 
+	async function handleTogglePayment() {
+		if (!billing) return;
+		updateBilling(
+			{
+				id: billing.id,
+				data: {
+					isInvoiced: !(billing.isInvoiced ?? false),
+				},
+			},
+			{
+				onSuccess: () => {
+					successToast.updated('Pagamento');
+				},
+				onError: (err: any) => {
+					console.error('Error toggling payment:', err);
+					const msg = err?.response?.data?.message;
+					if (msg) showError(Array.isArray(msg) ? msg.join(' ') : String(msg));
+					else errorToast.unknown();
+				},
+			},
+		);
+	}
+
 	async function handleSave() {
 		if (!billing) return;
 
@@ -57,12 +81,12 @@
 				{
 					id: billing.id,
 					data: {
-						previous_counter: formData.previous_counter ?? undefined,
-						current_counter: formData.current_counter ?? undefined,
-						payment_method: formData.payment_method || undefined,
-						amount_to_receive: formData.amount_to_receive,
-						is_invoiced: formData.is_invoiced,
-						responsible_user_id: formData.responsible_user_id,
+						previousCounter: formData.previous_counter ?? undefined,
+						currentCounter: formData.current_counter ?? undefined,
+						paymentMethod: formData.payment_method || undefined,
+						amountToReceive: formData.amount_to_receive,
+						isInvoiced: formData.is_invoiced,
+						responsibleUserId: formData.responsible_user_id,
 					},
 				},
 				{
@@ -116,6 +140,15 @@
 				<p class="text-muted-foreground">Visualize as informações do fechamento</p>
 			</div>
 		</div>
+		{#if billing}
+			<LoadingButton
+				onclick={handleTogglePayment}
+				loading={isUpdating}
+				variant={billing.isInvoiced ? 'outline' : 'default'}
+			>
+				{billing.isInvoiced ? 'Desconfirmar pagamento' : 'Confirmar pagamento'}
+			</LoadingButton>
+		{/if}
 	</div>
 
 	{#if isLoading}

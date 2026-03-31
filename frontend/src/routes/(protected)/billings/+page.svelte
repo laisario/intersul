@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { useBillings, useGenerateBillingsByCity, useDeleteBilling } from '$lib/hooks/queries/use-billings.svelte.js';
 	import { useClients } from '$lib/hooks/queries/use-clients.svelte.js';
-	import { formatDate, formatCurrency } from '$lib/utils/formatting.js';
+	import { formatDate, formatCurrency, getPaymentMethodLabel } from '$lib/utils/formatting.js';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
@@ -9,6 +9,7 @@
 	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
 	import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '$lib/components/ui/table/index.js';
 	import { Select, SelectTrigger, SelectContent, SelectItem } from '$lib/components/ui/select/index.js';
+	import ClientAsyncSelect from '$lib/components/client-async-select.svelte';
 	import type { Billing } from '$lib/api/types/billing.types.js';
 	import type { BillingQueryParams } from '$lib/api/types/billing.types.js';
 	import type { City } from '$lib/api/types/address.types.js';
@@ -54,15 +55,14 @@
 		})()
 	);
 
-	const clientOptions = $derived(
-		clients
-			.filter((c) => c.active)
-			.map((c) => ({ id: c.id, name: c.name }))
-			.sort((a, b) => a.name.localeCompare(b.name))
-	);
+	// Client list is loaded async by ClientAsyncSelect (searchable).
 
-	const selectedCityFilter = $derived(billingFilters.city_id?.toString() || '');
-	const selectedClientFilter = $derived(billingFilters.client_id?.toString() || '');
+	const selectedCityFilter = $derived(billingFilters.cityId?.toString() || '');
+	const selectedClientFilter = $derived(billingFilters.clientId?.toString() || '');
+	const selectedPaymentMethodFilter = $derived(billingFilters.paymentMethod ?? '');
+	const selectedSortBy = $derived(billingFilters.sortBy ?? 'date');
+	const selectedSortOrder = $derived(billingFilters.sortOrder ?? 'desc');
+	const sortOptionValue = $derived(`${selectedSortBy}:${selectedSortOrder}`);
 
 
 	function updateFilters(newFilters: Partial<BillingQueryParams>, options: { resetPage?: boolean } = {}) {
@@ -219,7 +219,7 @@
 				type="single"
 				value={selectedCityFilter}
 				onValueChange={(value: string) => {
-					updateFilters({ city_id: value ? parseInt(value) : undefined }, { resetPage: true });
+					updateFilters({ cityId: value ? parseInt(value) : undefined }, { resetPage: true });
 				}}
 			>
 				<SelectTrigger>
@@ -237,26 +237,69 @@
 				</SelectContent>
 			</Select>
 		</div>
+		<div class="w-[260px]">
+			<ClientAsyncSelect
+				value={billingFilters.clientId ?? 0}
+				onValueChange={(clientId) => updateFilters({ clientId: clientId || undefined }, { resetPage: true })}
+				label=""
+				placeholder="Todos os clientes"
+			/>
+		</div>
 		<div class="w-[200px]">
 			<Select
 				type="single"
-				value={selectedClientFilter}
+				value={selectedPaymentMethodFilter}
 				onValueChange={(value: string) => {
-					updateFilters({ client_id: value ? parseInt(value) : undefined }, { resetPage: true });
+					updateFilters({ paymentMethod: value || undefined }, { resetPage: true });
 				}}
 			>
 				<SelectTrigger>
 					<span class="block text-left text-sm">
-						{selectedClientFilter
-							? clientOptions.find((opt) => opt.id.toString() === selectedClientFilter)?.name
-							: 'Todos os clientes'}
+						{selectedPaymentMethodFilter ? selectedPaymentMethodFilter : 'Todas as formas'}
 					</span>
 				</SelectTrigger>
 				<SelectContent>
-					<SelectItem value="">Todos os clientes</SelectItem>
-					{#each clientOptions as option (option.id)}
-						<SelectItem value={option.id.toString()}>{option.name}</SelectItem>
-					{/each}
+					<SelectItem value="">Todas as formas</SelectItem>
+					<SelectItem value="Cash">Dinheiro</SelectItem>
+					<SelectItem value="PIX">PIX</SelectItem>
+					<SelectItem value="Debit Card">Cartão de Débito</SelectItem>
+					<SelectItem value="Credit Card">Cartão de Crédito</SelectItem>
+					<SelectItem value="Bank Slip">Boleto</SelectItem>
+					<SelectItem value="Transfer">Transferência</SelectItem>
+					<SelectItem value="Fiado">Faturado</SelectItem>
+				</SelectContent>
+			</Select>
+		</div>
+		<div class="w-[220px]">
+			<Select
+				type="single"
+				value={sortOptionValue}
+				onValueChange={(value: string) => {
+					const [sortBy, sortOrder] = value.split(':');
+					updateFilters(
+						{ sortBy: sortBy || 'date', sortOrder: (sortOrder as 'asc' | 'desc') || 'desc' },
+						{ resetPage: true },
+					);
+				}}
+			>
+				<SelectTrigger>
+					<span class="block text-left text-sm">
+						{sortOptionValue === 'date:desc'
+							? 'Data (mais recentes)'
+							: sortOptionValue === 'date:asc'
+								? 'Data (mais antigos)'
+								: sortOptionValue === 'payment_method:asc'
+									? 'Forma de pagamento (A → Z)'
+									: sortOptionValue === 'payment_method:desc'
+										? 'Forma de pagamento (Z → A)'
+										: 'Ordenação'}
+					</span>
+				</SelectTrigger>
+				<SelectContent>
+					<SelectItem value="date:desc">Data (mais recentes)</SelectItem>
+					<SelectItem value="date:asc">Data (mais antigos)</SelectItem>
+					<SelectItem value="payment_method:asc">Forma de pagamento (A → Z)</SelectItem>
+					<SelectItem value="payment_method:desc">Forma de pagamento (Z → A)</SelectItem>
 				</SelectContent>
 			</Select>
 		</div>
@@ -292,6 +335,7 @@
 								<th class="text-left p-3 font-medium">Contador Anterior</th>
 								<th class="text-left p-3 font-medium">Contador Atual</th>
 								<th class="text-left p-3 font-medium">Valor a Receber</th>
+								<th class="text-left p-3 font-medium">Forma de Pagamento</th>
 								<th class="text-left p-3 font-medium">Pagamento Concluído</th>
 							</tr>
 						</thead>
@@ -323,6 +367,7 @@
 									<td class="p-3">{billing.previousCounter ?? '-'}</td>
 									<td class="p-3">{billing.currentCounter ?? '-'}</td>
 									<td class="p-3">{formatCurrency(billing.amountToReceive)}</td>
+									<td class="p-3">{billing.paymentMethod ? getPaymentMethodLabel(billing.paymentMethod) : '-'}</td>
 									<td class="p-3">
 										{billing.isInvoiced ? 'Sim' : 'Não'}
 									</td>

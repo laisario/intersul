@@ -45,10 +45,13 @@ export class CopyMachinesService {
       .where('catalog.isDisabled = :isDisabled', { isDisabled: false })
       .orderBy('catalog.created_at', 'DESC');
     
-    if (search) {
+    const q = search?.trim();
+    if (q) {
+      // Case-insensitive partial match on model/manufacturer (and description as fallback).
+      // Uses LOWER(...) so it works on MySQL as well.
       queryBuilder = queryBuilder.andWhere(
-        '(catalog.model LIKE :search OR catalog.manufacturer LIKE :search OR catalog.description LIKE :search)', 
-        { search: `%${search}%` }
+        '(LOWER(catalog.model) LIKE :search OR LOWER(catalog.manufacturer) LIKE :search OR LOWER(catalog.description) LIKE :search)',
+        { search: `%${q.toLowerCase()}%` },
       );
     }
     
