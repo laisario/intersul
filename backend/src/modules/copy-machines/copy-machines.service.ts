@@ -185,28 +185,54 @@ export class CopyMachinesService {
   async updateClientCopyMachine(id: number, updateClientCopyMachineDto: UpdateClientCopyMachineDto): Promise<ClientCopyMachine> {
     const clientCopyMachine = await this.findOneClientCopyMachine(id);
 
-    // Validate that catalog machine is not disabled if being updated
+    // Validate catalog / franchise when provided (null clears the link)
     if (updateClientCopyMachineDto.catalog_copy_machine_id !== undefined) {
-      const catalogMachine = await this.copyMachineCatalogRepository.findOne({
-        where: { id: updateClientCopyMachineDto.catalog_copy_machine_id },
-      });
-      if (catalogMachine && catalogMachine.isDisabled) {
-        throw new NotFoundException(`Cannot link to a disabled catalog machine. The machine has been deactivated.`);
+      if (updateClientCopyMachineDto.catalog_copy_machine_id !== null) {
+        const catalogMachine = await this.copyMachineCatalogRepository.findOne({
+          where: { id: updateClientCopyMachineDto.catalog_copy_machine_id },
+        });
+        if (!catalogMachine) {
+          throw new NotFoundException(
+            `Catalog copy machine with ID ${updateClientCopyMachineDto.catalog_copy_machine_id} not found`,
+          );
+        }
+        if (catalogMachine.isDisabled) {
+          throw new NotFoundException(
+            `Cannot link to a disabled catalog machine. The machine has been deactivated.`,
+          );
+        }
       }
     }
 
-    // Validate that franchise is not disabled if being updated
     if (updateClientCopyMachineDto.franchise_id !== undefined) {
-      const franchise = await this.franchiseRepository.findOne({
-        where: { id: updateClientCopyMachineDto.franchise_id },
-      });
-      if (franchise && franchise.isDisabled) {
-        throw new NotFoundException(`Cannot link to a disabled franchise. The franchise has been deactivated.`);
+      if (updateClientCopyMachineDto.franchise_id !== null) {
+        const franchise = await this.franchiseRepository.findOne({
+          where: { id: updateClientCopyMachineDto.franchise_id },
+        });
+        if (!franchise) {
+          throw new NotFoundException(`Franchise with ID ${updateClientCopyMachineDto.franchise_id} not found`);
+        }
+        if (franchise.isDisabled) {
+          throw new NotFoundException(
+            `Cannot link to a disabled franchise. The franchise has been deactivated.`,
+          );
+        }
       }
+    }
+
+    // Stale ManyToOne relations would keep old franchise.id / catalogCopyMachine.id in memory while
+    // Object.assign only updates franchise_id / catalog_copy_machine_id, producing inconsistent JSON.
+    if (updateClientCopyMachineDto.catalog_copy_machine_id !== undefined) {
+      clientCopyMachine.catalogCopyMachine = undefined;
+    }
+    if (updateClientCopyMachineDto.franchise_id !== undefined) {
+      clientCopyMachine.franchise = undefined;
     }
 
     Object.assign(clientCopyMachine, updateClientCopyMachineDto);
-    return this.clientCopyMachineRepository.save(clientCopyMachine);
+    await this.clientCopyMachineRepository.save(clientCopyMachine);
+
+    return this.findOneClientCopyMachine(id);
   }
 
   async removeClientCopyMachine(id: number): Promise<void> {
