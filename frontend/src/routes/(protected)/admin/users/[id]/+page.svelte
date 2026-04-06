@@ -349,13 +349,13 @@
 								<Table>
 									<TableHeader>
 										<TableRow>
-											<TableHead>Etapa</TableHead>
-											<TableHead>Serviço</TableHead>
 											<TableHead>Cliente</TableHead>
 											<TableHead>Status</TableHead>
+											<TableHead>Etapa</TableHead>
 											<TableHead>Data de Início</TableHead>
 											<TableHead>Data de Conclusão</TableHead>
 											<TableHead>Vencimento</TableHead>
+											<TableHead>Serviço</TableHead>
 										</TableRow>
 									</TableHeader>
 									<TableBody>
@@ -366,12 +366,48 @@
 												onclick={() => handleStepClick(step)}
 											>
 												<TableCell>
+													{#if step.service?.client}
+													<span class="text-sm">{step.service.client.name}</span>
+													{:else}
+														<span class="text-muted-foreground text-sm">-</span>
+													{/if}
+												</TableCell>
+												<TableCell>
+													<div class="flex items-center gap-2">
+														<StatusIcon class="w-4 h-4" />
+														<Badge variant={getStatusBadgeVariant(step.status)}>
+															{getStatusLabel(step.status)}
+														</Badge>
+													</div>
+												</TableCell>
+												<TableCell>
 													<div class="flex flex-col">
 														<span class="font-medium">{step.name}</span>
 														{#if step.description}
 															<span class="text-xs text-muted-foreground line-clamp-1">{step.description}</span>
 														{/if}
 													</div>
+												</TableCell>
+												<TableCell>
+													{#if step.datetimeStart}
+														<span class="text-sm">{formatDateTime(step.datetimeStart)}</span>
+													{:else}
+														<span class="text-muted-foreground text-sm">-</span>
+													{/if}
+												</TableCell>
+												<TableCell>
+													{#if step.datetimeConclusion}
+														<span class="text-sm">{formatDateTime(step.datetimeConclusion)}</span>
+													{:else}
+														<span class="text-muted-foreground text-sm">-</span>
+													{/if}
+												</TableCell>
+												<TableCell>
+													{#if step.datetimeExpiration}
+													<span class="text-sm">{formatDateTime(step.datetimeExpiration)}</span>
+													{:else}
+													<span class="text-muted-foreground text-sm">-</span>
+													{/if}
 												</TableCell>
 												<TableCell>
 													{#if step.service}
@@ -391,42 +427,6 @@
 																<ExternalLink class="w-3 h-3" />
 															</Button>
 														</div>
-													{:else}
-														<span class="text-muted-foreground text-sm">-</span>
-													{/if}
-												</TableCell>
-												<TableCell>
-													{#if step.service?.client}
-														<span class="text-sm">{step.service.client.name}</span>
-													{:else}
-														<span class="text-muted-foreground text-sm">-</span>
-													{/if}
-												</TableCell>
-												<TableCell>
-													<div class="flex items-center gap-2">
-														<StatusIcon class="w-4 h-4" />
-														<Badge variant={getStatusBadgeVariant(step.status)}>
-															{getStatusLabel(step.status)}
-														</Badge>
-													</div>
-												</TableCell>
-												<TableCell>
-													{#if step.datetimeStart}
-														<span class="text-sm">{formatDateTime(step.datetimeStart)}</span>
-													{:else}
-														<span class="text-muted-foreground text-sm">-</span>
-													{/if}
-												</TableCell>
-												<TableCell>
-													{#if step.datetimeConclusion}
-														<span class="text-sm">{formatDateTime(step.datetimeConclusion)}</span>
-													{:else}
-														<span class="text-muted-foreground text-sm">-</span>
-													{/if}
-												</TableCell>
-												<TableCell>
-													{#if step.datetimeExpiration}
-														<span class="text-sm">{formatDateTime(step.datetimeExpiration)}</span>
 													{:else}
 														<span class="text-muted-foreground text-sm">-</span>
 													{/if}
