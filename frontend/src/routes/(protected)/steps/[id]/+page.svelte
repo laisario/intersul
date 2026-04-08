@@ -526,39 +526,15 @@
 				</div>
 			{:else if isResponsable}
 				{#if step.status === 'PENDING'}
-					{@const franchiseClosing =
-						(step.service?.category?.name ?? '').trim() === FRANCHISE_CLOSING_CATEGORY_NAME}
-					{@const priorOk =
-						step.dependsOn?.status === 'CONCLUDED' ||
-						step.dependsOn?.status === 'CANCELLED' ||
-						step.dependsOn?.status === 'concluded' ||
-						step.dependsOn?.status === 'cancelled'}
-					{@const canStartStep =
-						step.canStart !== false &&
-						(franchiseClosing ||
-							step.dependsOnStepId === null ||
-							step.dependsOnStepId === undefined ||
-							priorOk)}
-					{@const blockReasonText =
-						step.blockReason ||
-						(!franchiseClosing && step.dependsOn && !priorOk
-							? 'Você precisa concluir ou cancelar a etapa anterior antes de iniciar esta.'
-							: '')}
 					<div class="flex flex-col gap-2">
 						<LoadingButton
 							onclick={handleStart}
 							loading={isStarting}
-							disabled={!canStartStep}
 							class="w-full sm:w-auto"
 						>
 							<Play class="w-4 h-4 mr-2" />
 							Começar Etapa
 						</LoadingButton>
-						{#if !canStartStep && blockReasonText}
-							<p class="text-sm text-destructive">
-								{blockReasonText}
-							</p>
-						{/if}
 					</div>
 				{:else if step.status === 'IN_PROGRESS'}
 					<div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto">

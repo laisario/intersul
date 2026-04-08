@@ -75,18 +75,32 @@ export interface Step extends BaseEntity {
   dependsOn?: Step;
   canStart?: boolean;
   blockReason?: string;
+  checklists?: StepChecklist[];
+}
+
+export interface StepChecklist {
+  id: number;
+  description: string;
+  completed: boolean;
+  step_id: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface StepTemplate {
   name: string;
-  description: string;
+  description?: string;
   observation?: string;
   responsableClient?: string;
+  checklist_descriptions?: string[];
 }
 
 export interface Category extends BaseEntity {
   name: string;
   description?: string;
+  color?: string;
+  active?: boolean;
+  stepTemplates?: StepTemplate[];
   steps?: Step[];
   services?: Service[];
 }
@@ -102,13 +116,14 @@ export type ServiceStepStatus = (typeof ServiceStepStatus)[keyof typeof ServiceS
 
 export interface CreateServiceStepDto {
   name: string;
-  description: string;
+  description?: string;
   observation?: string;
   responsableId?: number;
   responsableClient?: string;
   datetimeStart?: string;
   datetimeConclusion?: string;
   datetimeExpiration?: string;
+  checklist_descriptions?: string[];
 }
 
 export interface CreateServiceDto {
@@ -129,12 +144,16 @@ export interface CreateServiceDto {
 export interface CreateCategoryDto {
   name: string;
   description?: string;
+  color?: string;
+  active?: boolean;
   steps?: StepTemplate[];
 }
 
 export interface UpdateCategoryDto {
   name?: string;
   description?: string;
+  color?: string;
+  active?: boolean;
   steps?: StepTemplate[];
 }
 

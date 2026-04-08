@@ -1,5 +1,6 @@
-import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsString, IsNotEmpty, IsOptional, IsArray } from 'class-validator';
+import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateStepTemplateDto {
   @ApiProperty({
@@ -10,29 +11,37 @@ export class CreateStepTemplateDto {
   @IsNotEmpty()
   name: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: 'Evaluate the machine condition',
-    description: 'Step description',
+    description: 'Step additional information',
   })
   @IsString()
-  @IsNotEmpty()
-  description: string;
+  @IsOptional()
+  description?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: 'Check all components thoroughly',
     description: 'Step observation/notes',
-    required: false,
   })
   @IsString()
   @IsOptional()
   observation?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: 'John Doe',
     description: 'Client contact person responsible for this step',
-    required: false,
   })
   @IsString()
   @IsOptional()
   responsable_client?: string;
+
+  @ApiPropertyOptional({
+    description: 'Checklist item descriptions',
+    type: [String],
+  })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  @Type(() => String)
+  checklist_descriptions?: string[];
 }

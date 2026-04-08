@@ -4,6 +4,7 @@ import { Between, DeepPartial, Repository, In } from 'typeorm';
 import { Service } from '../entities/service.entity';
 import { Category } from '../entities/category.entity';
 import { Step } from '../entities/step.entity';
+import { StepChecklist } from '../entities/step-checklist.entity';
 import { Client } from '../../clients/entities/client.entity';
 import { ClientCopyMachine } from '../../copy-machines/entities/client-copy-machine.entity';
 import { User } from '../../auth/entities/user.entity';
@@ -14,7 +15,6 @@ import { CreateStepDto } from '../dto/create-step.dto';
 import { AcquisitionType } from '../../../common/enums/acquisition-type.enum';
 import { StepStatus } from '../../../common/enums/step-status.enum';
 import { ServiceStatus } from '../../../common/enums/service-status.enum';
-import { isFranchiseClosingCategoryName } from '../../../common/constants/service-category-names';
 
 @Injectable()
 export class ServicesService {
@@ -25,6 +25,8 @@ export class ServicesService {
     private categoriesRepository: Repository<Category>,
     @InjectRepository(Step)
     private stepsRepository: Repository<Step>,
+    @InjectRepository(StepChecklist)
+    private checklistsRepository: Repository<StepChecklist>,
     @InjectRepository(Client)
     private clientsRepository: Repository<Client>,
     @InjectRepository(ClientCopyMachine)
@@ -123,6 +125,7 @@ export class ServicesService {
       'clientCopyMachine.catalogCopyMachine',
       'steps',
       'steps.responsable',
+      'steps.checklists',
     ] as const;
 
     const withSteps = await this.servicesRepository.find({
@@ -151,7 +154,7 @@ export class ServicesService {
   async findOne(id: number): Promise<Service> {
     const service = await this.servicesRepository.findOne({
       where: { id },
-      relations: ['client', 'category', 'clientCopyMachine', 'steps', 'steps.responsable', 'steps.approval', 'steps.images'],
+      relations: ['client', 'category', 'clientCopyMachine', 'steps', 'steps.responsable', 'steps.approval', 'steps.images', 'steps.checklists'],
     });
 
     if (!service) {
@@ -259,23 +262,6 @@ export class ServicesService {
             }
           }
 
-          // Handle boleto step category
-          let categoryId: number | undefined = undefined;
-          if (step.name === 'Cobrança de boleto' || step.name.toLowerCase().includes('cobrança de boleto')) {
-            let boletoCategory = await this.categoriesRepository.findOne({
-              where: { name: 'Cobrança de Boleto' },
-            });
-
-            if (!boletoCategory) {
-              boletoCategory = this.categoriesRepository.create({
-                name: 'Cobrança de Boleto',
-                description: 'Categoria para serviços de cobrança de boleto',
-              });
-              boletoCategory = await this.categoriesRepository.save(boletoCategory);
-            }
-            categoryId = boletoCategory.id;
-          }
-
           const stepData: DeepPartial<Step> = {
             name: step.name,
             description: step.description,
@@ -288,10 +274,13 @@ export class ServicesService {
             responsable_client: step.responsable_client ?? undefined,
             reason_cancellament: step.reason_cancellament ?? undefined,
             responsable: responsableUser !== undefined ? responsableUser : undefined,
-            category_id: categoryId,
           };
 
-          return this.stepsRepository.create(stepData);
+          const stepEntity = this.stepsRepository.create(stepData);
+          // Store checklist_descriptions on the entity for later processing
+          (stepEntity as any).checklist_descriptions = step.checklist_descriptions;
+
+          return stepEntity;
     };
 
     // Get existing step names for duplicate checking
@@ -312,18 +301,24 @@ export class ServicesService {
     }
 
     // Auto-generate payment step only when external service explicitly has payment
+    // For all payment methods (including boleto), create the standard payment step
+    const isBoleto = serviceData.payment_method?.toLowerCase() === 'bank slip' ||
+                     serviceData.payment_method?.toLowerCase() === 'boleto';
+
     if (!isInternal && hasPayment) {
       const paymentStepName = 'Realizar pagamento';
       const hasPaymentStep = existingStepNames.has(paymentStepName.toLowerCase()) ||
         stepEntities.some(se => se?.name.toLowerCase() === paymentStepName.toLowerCase());
 
       if (!hasPaymentStep) {
-        // Build description based on whether amount is provided
+        // Build description based on amount and payment method
         let paymentDescription = 'Realizar pagamento.';
         if (serviceData.amount_to_receive && serviceData.amount_to_receive > 0) {
-          paymentDescription = `Realizar pagamento. Consulte o valor informado no serviço: R$ ${serviceData.amount_to_receive.toFixed(2)}.`;
+          const methodLabel = serviceData.payment_method || 'pagamento';
+          paymentDescription = `Realizar pagamento (${methodLabel}). Valor: R$ ${serviceData.amount_to_receive.toFixed(2)}.`;
         } else {
-          paymentDescription = 'Realizar pagamento. O valor será definido posteriormente na etapa de pagamento.';
+          const methodLabel = serviceData.payment_method || 'pagamento';
+          paymentDescription = `Realizar pagamento (${methodLabel}). O valor será definido posteriormente na etapa de pagamento.`;
         }
 
         // Find payment step from payload to get responsable and expiration, or use null
@@ -346,76 +341,37 @@ export class ServicesService {
           existingStepNames.add(paymentStepName.toLowerCase());
         }
       }
-
-      // Auto-generate boleto step if payment method is Boleto (only when payment is enabled)
-      const isBoleto = serviceData.payment_method?.toLowerCase() === 'bank slip' ||
-                       serviceData.payment_method?.toLowerCase() === 'boleto';
-
-      if (isBoleto) {
-        const boletoStepName = 'Cobrança de boleto';
-        const hasBoletoStep = existingStepNames.has(boletoStepName.toLowerCase()) ||
-          stepEntities.some(se => se?.name.toLowerCase() === boletoStepName.toLowerCase());
-
-        if (!hasBoletoStep) {
-          // Find boleto step from payload to get responsable and expiration, or use null
-          const boletoStepFromPayload = steps?.find(s => 
-            s.name.toLowerCase().includes('cobrança de boleto') || 
-            s.name.toLowerCase() === 'cobrança de boleto'
-          );
-
-          const boletoStepDto: CreateStepDto = {
-            name: boletoStepName,
-            description: 'Gerar/realizar cobrança via boleto para o serviço.',
-            responsable_id: boletoStepFromPayload?.responsable_id ?? null, // Optional for boleto
-            datetime_expiration: boletoStepFromPayload?.datetime_expiration,
-            status: StepStatus.PENDING,
-          };
-
-          const boletoStepEntity = await createStepEntity(boletoStepDto, existingStepNames);
-          if (boletoStepEntity) {
-            stepEntities.push(boletoStepEntity);
-          }
-        }
-      }
     }
 
-    // Save all step entities and set dependencies based on order (atomically in transaction)
+    // Save all step entities (no step dependencies - feature removed)
     const validStepEntities = stepEntities.filter(step => step !== null) as Step[];
     if (validStepEntities.length > 0) {
-      let skipDependsChain = false;
-      if (savedService.category_id != null) {
-        const serviceCategory = await this.categoriesRepository.findOne({
-          where: { id: savedService.category_id },
-        });
-        skipDependsChain = serviceCategory
-          ? isFranchiseClosingCategoryName(serviceCategory.name)
-          : false;
-      }
-
       // Use transaction to ensure atomicity
       await this.stepsRepository.manager.transaction(async (transactionalEntityManager) => {
-        // Save steps first to get their IDs
-        const savedSteps = await transactionalEntityManager.save(Step, validStepEntities);
+        // Save all steps
+        await transactionalEntityManager.save(Step, validStepEntities);
+      });
 
-        // Fechamento de Franquia: no enforced step order — all depends_on_step_id null
-        if (skipDependsChain) {
-          for (let i = 0; i < savedSteps.length; i++) {
-            savedSteps[i].depends_on_step_id = null;
-          }
-        } else {
-          // Set dependencies: step[0] has no dependency, step[i] depends on step[i-1]
-          for (let i = 0; i < savedSteps.length; i++) {
-            if (i === 0) {
-              savedSteps[i].depends_on_step_id = null;
-            } else {
-              savedSteps[i].depends_on_step_id = savedSteps[i - 1].id;
-            }
+      // Create checklists for steps that have checklist_descriptions
+      for (const stepEntity of validStepEntities) {
+        const savedStep = await this.stepsRepository.findOne({
+          where: { service_id: savedService.id, name: stepEntity.name },
+        });
+        if (savedStep && (stepEntity as any).checklist_descriptions && (stepEntity as any).checklist_descriptions.length > 0) {
+          // Filter out empty strings
+          const validDescriptions = (stepEntity as any).checklist_descriptions.filter((desc: string) => desc && desc.trim());
+          if (validDescriptions.length > 0) {
+            const checklists = validDescriptions.map((desc: string) =>
+              this.checklistsRepository.create({
+                description: desc.trim(),
+                completed: false,
+                step_id: savedStep.id,
+              })
+            );
+            await this.checklistsRepository.save(checklists);
           }
         }
-
-        // Save again with dependencies set
-        await transactionalEntityManager.save(Step, savedSteps);
-      });
+      }
 
       await this.recalculateStatus(savedService.id);
     }
@@ -538,6 +494,32 @@ export class ServicesService {
       );
         
       await this.stepsRepository.save(stepEntities);
+
+      // Create checklists for steps that have checklist_descriptions
+      for (const stepEntity of stepEntities) {
+        const stepIndex = stepEntities.indexOf(stepEntity);
+        const stepDto = stepsToPersist[stepIndex];
+        if (stepDto && stepDto.checklist_descriptions && stepDto.checklist_descriptions.length > 0) {
+          // Find the saved step
+          const savedStep = await this.stepsRepository.findOne({
+            where: { service_id: service.id, name: stepEntity.name },
+          });
+          if (savedStep) {
+            // Filter out empty strings
+            const validDescriptions = stepDto.checklist_descriptions.filter((desc: string) => desc && desc.trim());
+            if (validDescriptions.length > 0) {
+              const checklists = validDescriptions.map((desc: string) =>
+                this.checklistsRepository.create({
+                  description: desc.trim(),
+                  completed: false,
+                  step_id: savedStep.id,
+                })
+              );
+              await this.checklistsRepository.save(checklists);
+            }
+          }
+        }
+      }
     }
 
     if (!isInternal && !effectiveHasPayment) {

@@ -41,7 +41,12 @@
 		categoryId: 0,
 		clientCopyMachineId: 0,
 		loadStepTemplates: false,
-		steps: [] as Array<{ title: string; description?: string; assignedUserId?: number }>
+		steps: [] as Array<{ 
+			title: string; 
+			description?: string; 
+			assignedUserId?: number;
+			checklist_descriptions?: string[];
+		}>
 	});
 
 	// API data
@@ -122,7 +127,12 @@
 	}
 
 	function addStep() {
-		formData.steps = [...formData.steps, { title: '', description: '', assignedUserId: undefined }];
+		formData.steps = [...formData.steps, { 
+			title: '', 
+			description: '', 
+			assignedUserId: undefined,
+			checklist_descriptions: []
+		}];
 	}
 
 	function removeStep(index: number) {
@@ -313,15 +323,60 @@
 												placeholder="Digite o título do passo"
 											/>
 										</div>
-								<div>
-									<Label for="step-description-{index}">Descrição</Label>
-									<Input
-										id="step-description-{index}"
-										bind:value={step.description}
-										on:input={(e) => updateStep(index, 'description', e.target.value)}
-										placeholder="Descreva o passo (opcional)"
-									/>
-								</div>
+
+										<!-- Checklist Section -->
+										<div class="border-t pt-3 mt-3">
+											<Label class="mb-2 block text-sm font-medium">Checklist</Label>
+											{#if step.checklist_descriptions && step.checklist_descriptions.length > 0}
+												<div class="space-y-2 mb-3">
+													{#each step.checklist_descriptions as checkItem, checkIndex}
+														<div class="flex items-center gap-2">
+															<Input
+																bind:value={step.checklist_descriptions[checkIndex]}
+																placeholder="Item do checklist"
+																class="flex-1"
+															/>
+															<Button
+																type="button"
+																variant="ghost"
+																size="sm"
+																on:click={() => {
+																	const newChecklist = (step.checklist_descriptions || []).filter((_, i) => i !== checkIndex);
+																	updateStep(index, 'checklist_descriptions', newChecklist);
+																}}
+																class="text-destructive hover:text-destructive/80"
+															>
+																<Trash2 class="w-4 h-4" />
+															</Button>
+														</div>
+													{/each}
+												</div>
+											{/if}
+											<Button
+												type="button"
+												variant="outline"
+												size="sm"
+												on:click={() => {
+													const currentChecklist = step.checklist_descriptions || [];
+													updateStep(index, 'checklist_descriptions', [...currentChecklist, '']);
+												}}
+											>
+												<Plus class="w-4 h-4 mr-2" />
+												Adicionar Item
+											</Button>
+										</div>
+
+										<!-- Description (Additional Information) - Secondary -->
+										<div class="border-t pt-3 mt-3">
+											<Label for="step-description-{index}" class="text-muted-foreground">Informações adicionais</Label>
+											<Input
+												id="step-description-{index}"
+												bind:value={step.description}
+												on:input={(e) => updateStep(index, 'description', e.target.value)}
+												placeholder="Detalhes adicionais (opcional)"
+												class="text-muted-foreground"
+											/>
+										</div>
 									</div>
 									<Button
 										variant="ghost"

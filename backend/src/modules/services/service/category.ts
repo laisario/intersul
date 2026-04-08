@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Category } from '../entities/category.entity';
 import { Step } from '../entities/step.entity';
+import { StepChecklist } from '../entities/step-checklist.entity';
 import { Service } from '../entities/service.entity';
 import { CreateCategoryDto } from '../dto/create-category.dto';
 import { UpdateCategoryDto } from '../dto/update-category.dto';
@@ -14,6 +15,8 @@ export class CategoryService {
     private categoryRepository: Repository<Category>,
     @InjectRepository(Step)
     private stepRepository: Repository<Step>,
+    @InjectRepository(StepChecklist)
+    private checklistRepository: Repository<StepChecklist>,
     @InjectRepository(Service)
     private serviceRepository: Repository<Service>,
   ) {}
@@ -34,7 +37,22 @@ export class CategoryService {
           category_id: savedCategory.id,
         })
       );
-      await this.stepRepository.save(stepEntities);
+      const savedSteps = await this.stepRepository.save(stepEntities);
+
+      // Create checklists for steps
+      for (let i = 0; i < savedSteps.length; i++) {
+        const stepTemplate = steps[i];
+        if (stepTemplate.checklist_descriptions && stepTemplate.checklist_descriptions.length > 0) {
+          const checklists = stepTemplate.checklist_descriptions.map(desc =>
+            this.checklistRepository.create({
+              description: desc,
+              completed: false,
+              step_id: savedSteps[i].id,
+            })
+          );
+          await this.checklistRepository.save(checklists);
+        }
+      }
     }
 
     // Return category with steps
@@ -113,7 +131,22 @@ export class CategoryService {
             category_id: category.id,
           })
         );
-        await this.stepRepository.save(stepEntities);
+        const savedSteps = await this.stepRepository.save(stepEntities);
+
+        // Create checklists for steps
+        for (let i = 0; i < savedSteps.length; i++) {
+          const stepTemplate = steps[i];
+          if (stepTemplate.checklist_descriptions && stepTemplate.checklist_descriptions.length > 0) {
+            const checklists = stepTemplate.checklist_descriptions.map(desc =>
+              this.checklistRepository.create({
+                description: desc,
+                completed: false,
+                step_id: savedSteps[i].id,
+              })
+            );
+            await this.checklistRepository.save(checklists);
+          }
+        }
       }
     }
 

@@ -1,7 +1,7 @@
 
 <script lang="ts">
 	import { useDashboardStats, useForceRecalculateStats } from '$lib/hooks/queries/use-dashboard.svelte.js';
-	import { useMySteps } from '$lib/hooks/queries/use-steps.svelte.js';
+	import { useMySteps, useStartStep, useConcludeStep, useCancelStep } from '$lib/hooks/queries/use-steps.svelte.js';
 	import { formatNumber } from '$lib/utils/formatting.js';
 	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
@@ -10,6 +10,8 @@
 	import { Select, SelectTrigger, SelectContent, SelectItem } from '$lib/components/ui/select/index.js';
 	import { Tabs, TabsContent, TabsList, TabsTrigger } from '$lib/components/ui/tabs/index.js';
 	import StepsTable from '$lib/components/tables/steps-table.svelte';
+	import StepCard from '$lib/components/step-card.svelte';
+	import StepFormDialog from '$lib/components/step-form-dialog.svelte';
 	import PaginationControls from '$lib/components/pagination-controls.svelte';
 	import {
 		Users,
@@ -23,6 +25,9 @@
 	import { goto } from '$app/navigation';
 	import { userRole } from '$lib/stores/auth.svelte';
 	import { UserRole } from '$lib/api/types/auth.types.js';
+	import { errorToast, successToast, showError } from '$lib/utils/toast.js';
+	import ConfirmationDialog from '$lib/components/confirmation-dialog.svelte';
+	import type { Step } from '$lib/api/types/service.types.js';
 
 	type FilterOption = 'all' | 'created_today' | 'expires_today' | 'expired';
 	let filterOption = $state<FilterOption>('all');
@@ -67,6 +72,106 @@
 	);
 	const mySteps = $derived(() => myStepsQuery.data ?? []);
 	const stepsLoading = $derived(() => myStepsQuery.isLoading && !myStepsQuery.data);
+
+	// Infinite scroll - derive from query data
+	const displayedSteps = $derived((myStepsQuery.data || []).slice(0, currentPage * pageSize));
+	const hasMore = $derived((myStepsQuery.data?.length || 0) > (currentPage * pageSize));
+
+	// Reset page when filter changes
+	$effect(() => {
+		filterOption;
+		currentPage = 1;
+	});
+
+	// Mutations for step actions
+	const { mutate: startStep, isPending: isStarting } = useStartStep();
+	const { mutate: concludeStep, isPending: isConcluding } = useConcludeStep();
+	const { mutate: cancelStep, isPending: isCancelling } = useCancelStep();
+
+	// Cancel dialog state
+	let showCancelDialog = $state(false);
+	let selectedStepForCancel = $state<Step | null>(null);
+	let cancelReason = $state('');
+
+	// Form dialog state
+	let showFormDialog = $state(false);
+	let selectedStepForForm = $state<Step | null>(null);
+
+	// Load more - just increment page to trigger derived recomputation
+	function loadMore() {
+		if (hasMore) {
+			currentPage++;
+		}
+	}
+
+	function handleScroll(event: Event) {
+		const target = event.target as HTMLElement;
+		const scrollBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
+		if (scrollBottom < 200) {
+			loadMore();
+		}
+	}
+
+	function handleStartStep(step: Step) {
+		startStep(step.id, {
+			onSuccess: () => {
+				successToast.updated('Etapa iniciada');
+			},
+			onError: (error: any) => {
+				if (error?.response?.data?.message) {
+					showError(error.response.data.message);
+				} else {
+					errorToast.update('Etapa');
+				}
+			},
+		});
+	}
+
+	function handleFillFormStep(step: Step) {
+		selectedStepForForm = step;
+		showFormDialog = true;
+	}
+
+	function handleCompleteStep(step: Step) {
+		concludeStep(step.id, {
+			onSuccess: () => {
+				successToast.updated('Etapa concluída');
+			},
+			onError: () => {
+				errorToast.update('Etapa');
+			},
+		});
+	}
+
+	function handleCancelStep(step: Step) {
+		selectedStepForCancel = step;
+		showCancelDialog = true;
+	}
+
+	function confirmCancelStep() {
+		if (!selectedStepForCancel || !cancelReason.trim()) {
+			showError('Por favor, informe o motivo do cancelamento');
+			return;
+		}
+		
+		cancelStep(
+			{
+				id: selectedStepForCancel.id,
+				reason: cancelReason.trim(),
+			},
+			{
+				onSuccess: () => {
+					successToast.updated('Etapa cancelada');
+					showCancelDialog = false;
+					cancelReason = '';
+					selectedStepForCancel = null;
+				},
+				onError: () => {
+					errorToast.update('Etapa');
+				},
+			},
+		);
+	}
 
 	$effect(() => {
 		if (!isAdminView()) {
@@ -170,63 +275,92 @@
 	</div>
 
 	{#snippet myStepsCard()}
-		<Card>
-			<CardHeader>
-				<CardTitle>Sua parte do serviço</CardTitle>
-				<CardDescription>Etapas do serviço que você está responsável</CardDescription>
-			</CardHeader>
-			<CardContent>
-				<div class="space-y-4">
-					<div class="flex items-center gap-4">
-						<div class="w-[200px]">
-							<Select
-								type="single"
-								value={filterOption}
-								onValueChange={(value: string) => {
-									filterOption = (value as FilterOption) ?? 'all';
-								}}
-							>
-								<SelectTrigger class="w-full">
-									<span class="block text-left text-sm">
-										{filterOption === 'all'
-											? 'Todas as tarefas'
-											: filterOption === 'created_today'
-												? 'Criadas hoje'
-												: filterOption === 'expires_today'
-													? 'Expiram hoje'
-													: 'Tarefas expiradas'}
-									</span>
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="all">Todas as tarefas</SelectItem>
-									<SelectItem value="created_today">Tarefas criadas hoje</SelectItem>
-									<SelectItem value="expires_today">Tarefas que expiram hoje</SelectItem>
-									<SelectItem value="expired">Tarefas expiradas</SelectItem>
-								</SelectContent>
-							</Select>
-						</div>
-					</div>
-
-					<StepsTable
-						steps={paginatedSteps()}
-						isLoading={stepsLoading()}
-						onRowClick={(step) => step.id && goto(`/steps/${step.id}?from=home`)}
-					/>
-
-					<PaginationControls
-						page={currentPage}
-						totalPages={totalPages()}
-						totalItems={mySteps().length || 0}
-						pageSize={pageSize}
-						label="etapas"
-						onPrevious={handlePreviousPage}
-						onNext={handleNextPage}
-						onSelectPage={handleSelectPage}
-						onPageSizeChange={handlePageSizeChange}
-					/>
+		<div class="space-y-4">
+			<div class="flex items-center gap-4">
+				<div class="w-[200px]">
+					<Select
+						type="single"
+						value={filterOption}
+						onValueChange={(value: string) => {
+							filterOption = (value as FilterOption) ?? 'all';
+						}}
+					>
+						<SelectTrigger class="w-full">
+							<span class="block text-left text-sm">
+								{filterOption === 'all'
+									? 'Todas as tarefas'
+									: filterOption === 'created_today'
+										? 'Criadas hoje'
+										: filterOption === 'expires_today'
+											? 'Expiram hoje'
+											: 'Tarefas expiradas'}
+							</span>
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="all">Todas as tarefas</SelectItem>
+							<SelectItem value="created_today">Tarefas criadas hoje</SelectItem>
+							<SelectItem value="expires_today">Tarefas que expiram hoje</SelectItem>
+							<SelectItem value="expired">Tarefas expiradas</SelectItem>
+						</SelectContent>
+					</Select>
 				</div>
-			</CardContent>
-		</Card>
+			</div>
+
+			<!-- Mobile Card View -->
+			<div class="md:hidden space-y-4 px-1">
+				{#if stepsLoading() && displayedSteps.length === 0}
+					{#each Array(5) as _}
+						<StepCard isLoading={true} />
+					{/each}
+				{:else if displayedSteps.length === 0}
+					<div class="text-center py-8 text-muted-foreground">
+						Nenhuma etapa encontrada
+					</div>
+				{:else}
+					{#each displayedSteps as step (step.id)}
+						<StepCard
+							{step}
+							onStart={handleStartStep}
+							onFillForm={handleFillFormStep}
+							onComplete={handleCompleteStep}
+							onCancel={handleCancelStep}
+							onCardClick={(s) => s.id && goto(`/steps/${s.id}?from=home`)}
+						/>
+					{/each}
+					{#if myStepsQuery.isFetching && displayedSteps.length > 0}
+						<div class="text-center py-4 text-muted-foreground">
+							Carregando mais...
+						</div>
+					{/if}
+					{#if !hasMore && displayedSteps.length > 0}
+						<div class="text-center py-4 text-muted-foreground text-sm">
+							Todas as etapas foram carregadas
+						</div>
+					{/if}
+				{/if}
+			</div>
+
+			<!-- Desktop Table View -->
+			<div class="hidden md:block">
+				<StepsTable
+					steps={paginatedSteps()}
+					isLoading={stepsLoading()}
+					onRowClick={(step) => step.id && goto(`/steps/${step.id}?from=home`)}
+				/>
+
+				<PaginationControls
+					page={currentPage}
+					totalPages={totalPages()}
+					totalItems={mySteps().length || 0}
+					pageSize={pageSize}
+					label="etapas"
+					onPrevious={handlePreviousPage}
+					onNext={handleNextPage}
+					onSelectPage={handleSelectPage}
+					onPageSizeChange={handlePageSizeChange}
+				/>
+			</div>
+		</div>
 	{/snippet}
 
 	{#if isAdminView()}
@@ -320,4 +454,35 @@
 	{:else}
 		{@render myStepsCard()}
 	{/if}
+
+	<!-- Cancel Confirmation Dialog -->
+	<ConfirmationDialog
+		open={showCancelDialog}
+		onClose={() => { showCancelDialog = false; cancelReason = ''; }}
+		onConfirm={confirmCancelStep}
+		title="Cancelar Etapa"
+		confirmText="Cancelar"
+		confirmVariant="destructive"
+	>
+		<p class="text-sm text-muted-foreground mb-4">
+			Tem certeza que deseja cancelar esta etapa?
+		</p>
+		<div class="space-y-2">
+			<label for="cancel-reason" class="text-sm font-medium">Motivo do cancelamento</label>
+			<textarea
+				id="cancel-reason"
+				bind:value={cancelReason}
+				class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+				placeholder="Informe o motivo do cancelamento..."
+			></textarea>
+		</div>
+	</ConfirmationDialog>
+
+	<StepFormDialog
+		step={selectedStepForForm}
+		bind:open={showFormDialog}
+		onSuccess={() => {
+			selectedStepForForm = null;
+		}}
+	/>
 </div>

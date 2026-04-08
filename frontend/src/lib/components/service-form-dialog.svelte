@@ -37,15 +37,15 @@
 
 	type FormStep = {
 		name: string;
-		description: string;
+		description?: string;
 		responsableId?: number;
 		datetimeExpiration?: string;
 		source?: 'suggestion' | 'manual';
+		checklist_descriptions?: string[];
 	};
 
 	// Estado separado para previews extras (não modifica steps)
 	let paymentStepPreview = $state<{ responsableId?: number; datetimeExpiration?: string } | null>(null);
-	let boletoStepPreview = $state<{ responsableId?: number; datetimeExpiration?: string } | null>(null);
 
 	let { open = $bindable(false), service = null, serviceId = null, onSuccess }: Props = $props();
 
@@ -100,7 +100,6 @@
 		};
 		steps = [];
 		paymentStepPreview = null;
-		boletoStepPreview = null;
 		errors = {};
 	}
 
@@ -140,7 +139,8 @@
 			description: step.description,
 			responsableId: Number(step.responsableId),
 			datetimeExpiration: step.datetimeExpiration,
-			source: 'manual'
+			source: 'manual',
+			checklist_descriptions: step.checklists?.map(c => c.description) || []
 		}));
 	}
 
@@ -174,7 +174,8 @@
 				name: step.name,
 				description: step.description,
 				datetimeExpiration: step.datetimeExpiration,
-				source: 'suggestion'
+				source: 'suggestion',
+				checklist_descriptions: step.checklists?.map(c => c.description) || []
 			}
 		];
 	}
@@ -189,7 +190,8 @@
 			{
 				name: '',
 				description: '',
-				source: 'manual'
+				source: 'manual',
+				checklist_descriptions: []
 			}
 		];
 	}
@@ -205,19 +207,6 @@
 	// Previews extras calculados (não modificam steps)
 	const shouldShowPaymentPreview = $derived(!formData.isInternal && formData.hasPayment);
 
-	const shouldShowBoletoPreview = $derived(() => {
-		if (formData.isInternal || !formData.hasPayment) return false;
-		const method = formData.paymentMethod?.toLowerCase() || '';
-		return method === 'boleto' || method === 'bank slip' || method === 'bankslip';
-	});
-	
-	// Função auxiliar para verificar se método é boleto (usado no submit)
-	function isBoletoPaymentMethod(method: string | undefined): boolean {
-		if (!method) return false;
-		const lowerMethod = method.toLowerCase();
-		return lowerMethod === 'boleto' || lowerMethod === 'bank slip' || lowerMethod === 'bankslip';
-	}
-
 	// Inicializar previews quando necessário (somente com pagamento habilitado)
 	$effect(() => {
 		if (!initialized) return;
@@ -227,19 +216,13 @@
 		} else if (!shouldShowPaymentPreview && paymentStepPreview) {
 			paymentStepPreview = null;
 		}
-
-		if (shouldShowBoletoPreview() && !boletoStepPreview) {
-			boletoStepPreview = { responsableId: undefined, datetimeExpiration: undefined };
-		} else if (!shouldShowBoletoPreview() && boletoStepPreview) {
-			boletoStepPreview = null;
-		}
 	});
 
 	function isSuggestionAdded(step: Step) {
 		return steps.some(
 			(existing) =>
 				existing.name.trim().toLowerCase() === step.name.trim().toLowerCase() &&
-				existing.description.trim().toLowerCase() === step.description.trim().toLowerCase()
+				(existing.description?.trim().toLowerCase() || '') === (step.description?.trim().toLowerCase() || '')
 		);
 	}
 
@@ -248,7 +231,7 @@
 			const idx = steps.findIndex(
 				(existing) =>
 					existing.name.trim().toLowerCase() === suggestion.name.trim().toLowerCase() &&
-					existing.description.trim().toLowerCase() === suggestion.description.trim().toLowerCase()
+					(existing.description?.trim().toLowerCase() || '') === (suggestion.description?.trim().toLowerCase() || '')
 			);
 			if (idx !== -1) {
 				steps = steps.filter((_, i) => i !== idx);
@@ -264,9 +247,9 @@
 		const stepsToValidate = formData.hasPayment
 			? steps
 			: steps.filter((s) => !isAutoPaymentOrBoletoStepName(s.name));
-		const invalidStep = stepsToValidate.some((step) => !step.name.trim() || !step.description.trim());
+		const invalidStep = stepsToValidate.some((step) => !step.name.trim());
 		if (invalidStep) {
-			errors.steps = 'Todas as etapas devem ter nome e descrição preenchidos';
+			errors.steps = 'Todas as etapas devem ter um nome';
 		}
 
 		if (!formData.isInternal && formData.hasPayment) {
@@ -330,9 +313,10 @@
 		if (stepsForPayload.length > 0) {
 			stepsArray.push(...stepsForPayload.map<CreateServiceStepDto>((step) => ({
 				name: step.name.trim(),
-				description: step.description.trim(),
+				description: step.description?.trim() || undefined,
 				responsableId: step.responsableId ? Number(step.responsableId) : undefined,
-				datetimeExpiration: step.datetimeExpiration || undefined
+				datetimeExpiration: step.datetimeExpiration || undefined,
+				checklist_descriptions: step.checklist_descriptions?.filter(c => c.trim()) || undefined
 			})));
 		}
 
@@ -358,23 +342,6 @@
 					description: description,
 					responsableId: paymentStepPreview.responsableId || undefined,
 					datetimeExpiration: paymentStepPreview.datetimeExpiration || undefined
-				});
-			}
-		}
-
-		if (!formData.isInternal && formData.hasPayment && isBoletoPaymentMethod(formData.paymentMethod)) {
-			// Verificar se já não existe step de boleto
-			const hasBoletoStep = stepsArray.some(step => 
-				step.name.toLowerCase().includes('cobrança de boleto') || 
-				step.name.toLowerCase() === 'cobrança de boleto'
-			);
-			
-			if (!hasBoletoStep && boletoStepPreview) {
-				stepsArray.push({
-					name: 'Cobrança de boleto',
-					description: 'Gerar/realizar cobrança via boleto para o serviço.',
-					responsableId: boletoStepPreview.responsableId || undefined,
-					datetimeExpiration: boletoStepPreview.datetimeExpiration || undefined
 				});
 			}
 		}
@@ -490,7 +457,6 @@
 										formData.paymentMethod = undefined;
 										formData.isInvoiced = false;
 										paymentStepPreview = null;
-										boletoStepPreview = null;
 									}
 								}}
 							>
@@ -652,7 +618,6 @@
 										formData.paymentMethod = undefined;
 										formData.isInvoiced = false;
 										paymentStepPreview = null;
-										boletoStepPreview = null;
 										steps = steps.filter((s) => !isAutoPaymentOrBoletoStepName(s.name));
 									}
 								}}
@@ -745,7 +710,7 @@
 					</Button>
 				</CardHeader>
 				<CardContent class="space-y-2">
-					{#if steps.length === 0 && !shouldShowPaymentPreview && !shouldShowBoletoPreview()}
+					{#if steps.length === 0 && !shouldShowPaymentPreview}
 						<p class="text-sm text-muted-foreground">Nenhuma etapa adicionada. Utilize as sugestões ou crie uma etapa manualmente.</p>
 					{:else}
 						<div class="space-y-3">
@@ -781,14 +746,62 @@
 										/>
 									</div>
 
-									<div class="space-y-2">
-										<Label>Descrição</Label>
+									<!-- Checklist Section -->
+									<div class="space-y-2 border-t pt-3 mt-3">
+										<Label class="text-sm font-medium">Checklist (itens a serem completados)</Label>
+										{#if step.checklist_descriptions && step.checklist_descriptions.length > 0}
+											<div class="space-y-2 mb-3">
+												{#each step.checklist_descriptions as checkItem, checkIndex}
+													<div class="flex items-center gap-2">
+														<Input
+															value={step.checklist_descriptions[checkIndex]}
+															oninput={(e) => {
+																const newChecklist = [...(step.checklist_descriptions || [])];
+																newChecklist[checkIndex] = e.currentTarget.value;
+																updateStepField(index, 'checklist_descriptions', newChecklist);
+															}}
+															placeholder="Item do checklist"
+															class="flex-1"
+														/>
+														<Button
+															type="button"
+															variant="ghost"
+															size="sm"
+															onclick={() => {
+																const newChecklist = (step.checklist_descriptions || []).filter((_, i) => i !== checkIndex);
+																updateStepField(index, 'checklist_descriptions', newChecklist);
+															}}
+															class="text-destructive hover:text-destructive/80"
+														>
+															<Trash2 class="w-4 h-4" />
+														</Button>
+													</div>
+												{/each}
+											</div>
+										{/if}
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											onclick={() => {
+												const currentChecklist = step.checklist_descriptions || [];
+												updateStepField(index, 'checklist_descriptions', [...currentChecklist, '']);
+											}}
+										>
+											<Plus class="w-4 h-4 mr-2" />
+											Adicionar Item
+										</Button>
+									</div>
+
+									<!-- Description (Additional Information) - Secondary -->
+									<div class="space-y-2 border-t pt-3 mt-3">
+										<Label class="text-muted-foreground">Informações adicionais</Label>
 										<textarea
-											value={step.description}
+											value={step.description || ''}
 											oninput={(e) => updateStepField(index, 'description', e.currentTarget.value)}
 											rows="2"
-											placeholder="Descreva o que precisa ser feito nesta etapa"
-											class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+											placeholder="Detalhes adicionais (opcional)"
+											class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-muted-foreground"
 										></textarea>
 									</div>
 
@@ -982,113 +995,6 @@
 													}
 												} else if (value.length === 0) {
 													paymentStepPreview.datetimeExpiration = undefined;
-												}
-											}}
-											placeholder="dd/mm/aaaa"
-											maxlength={10}
-										/>
-									</div>
-								</div>
-							{/if}
-
-							<!-- Preview: Step de Boleto (apenas visual) -->
-							{#if shouldShowBoletoPreview() && boletoStepPreview}
-								<div class="border rounded-lg p-4 space-y-4 bg-muted/30">
-									<div class="flex items-center justify-between">
-										<div class="flex items-center gap-2">
-											<Badge variant="outline">Etapa {steps.length + 2}</Badge>
-											<Badge variant="secondary" class="text-xs">Automática - Boleto</Badge>
-										</div>
-									</div>
-
-									<div class="space-y-2">
-										<Label>Nome da etapa</Label>
-										<Input
-											value="Cobrança de boleto"
-											disabled
-											class="bg-muted"
-										/>
-									</div>
-
-									<div class="space-y-2">
-										<Label>Descrição</Label>
-										<textarea
-											value="Realizar cobrança de boleto conforme método de pagamento informado"
-											disabled
-											rows="3"
-											class="flex min-h-[80px] w-full rounded-md border border-input bg-muted px-3 py-2 text-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
-										></textarea>
-									</div>
-
-									<div class="space-y-2">
-										<Label>Responsável</Label>
-										<Select
-											type="single"
-											value={boletoStepPreview.responsableId ? boletoStepPreview.responsableId.toString() : ''}
-											onValueChange={(value: string) => {
-												if (boletoStepPreview) {
-													boletoStepPreview.responsableId = value ? parseInt(value) : undefined;
-												}
-											}}
-										>
-											<SelectTrigger class="w-full md:w-[220px]">
-												{boletoStepPreview?.responsableId
-													? users.find((user) => user.id === boletoStepPreview?.responsableId)?.name || 'Selecione um responsável'
-													: 'Selecione um responsável'}
-											</SelectTrigger>
-											<SelectContent>
-												<SelectItem value="">
-													<span class="text-muted-foreground">Sem responsável</span>
-												</SelectItem>
-												{#if usersQuery.isLoading}
-													<SelectItem value="" disabled>Carregando usuários...</SelectItem>
-												{:else if usersQuery.error}
-													<SelectItem value="" disabled>Erro ao carregar usuários</SelectItem>
-												{:else}
-													{#each users as user (user.id)}
-														<SelectItem value={user.id.toString()}>
-															{user.name}
-														</SelectItem>
-													{/each}
-												{/if}
-											</SelectContent>
-										</Select>
-									</div>
-
-									<div class="space-y-2">
-										<Label>Expira em</Label>
-										<Input
-											type="text"
-											value={boletoStepPreview.datetimeExpiration 
-												? (() => {
-													const date = new Date(boletoStepPreview.datetimeExpiration!);
-													const day = String(date.getDate()).padStart(2, '0');
-													const month = String(date.getMonth() + 1).padStart(2, '0');
-													const year = date.getFullYear();
-													return `${day}/${month}/${year}`;
-												})()
-												: ''}
-											oninput={(e) => {
-												if (!boletoStepPreview) return;
-												let value = e.currentTarget.value.replace(/\D/g, '');
-												if (value.length > 8) value = value.slice(0, 8);
-												let formatted = value;
-												if (value.length > 2) formatted = value.slice(0, 2) + '/' + value.slice(2);
-												if (value.length > 4) formatted = value.slice(0, 2) + '/' + value.slice(2, 4) + '/' + value.slice(4, 8);
-												e.currentTarget.value = formatted;
-												if (value.length === 8) {
-													const day = parseInt(value.slice(0, 2), 10);
-													const month = parseInt(value.slice(2, 4), 10) - 1;
-													const year = parseInt(value.slice(4, 8), 10);
-													if (day >= 1 && day <= 31 && month >= 0 && month <= 11 && year >= 1900) {
-														const date = new Date(year, month, day);
-														date.setHours(23, 59, 59, 999);
-														boletoStepPreview.datetimeExpiration = date.toISOString();
-													} else {
-														boletoStepPreview.datetimeExpiration = undefined;
-													}
-												} else if (value.length === 0) {
-													boletoStepPreview.datetimeExpiration = undefined;
 												}
 											}}
 											placeholder="dd/mm/aaaa"

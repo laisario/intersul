@@ -4,6 +4,7 @@ import { queryClient } from '$lib/config/query-client.js';
 import type { Step } from '$lib/api/types/service.types.js';
 import type { Image } from '$lib/api/types/service.types.js';
 import type { UpdateStepDto } from '$lib/api/endpoints/steps.js';
+import type { StepChecklist } from '$lib/api/types/service.types.js';
 
 type StepsFilter = 'created_today' | 'expires_today' | 'expired';
 type StepsFilterInput = StepsFilter | (() => StepsFilter | undefined) | undefined;
@@ -140,6 +141,50 @@ export const useStepImages = (stepId: number) => {
     queryFn: (): Promise<Image[]> => stepsApi.getImages(stepId),
     enabled: !!stepId,
     staleTime: 2 * 60 * 1000, // 2 minutes
+  }));
+};
+
+export const useStepChecklists = (stepId: number) => {
+  return createQuery(() => ({
+    queryKey: ['steps', stepId, 'checklists'],
+    queryFn: (): Promise<StepChecklist[]> => stepsApi.getChecklists(stepId),
+    enabled: !!stepId,
+    staleTime: 2 * 60 * 1000,
+  }));
+};
+
+export const useCreateChecklist = () => {
+  return createMutation(() => ({
+    mutationFn: ({ stepId, data }: { stepId: number; data: { description: string } }): Promise<StepChecklist> =>
+      stepsApi.createChecklist(stepId, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['steps', variables.stepId, 'checklists'] });
+    },
+  }));
+};
+
+export const useToggleChecklist = () => {
+  return createMutation(() => ({
+    mutationFn: (checklistId: number): Promise<StepChecklist> =>
+      stepsApi.toggleChecklist(checklistId),
+    onSuccess: (data) => {
+      // Invalidate step queries to update UI immediately
+      queryClient.invalidateQueries({ queryKey: ['steps'] });
+      queryClient.invalidateQueries({ queryKey: ['steps', 'my-steps'] });
+      queryClient.invalidateQueries({ queryKey: ['steps', data.step_id] });
+      // Invalidate service queries as step status may have changed
+      if ((data as any).step?.service_id) {
+        queryClient.invalidateQueries({ queryKey: ['services', (data as any).step.service_id] });
+      }
+      queryClient.invalidateQueries({ queryKey: ['services'] });
+    },
+  }));
+};
+
+export const useDeleteChecklist = () => {
+  return createMutation(() => ({
+    mutationFn: (checklistId: number): Promise<void> =>
+      stepsApi.deleteChecklist(checklistId),
   }));
 };
 

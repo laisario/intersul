@@ -16,16 +16,18 @@ import { StepService } from './service/step';
 import { StepController } from './controller/step';
 import { CommonModule } from '../common/common.module';
 import { Billing } from '../billings/entities/billing.entity';
+import { StepChecklist } from './entities/step-checklist.entity';
+import { StepChecklistService } from './service/step-checklist';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Service, Category, Step, Client, ClientCopyMachine, User, Billing]),
+    TypeOrmModule.forFeature([Service, Category, Step, Client, ClientCopyMachine, User, Billing, StepChecklist]),
     ClientsModule,
     CopyMachinesModule,
     CommonModule,
   ],
   controllers: [ServicesController, CategoryController, StepController],
-  providers: [ServicesService, CategoryService, StepService],
-  exports: [ServicesService, CategoryService, StepService],
+  providers: [ServicesService, CategoryService, StepService, StepChecklistService],
+  exports: [ServicesService, CategoryService, StepService, StepChecklistService],
 })
 export class ServicesModule {}

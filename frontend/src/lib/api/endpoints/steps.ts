@@ -3,12 +3,17 @@
  */
 
 import { axios, axiosForFiles } from '../client.js';
-import type { Step } from '../types/service.types.js';
+import type { Step, StepChecklist } from '../types/service.types.js';
 
 export interface UpdateStepDto {
   observation?: string;
   responsableClient?: string;
   responsableId?: number | null;
+}
+
+export interface CreateChecklistDto {
+  description: string;
+  completed?: boolean;
 }
 
 export const stepsApi = {
@@ -27,7 +32,6 @@ export const stepsApi = {
 
   update: (id: number, data: UpdateStepDto): Promise<Step> =>
     axios.patch(`/steps/${id}`, data).then(res => res.data),
-
 
   start: (id: number): Promise<Step> =>
     axios.patch(`/steps/${id}/start`).then(res => res.data),
@@ -49,5 +53,27 @@ export const stepsApi = {
 
   deleteImage: (stepId: number, imageId: number): Promise<void> =>
     axios.delete(`/steps/${stepId}/images/${imageId}`).then(res => res.data),
+
+  // Checklist endpoints
+  getChecklists: (stepId: number): Promise<StepChecklist[]> =>
+    axios.get(`/steps/${stepId}/checklists`).then(res => res.data),
+
+  createChecklist: (stepId: number, data: CreateChecklistDto): Promise<StepChecklist> =>
+    axios.post(`/steps/${stepId}/checklists`, data).then(res => res.data),
+
+  createChecklistsBulk: (stepId: number, descriptions: string[]): Promise<StepChecklist[]> =>
+    axios.post(`/steps/${stepId}/checklists/bulk`, { descriptions }).then(res => res.data),
+
+  updateChecklist: (checklistId: number, data: Partial<CreateChecklistDto>): Promise<StepChecklist> =>
+    axios.patch(`/steps/checklists/${checklistId}`, data).then(res => res.data),
+
+  toggleChecklist: (checklistId: number): Promise<StepChecklist> =>
+    axios.patch(`/steps/checklists/${checklistId}/toggle`).then(res => res.data),
+
+  deleteChecklist: (checklistId: number): Promise<void> =>
+    axios.delete(`/steps/checklists/${checklistId}`).then(res => res.data),
+
+  deleteAllChecklists: (stepId: number): Promise<void> =>
+    axios.delete(`/steps/${stepId}/checklists`).then(res => res.data),
 };
 

@@ -7,7 +7,6 @@ import { StepStatus } from '../../../common/enums/step-status.enum';
 import { ServicesService } from './services';
 import { Service } from '../entities/service.entity';
 import { User } from '../../auth/entities/user.entity';
-import { isFranchiseClosingCategoryName } from '../../../common/constants/service-category-names';
 
 @Injectable()
 export class StepService {
@@ -44,7 +43,7 @@ export class StepService {
 
     return this.stepsRepository.find({
       where,
-      relations: ['service', 'service.client', 'category', 'responsable', 'images', 'billing', 'billing.copyMachine', 'billing.copyMachine.franchise', 'billing.client', 'billing.responsibleUser'],
+      relations: ['service', 'service.client', 'category', 'responsable', 'images', 'billing', 'billing.copyMachine', 'billing.copyMachine.franchise', 'billing.client', 'billing.responsibleUser', 'checklists'],
       order: { created_at: 'DESC' },
     });
   }
@@ -72,7 +71,7 @@ export class StepService {
 
     return this.stepsRepository.find({
       where,
-      relations: ['service', 'service.client', 'category', 'responsable', 'images', 'billing', 'billing.copyMachine', 'billing.copyMachine.franchise', 'billing.client', 'billing.responsibleUser'],
+      relations: ['service', 'service.client', 'category', 'responsable', 'images', 'billing', 'billing.copyMachine', 'billing.copyMachine.franchise', 'billing.client', 'billing.responsibleUser', 'checklists'],
       order: { created_at: 'DESC' },
     });
   }
@@ -93,7 +92,7 @@ export class StepService {
         'billing.copyMachine.franchise',
         'billing.client',
         'billing.responsibleUser',
-        'dependsOn',
+        'checklists',
       ],
     });
 
@@ -106,22 +105,9 @@ export class StepService {
     let blockReason: string | undefined = undefined;
 
     const serviceCategoryName = step.service?.category?.name;
-    const isFranchiseClosing = isFranchiseClosingCategoryName(serviceCategoryName);
-
-    const priorStepAllowsStart = (s: StepStatus | undefined): boolean =>
-      s === StepStatus.CONCLUDED || s === StepStatus.CANCELLED;
-
+    // Steps can be started independently - no dependency check needed
     if (step.status === StepStatus.PENDING) {
-      if (isFranchiseClosing) {
-        canStart = true;
-      } else if (step.depends_on_step_id === null || step.depends_on_step_id === undefined) {
-        canStart = true;
-      } else if (step.dependsOn && priorStepAllowsStart(step.dependsOn.status)) {
-        canStart = true;
-      } else {
-        canStart = false;
-        blockReason = 'Você precisa concluir ou cancelar a etapa anterior antes de iniciar esta.';
-      }
+      canStart = true;
     }
 
     // Add computed properties (these won't be saved to DB, just for API response)
@@ -239,60 +225,7 @@ export class StepService {
       throw new BadRequestException('Step can only be started if it is pending');
     }
 
-    const isFranchiseClosing = isFranchiseClosingCategoryName(step.service?.category?.name);
-    const priorStepAllowsStart = (s: StepStatus) =>
-      s === StepStatus.CONCLUDED || s === StepStatus.CANCELLED;
-
-    // Validate dependency: prior step must be CONCLUDED or CANCELLED (skipped for Fechamento de Franquia — no enforced order)
-    if (
-      !isFranchiseClosing &&
-      step.depends_on_step_id !== null &&
-      step.depends_on_step_id !== undefined
-    ) {
-      const dependsOnStep = step.dependsOn;
-      if (!dependsOnStep) {
-        const loadedDependsOnStep = await this.stepsRepository.findOne({
-          where: { id: step.depends_on_step_id },
-        });
-        if (!loadedDependsOnStep) {
-          throw new BadRequestException({
-            message: 'Validation failed',
-            errors: [
-              {
-                field: 'depends_on_step_id',
-                message: `Dependent step with ID ${step.depends_on_step_id} not found`,
-              },
-            ],
-          });
-        }
-        if (!priorStepAllowsStart(loadedDependsOnStep.status)) {
-          throw new BadRequestException({
-            message: 'Validation failed',
-            errors: [
-              {
-                field: 'status',
-                message:
-                  'Não é possível iniciar esta etapa porque a etapa anterior ainda não foi concluída ou cancelada.',
-                dependsOnStepId: step.depends_on_step_id,
-              },
-            ],
-          });
-        }
-      } else if (!priorStepAllowsStart(dependsOnStep.status)) {
-        throw new BadRequestException({
-          message: 'Validation failed',
-          errors: [
-            {
-              field: 'status',
-              message:
-                'Não é possível iniciar esta etapa porque a etapa anterior ainda não foi concluída ou cancelada.',
-              dependsOnStepId: step.depends_on_step_id,
-            },
-          ],
-        });
-      }
-    }
-
+    // Steps can be started independently - no dependency check needed
     step.status = StepStatus.IN_PROGRESS;
     step.datetime_start = new Date();
 

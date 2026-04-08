@@ -17,8 +17,11 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery, ApiConsumes } from '@nestjs/swagger';
 import * as path from 'path';
 import { StepService } from '../service/step';
+import { StepChecklistService } from '../service/step-checklist';
 import { UpdateStepDto } from '../dto/update-step.dto';
 import { Step } from '../entities/step.entity';
+import { StepChecklist } from '../entities/step-checklist.entity';
+import { CreateStepChecklistDto, UpdateStepChecklistDto, BulkCreateStepChecklistDto } from '../dto/step-checklist.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CurrentUser, CurrentUserData } from '../../../common/decorators/current-user.decorator';
 import { ImageService } from '../../common/services/image.service';
@@ -32,6 +35,7 @@ import { Image } from '../../common/entities/image.entity';
 export class StepController {
   constructor(
     private readonly stepService: StepService,
+    private readonly stepChecklistService: StepChecklistService,
     private readonly imageService: ImageService,
     private readonly storageService: StorageService,
   ) {}
@@ -216,6 +220,82 @@ export class StepController {
 
     // Delete from database
     await this.imageService.remove(imageId);
+  }
+
+  @Get(':id/checklists')
+  @ApiOperation({ summary: 'Get all checklist items for a step' })
+  @ApiResponse({ status: 200, description: 'Checklist items returned successfully', type: [StepChecklist] })
+  async getChecklists(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: CurrentUserData,
+  ): Promise<StepChecklist[]> {
+    await this.stepService.findOne(id, user.id);
+    return this.stepChecklistService.findByStepId(id);
+  }
+
+  @Post(':id/checklists')
+  @ApiOperation({ summary: 'Create a checklist item for a step' })
+  @ApiResponse({ status: 201, description: 'Checklist item created successfully', type: StepChecklist })
+  async createChecklist(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: CurrentUserData,
+    @Body() dto: CreateStepChecklistDto,
+  ): Promise<StepChecklist> {
+    await this.stepService.findOne(id, user.id);
+    return this.stepChecklistService.create(id, dto, user.id);
+  }
+
+  @Post(':id/checklists/bulk')
+  @ApiOperation({ summary: 'Create multiple checklist items for a step' })
+  @ApiResponse({ status: 201, description: 'Checklist items created successfully', type: [StepChecklist] })
+  async createChecklistsBulk(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: CurrentUserData,
+    @Body() dto: BulkCreateStepChecklistDto,
+  ): Promise<StepChecklist[]> {
+    await this.stepService.findOne(id, user.id);
+    return this.stepChecklistService.createBulk(id, dto.descriptions, user.id);
+  }
+
+  @Patch('checklists/:checklistId')
+  @ApiOperation({ summary: 'Update a checklist item' })
+  @ApiResponse({ status: 200, description: 'Checklist item updated successfully', type: StepChecklist })
+  async updateChecklist(
+    @Param('checklistId', ParseIntPipe) checklistId: number,
+    @CurrentUser() user: CurrentUserData,
+    @Body() dto: UpdateStepChecklistDto,
+  ): Promise<StepChecklist> {
+    return this.stepChecklistService.update(checklistId, dto, user.id);
+  }
+
+  @Patch('checklists/:checklistId/toggle')
+  @ApiOperation({ summary: 'Toggle checklist item completion status' })
+  @ApiResponse({ status: 200, description: 'Checklist item toggled successfully', type: StepChecklist })
+  async toggleChecklist(
+    @Param('checklistId', ParseIntPipe) checklistId: number,
+    @CurrentUser() user: CurrentUserData,
+  ): Promise<StepChecklist> {
+    return this.stepChecklistService.toggleComplete(checklistId, user.id);
+  }
+
+  @Delete('checklists/:checklistId')
+  @ApiOperation({ summary: 'Delete a checklist item' })
+  @ApiResponse({ status: 200, description: 'Checklist item deleted successfully' })
+  async deleteChecklist(
+    @Param('checklistId', ParseIntPipe) checklistId: number,
+    @CurrentUser() user: CurrentUserData,
+  ): Promise<void> {
+    await this.stepChecklistService.delete(checklistId, user.id);
+  }
+
+  @Delete(':id/checklists')
+  @ApiOperation({ summary: 'Delete all checklist items for a step' })
+  @ApiResponse({ status: 200, description: 'All checklist items deleted successfully' })
+  async deleteAllChecklists(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: CurrentUserData,
+  ): Promise<void> {
+    await this.stepChecklistService.deleteAllByStepId(id, user.id);
   }
 }
 

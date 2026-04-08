@@ -16,6 +16,7 @@ import { Service } from './service.entity';
 import { Approval } from '../../common/entities/approval.entity';
 import { Image } from '../../common/entities/image.entity';
 import { Billing } from '../../billings/entities/billing.entity';
+import { StepChecklist } from './step-checklist.entity';
 
 @Entity('steps')
 export class Step {
@@ -25,7 +26,7 @@ export class Step {
   @Column()
   name: string;
 
-  @Column({ type: 'text' })
+  @Column({ type: 'text', nullable: true })
   description: string;
 
   @Column({ type: 'text', nullable: true })
@@ -58,9 +59,6 @@ export class Step {
   
   @Column({ nullable: true })
   service_id: number;
-  
-  @Column({ nullable: true })
-  depends_on_step_id: number;
   
   @Column({ default: false })
   is_billing: boolean;
@@ -99,10 +97,6 @@ export class Step {
   @OneToOne(() => Billing, (billing) => billing.step)
   billing: Billing;
 
-  @ManyToOne(() => Step, (step) => step.dependentSteps, { nullable: true })
-  @JoinColumn({ name: 'depends_on_step_id' })
-  dependsOn: Step;
-
-  @OneToMany(() => Step, (step) => step.dependsOn)
-  dependentSteps: Step[];
+  @OneToMany(() => StepChecklist, (checklist) => checklist.step)
+  checklists: StepChecklist[];
 }

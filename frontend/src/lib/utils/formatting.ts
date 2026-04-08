@@ -265,7 +265,7 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
  * Persisted value remains "Fiado" where applicable; UI shows "Faturado".
  */
 export function getPaymentMethodLabel(method?: string | null): string {
-  if (!method) return '';
+  if (!method || typeof method !== 'string') return '';
   const normalized = method.trim();
   if (PAYMENT_METHOD_LABELS[normalized]) return PAYMENT_METHOD_LABELS[normalized];
   const lower = normalized.toLowerCase();

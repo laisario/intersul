@@ -9,6 +9,7 @@
 		SIDEBAR_WIDTH_ICON,
 	} from "./constants.js";
 	import { setSidebar } from "./context.svelte.js";
+	import { afterNavigate } from '$app/navigation';
 
 	let {
 		ref = $bindable(null),
@@ -28,10 +29,14 @@
 		setOpen: (value: boolean) => {
 			open = value;
 			onOpenChange(value);
-
-			// This sets the cookie to keep the sidebar state.
 			document.cookie = `${SIDEBAR_COOKIE_NAME}=${open}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
 		},
+	});
+
+	afterNavigate(() => {
+		if (sidebar.openMobile) {
+			sidebar.setOpenMobile(false);
+		}
 	});
 </script>
 
