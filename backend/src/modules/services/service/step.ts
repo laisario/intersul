@@ -208,7 +208,6 @@ export class StepService {
         'billing.copyMachine.franchise',
         'billing.client',
         'billing.responsibleUser',
-        'dependsOn',
       ],
     });
 
