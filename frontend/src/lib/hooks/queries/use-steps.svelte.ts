@@ -175,6 +175,7 @@ export const useToggleChecklist = () => {
       queryClient.invalidateQueries({ queryKey: ['steps'] });
       queryClient.invalidateQueries({ queryKey: ['steps', 'my-steps'] });
       queryClient.invalidateQueries({ queryKey: ['steps', data.step_id] });
+      queryClient.invalidateQueries({ queryKey: ['steps', data.step_id, 'checklists'] });
       // Invalidate service queries as step status may have changed
       if ((data as any).step?.service_id) {
         queryClient.invalidateQueries({ queryKey: ['services', (data as any).step.service_id] });

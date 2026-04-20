@@ -10,25 +10,21 @@
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
 	import { Select, SelectTrigger, SelectContent, SelectItem } from '$lib/components/ui/select/index.js';
-	import { ArrowLeft, Save, Play, CheckCircle, XCircle, ExternalLink, Loader2, Image as ImageIcon, X, User, MoreVertical, Edit } from 'lucide-svelte';
+	import { ArrowLeft, Save, Play, CheckCircle, XCircle, ExternalLink, Image as ImageIcon, X, User, MoreVertical, Edit, ClipboardList } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
 	import ConfirmationDialog from '$lib/components/confirmation-dialog.svelte';
-	import StepImagesUpload from '$lib/components/step-images-upload.svelte';
 	import { queryClient } from '$lib/config/query-client.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { env } from '$lib/config/env.js';
 	import type { Image, StepChecklist } from '$lib/api/types/service.types.js';
 	import StepFormDialog from '$lib/components/step-form-dialog.svelte';
-	import { ClipboardList } from 'lucide-svelte';
 	import { user, canManageServices } from '$lib/stores/auth.svelte.js';
 	import { useUpdateBilling, useBilling } from '$lib/hooks/queries/use-billings.svelte.js';
 	import { useUsers } from '$lib/hooks/queries/use-users.svelte.js';
 	import { page } from '$app/stores';
 	import { userRole } from '$lib/stores/auth.svelte.js';
 	import { UserRole } from '$lib/api/types/auth.types.js';
-	import { FRANCHISE_CLOSING_CATEGORY_NAME } from '$lib/constants/service-categories.js';
-
 	const props = $props<{ data: { id: string } }>();
 	const stepId = Number.parseInt(props.data.id, 10);
 	const currentUser = $derived($user);
@@ -77,7 +73,6 @@
 
 	const imagesQuery = $derived(useStepImages(stepId));
 	const images = $derived(imagesQuery.data || []);
-	const isLoadingImages = $derived(imagesQuery.isLoading);
 
 	const usersQuery = useUsers();
 	// Filter to only active users for selects (defensive filtering)
@@ -200,7 +195,7 @@
 	}
 
 	function handleToggleChecklist(checklist: StepChecklist) {
-		if (!step) return;
+		if (!step || !isResponsable) return;
 
 		if (step.status === 'PENDING') {
 			startStep(step.id, {
@@ -1005,7 +1000,7 @@
 								</div>
 								<div class="space-y-2">
 									{#each checklists as checklist (checklist.id)}
-										{@const isEditable = step.status === 'PENDING' || step.status === 'IN_PROGRESS'}
+										{@const isEditable = (step.status === 'PENDING' || step.status === 'IN_PROGRESS') && isResponsable}
 										<label class="flex items-start gap-3 cursor-pointer group">
 											<input
 												type="checkbox"
@@ -1266,6 +1261,7 @@
 		step={step}
 		bind:open={showFormDialog}
 		onSuccess={() => {
+			queryClient.invalidateQueries({ queryKey: ['steps', stepId] });
 			queryClient.invalidateQueries({ queryKey: ['steps', stepId, 'images'] });
 		}}
 	/>
