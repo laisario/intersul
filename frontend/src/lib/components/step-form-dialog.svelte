@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { useUpdateStep } from '$lib/hooks/queries/use-steps.svelte.js';
+	import { useUpdateStep, useStepImages } from '$lib/hooks/queries/use-steps.svelte.js';
 	import { useUpdateBilling } from '$lib/hooks/queries/use-billings.svelte.js';
 	import { errorToast, successToast, showError } from '$lib/utils/toast.js';
 	import { formatCurrency, getPaymentMethodLabel } from '$lib/utils/formatting.js';
@@ -10,7 +10,10 @@
 	import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '$lib/components/ui/card/index.js';
 	import { Select, SelectTrigger, SelectContent, SelectItem } from '$lib/components/ui/select/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
-	import type { Step } from '$lib/api/types/service.types.js';
+	import StepImagesUpload from '$lib/components/step-images-upload.svelte';
+	import { queryClient } from '$lib/config/query-client.js';
+	import { env } from '$lib/config/env.js';
+	import type { Step, Image } from '$lib/api/types/service.types.js';
 
 	let {
 		step,
@@ -24,6 +27,19 @@
 
 	const { mutate: updateStep, isPending: isUpdatingStep } = useUpdateStep();
 	const { mutate: updateBilling, isPending: isUpdatingBilling } = useUpdateBilling();
+
+	// Images query — internal to dialog
+	const imagesQuery = $derived(useStepImages(step.id));
+	const images = $derived(imagesQuery.data || []);
+
+	// Image preview state
+	let selectedImage = $state<Image | null>(null);
+	let showImagePreview = $state(false);
+
+	function handleImageClick(image: Image) {
+		selectedImage = image;
+		showImagePreview = true;
+	}
 
 	let observation = $state('');
 	let responsableClient = $state('');
@@ -271,6 +287,24 @@
 						placeholder="Nome do responsável pelo cliente"
 					/>
 				</div>
+
+				<!-- Images Section -->
+				{#if isFormEnabled}
+					<div class="space-y-2">
+						<StepImagesUpload
+							stepId={step.id}
+							{images}
+							disabled={!isFormEnabled}
+							onImageUploaded={() => {
+								queryClient.invalidateQueries({ queryKey: ['steps', step.id, 'images'] });
+							}}
+							onImageDeleted={() => {
+								queryClient.invalidateQueries({ queryKey: ['steps', step.id, 'images'] });
+							}}
+							onImageClick={handleImageClick}
+						/>
+					</div>
+				{/if}
 			</div>
 		</div>
 
@@ -299,5 +333,20 @@
 			{/if}
 		</Dialog.Footer>
 		</div>
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- Image Preview Dialog -->
+<Dialog.Root bind:open={showImagePreview}>
+	<Dialog.Content class="max-w-4xl max-h-[90vh] p-0">
+		{#if selectedImage}
+			<div class="relative w-full h-full">
+				<img
+					src={selectedImage.path.startsWith('http') ? selectedImage.path : `${env.API_URL}${selectedImage.path}`}
+					alt="Preview da imagem"
+					class="w-full h-auto max-h-[85vh] object-contain"
+				/>
+			</div>
+		{/if}
 	</Dialog.Content>
 </Dialog.Root>
