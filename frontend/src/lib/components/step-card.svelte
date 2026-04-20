@@ -5,7 +5,8 @@
 	import type { Step, StepChecklist } from '$lib/api/types/service.types.js';
 	import { daysUntilExpiration, getExpirationBadgeClasses } from '$lib/utils/formatting';
 	import { getServicePriorityLabel, getServicePriorityVariant } from '$lib/utils/constants.js';
-	import { useToggleChecklist } from '$lib/hooks/queries/use-steps.svelte.js';
+	import { useToggleChecklist, useStartStep } from '$lib/hooks/queries/use-steps.svelte.js';
+	import { successToast, showError } from '$lib/utils/toast.js';
 	import { Play, FileText, CheckCircle, XCircle, ChevronDown, ChevronUp, ClipboardList } from 'lucide-svelte';
 
 	let {
@@ -26,7 +27,8 @@
 		onCardClick?: (step: Step) => void;
 	}>();
 
-	const { mutate: toggleChecklist } = useToggleChecklist();
+	const { mutate: toggleChecklist, isPending: isTogglingChecklist } = useToggleChecklist();
+	const { mutate: startStep, isPending: isStarting } = useStartStep();
 	let expandedChecklist = $state(false);
 
 	function getStatusBadgeVariant(status?: string) {
@@ -65,11 +67,29 @@
 	}
 
 	function handleToggleChecklist(checklist: StepChecklist) {
-		toggleChecklist(checklist.id, {
-			onError: (error) => {
-				console.error('Failed to toggle checklist item:', error);
-			},
-		});
+		if (!step) return;
+
+		if (step.status === 'PENDING') {
+			startStep(step.id, {
+				onSuccess: () => {
+					successToast.updated('Etapa iniciada');
+					toggleChecklist(checklist.id, {
+						onError: () => showError('Erro ao atualizar checklist'),
+					});
+				},
+				onError: (error: any) => {
+					const message =
+						error?.response?.data?.errors?.[0]?.message ||
+						error?.response?.data?.message ||
+						'Erro ao iniciar etapa';
+					showError(message);
+				},
+			});
+		} else if (step.status === 'IN_PROGRESS') {
+			toggleChecklist(checklist.id, {
+				onError: () => showError('Erro ao atualizar checklist'),
+			});
+		}
 	}
 
 	const isPending = $derived(step?.status === 'PENDING');
@@ -180,8 +200,9 @@
 									<input
 										type="checkbox"
 										checked={checklist.completed}
+										disabled={isStarting || isTogglingChecklist}
 										onchange={() => handleToggleChecklist(checklist)}
-										class="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+										class="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary disabled:opacity-50"
 									/>
 									<span
 										class={`text-sm ${
