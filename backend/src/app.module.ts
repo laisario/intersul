@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { APP_FILTER } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { databaseConfig } from './config/database.config';
+import { getDatabaseConfig } from './config/database.config';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { CommonModule } from './modules/common/common.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -18,9 +18,13 @@ import { BillingsModule } from './modules/billings/billings.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: ['.env', '../.env'], // Try current dir and parent dir
+      envFilePath: ['.env', '../.env'],
     }),
-    TypeOrmModule.forRoot(databaseConfig),
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: getDatabaseConfig,
+      inject: [ConfigService],
+    }),
     CommonModule,
     AuthModule,
     ClientsModule,

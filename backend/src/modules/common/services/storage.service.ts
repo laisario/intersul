@@ -1,13 +1,26 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { ConfigService } from '@nestjs/config';
 
+const PLACEHOLDERS = new Set([
+  'your-r2-access-key-id',
+  'your-r2-secret-access-key',
+  'https://your-account-id.r2.cloudflarestorage.com',
+  'https://pub-your-account-id.r2.dev',
+]);
+
+function isConfigured(value: string | undefined): boolean {
+  return !!value && !PLACEHOLDERS.has(value);
+}
+
 @Injectable()
 export class StorageService {
-  private s3Client: S3Client;
+  private readonly logger = new Logger(StorageService.name);
+  private s3Client: S3Client | null = null;
   private bucketName: string;
   private endpoint: string;
   private publicUrl: string;
+  private readonly ready: boolean;
 
   constructor(private configService: ConfigService) {
     const accessKeyId = this.configService.get<string>('R2_ACCESS_KEY_ID');
@@ -16,25 +29,48 @@ export class StorageService {
     const publicUrl = this.configService.get<string>('R2_PUBLIC_URL');
     const bucketName = 'intersul';
 
-    if (!accessKeyId || !secretAccessKey || !endpoint) {
-      throw new Error('R2 credentials are not configured. Please set R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, and ENDPOINT_FOR_S3_CLIENTS in your .env file');
+    const allConfigured =
+      isConfigured(accessKeyId) &&
+      isConfigured(secretAccessKey) &&
+      isConfigured(endpoint) &&
+      isConfigured(publicUrl);
+
+    if (!allConfigured) {
+      this.ready = false;
+      this.logger.warn(
+        'StorageService: Cloudflare R2 credentials are not configured — image upload will be unavailable. ' +
+        'Set R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, ENDPOINT_FOR_S3_CLIENTS, and R2_PUBLIC_URL in your .env file.',
+      );
+      return;
     }
 
     this.bucketName = bucketName;
     this.endpoint = endpoint;
-    
-    // Use public URL if provided, otherwise fallback to endpoint (may not work for public access)
-    // R2_PUBLIC_URL should be in format: https://pub-<account-id>.r2.dev
     this.publicUrl = publicUrl;
+    this.ready = true;
+
+    this.logger.log(`StorageService initialized — endpoint: ${endpoint}, bucket: ${bucketName}`);
 
     this.s3Client = new S3Client({
       region: 'auto',
       endpoint: endpoint,
+      // forcePathStyle avoids bucket-subdomain TLS failures with Cloudflare R2.
+      // Without it the SDK rewrites the endpoint to https://<bucket>.<account>.r2.cloudflarestorage.com,
+      // which has no valid TLS certificate → SSL alert 40 (handshake_failure).
+      forcePathStyle: true,
       credentials: {
         accessKeyId: accessKeyId,
         secretAccessKey: secretAccessKey,
       },
     });
+  }
+
+  private assertReady(): void {
+    if (!this.ready) {
+      throw new ServiceUnavailableException(
+        'Storage is not configured for this environment. Image upload is unavailable.',
+      );
+    }
   }
 
   /**
@@ -51,6 +87,8 @@ export class StorageService {
     folder: string,
     contentType: string,
   ): Promise<string> {
+    this.assertReady();
+
     const key = `${folder}/${fileName}`;
 
     const command = new PutObjectCommand({
@@ -62,7 +100,12 @@ export class StorageService {
       // Note: You may need to configure bucket public access in Cloudflare R2
     });
 
-    await this.s3Client.send(command);
+    try {
+      await this.s3Client.send(command);
+    } catch (error) {
+      this.logger.error(`Upload failed for key "${key}" to endpoint "${this.endpoint}": ${error?.message}`, error?.stack);
+      throw error;
+    }
 
     // Construct the public URL using the R2 public domain
     // R2_PUBLIC_URL format: https://pub-<account-id>.r2.dev
@@ -79,6 +122,8 @@ export class StorageService {
    * @param filePath Path of the file in the bucket (e.g., 'steps/filename.jpg')
    */
   async deleteFile(filePath: string): Promise<void> {
+    this.assertReady();
+
     const command = new DeleteObjectCommand({
       Bucket: this.bucketName,
       Key: filePath,

@@ -1,12 +1,13 @@
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
+import { ConfigService } from '@nestjs/config';
 
-export const databaseConfig: TypeOrmModuleOptions = {
+export const getDatabaseConfig = (configService: ConfigService): TypeOrmModuleOptions => ({
   type: 'mysql',
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT, 10) || 3306,
-  username: process.env.DB_USERNAME || 'root',
-  password: process.env.DB_PASSWORD || 'password',
-  database: process.env.DB_DATABASE || 'intersul',
+  host: configService.get<string>('DB_HOST', 'localhost'),
+  port: configService.get<number>('DB_PORT', 3306),
+  username: configService.get<string>('DB_USERNAME', 'root'),
+  password: configService.get<string>('DB_PASSWORD', 'password'),
+  database: configService.get<string>('DB_DATABASE', 'intersul'),
   entities: [__dirname + '/../modules/**/*.entity{.ts,.js}'],
   synchronize: false,
   logging: false,
@@ -15,4 +16,4 @@ export const databaseConfig: TypeOrmModuleOptions = {
   migrationsTableName: 'migrations',
   migrationsTransactionMode: 'all',
   autoLoadEntities: true,
-};
+});
