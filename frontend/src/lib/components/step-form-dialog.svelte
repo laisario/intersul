@@ -29,7 +29,7 @@
 	const { mutate: updateBilling, isPending: isUpdatingBilling } = useUpdateBilling();
 
 	// Images query — internal to dialog
-	const imagesQuery = $derived(useStepImages(step.id));
+	const imagesQuery = $derived(useStepImages(step.id, { enabled: () => open }));
 	const images = $derived(imagesQuery.data || []);
 
 	// Image preview state
@@ -43,6 +43,7 @@
 
 	let observation = $state('');
 	let responsableClient = $state('');
+	let isSaving = $state(false);
 
 	// Billing fields
 	let previousCounter = $state<number | null>(null);
@@ -172,7 +173,6 @@
 		);
 	}
 
-	let isSaving = $state(false);
 	const canSave = $derived(isFormEnabled);
 
 	// Reset saving state when dialog opens
@@ -289,22 +289,20 @@
 				</div>
 
 				<!-- Images Section -->
-				{#if isFormEnabled}
-					<div class="space-y-2">
-						<StepImagesUpload
-							stepId={step.id}
-							{images}
-							disabled={!isFormEnabled}
-							onImageUploaded={() => {
-								queryClient.invalidateQueries({ queryKey: ['steps', step.id, 'images'] });
-							}}
-							onImageDeleted={() => {
-								queryClient.invalidateQueries({ queryKey: ['steps', step.id, 'images'] });
-							}}
-							onImageClick={handleImageClick}
-						/>
-					</div>
-				{/if}
+				<div class="space-y-2">
+					<StepImagesUpload
+						stepId={step.id}
+						{images}
+						disabled={!isFormEnabled}
+						onImageUploaded={() => {
+							queryClient.invalidateQueries({ queryKey: ['steps', step.id, 'images'] });
+						}}
+						onImageDeleted={() => {
+							queryClient.invalidateQueries({ queryKey: ['steps', step.id, 'images'] });
+						}}
+						onImageClick={handleImageClick}
+					/>
+				</div>
 			</div>
 		</div>
 

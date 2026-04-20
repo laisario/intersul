@@ -65,7 +65,6 @@ export const useUpdateStep = () => {
     mutationFn: ({ id, data }: { id: number; data: UpdateStepDto }): Promise<Step> =>
       stepsApi.update(id, data),
     onSuccess: (data) => {
-      console.log('AAAAAAAAAAAAAAA', data);
       queryClient.setQueryData(['steps', data.id], data);
       queryClient.invalidateQueries({ queryKey: ['steps', data.id] });
       queryClient.invalidateQueries({ queryKey: ['steps'] });
@@ -135,13 +134,17 @@ export const useCancelStep = () => {
   }));
 };
 
-export const useStepImages = (stepId: number) => {
-  return createQuery(() => ({
-    queryKey: ['steps', stepId, 'images'],
-    queryFn: (): Promise<Image[]> => stepsApi.getImages(stepId),
-    enabled: !!stepId,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-  }));
+export const useStepImages = (stepId: number, options?: { enabled?: boolean | (() => boolean) }) => {
+  return createQuery(() => {
+    const enabledOption = options?.enabled;
+    const resolvedEnabled = typeof enabledOption === 'function' ? enabledOption() : enabledOption;
+    return {
+      queryKey: ['steps', stepId, 'images'],
+      queryFn: (): Promise<Image[]> => stepsApi.getImages(stepId),
+      enabled: (resolvedEnabled ?? true) && !!stepId,
+      staleTime: 2 * 60 * 1000,
+    };
+  });
 };
 
 export const useStepChecklists = (stepId: number) => {
