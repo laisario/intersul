@@ -7,6 +7,7 @@
 	import { getServicePriorityLabel, getServicePriorityVariant } from '$lib/utils/constants.js';
 	import { useToggleChecklist, useStartStep } from '$lib/hooks/queries/use-steps.svelte.js';
 	import { successToast, showError } from '$lib/utils/toast.js';
+	import { user } from '$lib/stores/auth.svelte.js';
 	import { Play, FileText, CheckCircle, XCircle, ChevronDown, ChevronUp, ClipboardList } from 'lucide-svelte';
 
 	let {
@@ -67,7 +68,7 @@
 	}
 
 	function handleToggleChecklist(checklist: StepChecklist) {
-		if (!step) return;
+		if (!step || !isResponsable) return;
 
 		if (step.status === 'PENDING') {
 			startStep(step.id, {
@@ -97,6 +98,12 @@
 	const isCompleted = $derived(step?.status === 'CONCLUDED' || step?.status === 'COMPLETED');
 	const isCancelled = $derived(step?.status === 'CANCELLED');
 	const isActionable = $derived(isPending || isInProgress);
+	const currentUser = $derived($user);
+	const isResponsable = $derived(
+		currentUser?.id !== undefined &&
+		step?.responsable?.id !== undefined &&
+		currentUser.id === step.responsable.id
+	);
 </script>
 
 {#if isLoading}
@@ -200,7 +207,7 @@
 									<input
 										type="checkbox"
 										checked={checklist.completed}
-										disabled={isStarting || isTogglingChecklist}
+										disabled={!isActionable || isStarting || isTogglingChecklist}
 										onchange={() => handleToggleChecklist(checklist)}
 										class="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary disabled:opacity-50"
 									/>
@@ -224,6 +231,7 @@
 			<div class="p-3 border-t bg-muted/20">
 				{#if isPending}
 					<Button
+						disabled={isStarting}
 						onclick={(e) => {
 							e.stopPropagation();
 							onStart(step);
