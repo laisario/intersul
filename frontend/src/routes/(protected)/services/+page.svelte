@@ -579,6 +579,89 @@
 								</p>
 							</div>
 						{:else}
+							<!-- Mobile cards -->
+							<div class="md:hidden space-y-3">
+								{#each services as service (service.id)}
+									{@const responsibles = uniqueStepResponsibleNames(service)}
+									<div
+										class="bg-card rounded-lg border shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+										onclick={() => handleRowClick(service.id)}
+										role="button"
+										tabindex="0"
+										onkeydown={(e) => e.key === 'Enter' && handleRowClick(service.id)}
+									>
+										<div class="p-4 pb-3 border-b">
+											<div class="flex items-start justify-between gap-3">
+												<div class="flex-1 min-w-0">
+													<p class="text-xs text-muted-foreground">#{service.id}</p>
+													<h3 class="font-semibold text-base mt-0.5 leading-tight">{service.client?.name || '-'}</h3>
+												</div>
+												{#if service.priority}
+													<Badge variant={getServicePriorityVariant(service.priority)} class="shrink-0">
+														{getServicePriorityLabel(service.priority)}
+													</Badge>
+												{/if}
+											</div>
+										</div>
+										<div class="p-4 space-y-2.5">
+											<div class="flex items-center justify-between gap-2">
+												<div onclick={(e) => e.stopPropagation()} role="presentation">
+													<ServiceStepsOverviewPopover
+														{service}
+														open={statusStepsPopoverId === service.id}
+														onOpenChange={(open) => {
+															statusStepsPopoverId = open ? service.id : null;
+														}}
+													/>
+												</div>
+												<Badge variant="outline" class="text-xs shrink-0">{service?.category?.name || '-'}</Badge>
+											</div>
+											{#if service.description?.trim()}
+												<p class="text-sm text-muted-foreground line-clamp-2">{service.description.trim()}</p>
+											{/if}
+											<div class="flex items-center justify-between text-xs text-muted-foreground">
+												<span>{service?.client?.address?.neighborhood?.city?.name || '-'}</span>
+												<span>{formatDate(service.createdAt)}</span>
+											</div>
+										</div>
+										{#if userCanManageServices}
+											<div class="p-3 border-t bg-muted/20 flex justify-end" onclick={(e) => e.stopPropagation()} role="presentation">
+												<DropdownMenu.Root>
+													<DropdownMenu.Trigger>
+														<Button variant="ghost" size="sm" class="px-2">
+															<MoreVertical class="w-4 h-4" />
+														</Button>
+													</DropdownMenu.Trigger>
+													<DropdownMenu.Content align="end">
+														<DropdownMenu.Item onclick={(event) => {
+															event.stopPropagation();
+															handleEditService(service);
+														}}>
+															<Edit class="w-4 h-4 mr-2" />
+															Editar
+														</DropdownMenu.Item>
+														<DropdownMenu.Separator />
+														<DropdownMenu.Item
+															variant="destructive"
+															onclick={(event) => {
+																event.stopPropagation();
+																handleDeleteService(service);
+															}}
+															disabled={deleteServiceMutation.isPending}
+														>
+															<Trash2 class="w-4 h-4 mr-2" />
+															Excluir
+														</DropdownMenu.Item>
+													</DropdownMenu.Content>
+												</DropdownMenu.Root>
+											</div>
+										{/if}
+									</div>
+								{/each}
+							</div>
+
+							<!-- Desktop table -->
+							<div class="hidden md:block">
 							<Table>
 								<TableHeader>
 									<TableRow>
@@ -713,6 +796,7 @@
 									{/each}
 								</TableBody>
 							</Table>
+							</div><!-- end hidden md:block -->
 						{/if}
 					</CardContent>
 				</Card>

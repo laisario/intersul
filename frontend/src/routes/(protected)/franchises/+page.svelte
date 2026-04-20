@@ -322,7 +322,57 @@ $effect(() => {
 					</div>
 				</div>
 			{:else}
-				<div class="overflow-x-auto">
+				<!-- Mobile cards -->
+				<div class="md:hidden space-y-3">
+					{#each paginatedFranchises as franchise}
+						{@const unitPrice = franchise.unitPrice ?? 0}
+						<div class="bg-card rounded-lg border shadow-sm overflow-hidden">
+							<div class="p-4 pb-3 border-b">
+								<div class="flex items-start justify-between gap-3">
+									<div class="flex-1 min-w-0">
+										<h3 class="font-semibold text-base leading-tight">{franchise.period}</h3>
+										<p class="text-sm text-muted-foreground mt-0.5">{franchise.paperType}</p>
+									</div>
+									{#if franchise.color}
+										<span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 shrink-0">Colorida</span>
+									{:else}
+										<span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800 shrink-0">P&amp;B</span>
+									{/if}
+								</div>
+							</div>
+							<div class="p-4 space-y-2">
+								<div class="flex items-center justify-between text-sm">
+									<span class="text-muted-foreground">Quantidade</span>
+									<span>{franchise.quantity.toLocaleString()}</span>
+								</div>
+								<div class="flex items-center justify-between text-sm">
+									<span class="text-muted-foreground">Preço Unitário</span>
+									<span>{formatCurrency(unitPrice)}</span>
+								</div>
+								<div class="flex items-center justify-between text-sm font-medium border-t pt-2">
+									<span>Valor Total</span>
+									<span>{formatCurrency(franchise.quantity * unitPrice)}</span>
+								</div>
+							</div>
+							<div class="p-3 border-t bg-muted/20 flex justify-end gap-2">
+								<Button variant="ghost" size="sm" onclick={() => handleOpenEditModal(franchise)}>
+									<Edit class="w-4 h-4" />
+								</Button>
+								<Button
+									variant="ghost"
+									size="sm"
+									onclick={() => openDeleteConfirmation(franchise.id, franchise.period)}
+									class="text-red-600 hover:text-red-700"
+								>
+									<Trash2 class="w-4 h-4" />
+								</Button>
+							</div>
+						</div>
+					{/each}
+				</div>
+
+				<!-- Desktop table -->
+				<div class="hidden md:block overflow-x-auto">
 					<table class="w-full">
 						<thead>
 							<tr class="border-b">

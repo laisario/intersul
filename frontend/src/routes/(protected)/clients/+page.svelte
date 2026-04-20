@@ -420,7 +420,68 @@ function handlePageSizeChange(size: number) {
 					</div>
 				</div>
 			{:else}
-				<div class="overflow-x-auto">
+				<!-- Mobile cards -->
+				<div class="md:hidden space-y-3">
+					{#each getPaginatedClients() as client}
+						<div
+							class="bg-card rounded-lg border shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+							onclick={() => handleViewClient(client.id)}
+							role="button"
+							tabindex="0"
+							onkeydown={(e) => e.key === 'Enter' && handleViewClient(client.id)}
+						>
+							<div class="p-4 pb-3 border-b">
+								<div class="flex items-start justify-between gap-3">
+									<h3 class="font-semibold text-base leading-tight">{client.name}</h3>
+									<Badge variant={client.active ? 'default' : 'secondary'} class="shrink-0">
+										{client.active ? 'Ativo' : 'Inativo'}
+									</Badge>
+								</div>
+							</div>
+							<div class="p-4 space-y-1.5">
+								{#if client.email}
+									<p class="text-sm text-muted-foreground truncate">{client.email}</p>
+								{/if}
+								<div class="flex items-center justify-between text-xs text-muted-foreground">
+									<span>{client.phone || '-'}</span>
+									<span>{client.address?.neighborhood?.city?.name || '-'}</span>
+								</div>
+							</div>
+							<div class="p-3 border-t bg-muted/20 flex justify-end" onclick={(e) => e.stopPropagation()} role="presentation">
+								<DropdownMenu.Root>
+									<DropdownMenu.Trigger>
+										<Button variant="ghost" size="sm" class="px-2">
+											<MoreVertical class="w-4 h-4" />
+										</Button>
+									</DropdownMenu.Trigger>
+									<DropdownMenu.Content align="end">
+										<DropdownMenu.Item onclick={() => handleOpenEditModal(client)}>
+											<Pencil class="w-4 h-4" />
+											Editar
+										</DropdownMenu.Item>
+										<DropdownMenu.Item
+											onclick={() => handleToggleActive(client)}
+											disabled={isToggling}
+										>
+											{client.active ? 'Desativar' : 'Ativar'}
+										</DropdownMenu.Item>
+										<DropdownMenu.Item
+											variant="destructive"
+											onclick={() => openDeleteConfirmation(client)}
+											disabled={deleteClientMutation.isPending}
+										>
+											<Trash2 class="w-4 h-4" />
+											Excluir
+										</DropdownMenu.Item>
+									</DropdownMenu.Content>
+								</DropdownMenu.Root>
+							</div>
+						</div>
+					{/each}
+				</div>
+
+				<!-- Desktop table -->
+				<div class="hidden md:block overflow-x-auto">
 					<table class="w-full">
 						<thead>
 							<tr class="border-b">

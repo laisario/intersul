@@ -10,13 +10,12 @@
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
 	import { Select, SelectTrigger, SelectContent, SelectItem } from '$lib/components/ui/select/index.js';
-	import { ArrowLeft, Save, Play, CheckCircle, XCircle, ExternalLink, Image as ImageIcon, X, User, MoreVertical, Edit, ClipboardList } from 'lucide-svelte';
+	import { ArrowLeft, Save, Play, CheckCircle, XCircle, ExternalLink, X, User, MoreVertical, Edit, ClipboardList } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
 	import ConfirmationDialog from '$lib/components/confirmation-dialog.svelte';
 	import { queryClient } from '$lib/config/query-client.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
-	import { env } from '$lib/config/env.js';
 	import type { Image, StepChecklist } from '$lib/api/types/service.types.js';
 	import StepFormDialog from '$lib/components/step-form-dialog.svelte';
 	import { user, canManageServices } from '$lib/stores/auth.svelte.js';
@@ -89,14 +88,10 @@
 	const { mutate: updateBilling, isPending: isUpdatingBilling } = useUpdateBilling();
 	const { mutate: toggleChecklist, isPending: isTogglingChecklist } = useToggleChecklist();
 
-	let observation = $state('');
-	let responsableClient = $state('');
 	let cancelReason = $state('');
 	let showCancelDialog = $state(false);
 	let showFormDialog = $state(false);
 	let isSaving = $state(false);
-	let selectedImage = $state<Image | null>(null);
-	let showImagePreview = $state(false);
 	let showEditResponsableDialog = $state(false);
 	let selectedResponsableId = $state<number | null>(null);
 
@@ -120,9 +115,6 @@
 
 	$effect(() => {
 		if (step) {
-			observation = step.observation || '';
-			responsableClient = step.responsableClient || '';
-			
 			// Load billing data if exists
 			if (step.isBilling && step.billing) {
 				// Only update from step data if we're not in edit mode (to prevent resetting user input)
@@ -222,16 +214,6 @@
 				},
 			});
 		}
-	}
-
-	function handleImageClick(image: Image) {
-		selectedImage = image;
-		showImagePreview = true;
-	}
-
-	function closeImagePreview() {
-		showImagePreview = false;
-		selectedImage = null;
 	}
 
 	function handleStart() {
@@ -887,108 +869,16 @@
 							</Badge>
 						</div>
 					</CardHeader>
-					<CardContent class="space-y-6">
-						{#if !isFormEnabled}
-							<div class="bg-muted/50 border border-muted rounded-lg p-4">
-								<p class="text-sm text-muted-foreground">
-									{#if step.status === 'PENDING'}
-										Para preencher este formulário, você precisa iniciar a etapa clicando no botão "Iniciar Etapa".
-									{:else if step.status === 'CONCLUDED'}
-										Esta etapa já foi concluída e não pode mais ser editada.
-									{:else if step.status === 'CANCELLED'}
-										Esta etapa foi cancelada e não pode mais ser editada.
-									{:else}
-										O formulário está desabilitado.
-									{/if}
-								</p>
-							</div>
-						{/if}
-
-						<!-- ── Informações da Etapa ─────────────────────────────── -->
-						<div class="space-y-4">
-							<div class="flex items-center justify-between">
-								<h3 class="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Informações</h3>
-								{#if isFormEnabled && isResponsable}
-									<Button variant="outline" size="sm" onclick={() => (showFormDialog = true)}>
-										Preencher informações
-									</Button>
-								{/if}
-							</div>
-
-							{#if isFormEnabled && !isResponsable}
-								<div class="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-									<div class="flex items-center gap-2">
-										<User class="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
-										<p class="text-sm font-medium text-yellow-800 dark:text-yellow-200">
-											Você não é o responsável por esta etapa. Apenas o responsável pode editar as informações.
-										</p>
-									</div>
-								</div>
-							{/if}
-
-							<!-- Observação -->
-							<div class="space-y-1">
-								<Label class="text-sm font-medium text-muted-foreground">Observação</Label>
-								<div class="min-h-[60px] w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm">
-									{#if observation}
-										{observation}
-									{:else}
-										<span class="text-muted-foreground italic">Nenhuma observação adicionada</span>
-									{/if}
-								</div>
-							</div>
-
-							<!-- Responsável no Cliente -->
-							<div class="space-y-1">
-								<Label class="text-sm font-medium text-muted-foreground">Responsável no Cliente</Label>
-								<div class="min-h-[38px] w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm">
-									{#if responsableClient}
-										{responsableClient}
-									{:else}
-										<span class="text-muted-foreground italic">Não informado</span>
-									{/if}
-								</div>
-							</div>
-
-							<!-- Imagens (preview read-only) -->
-							<div class="space-y-1">
-								<Label class="text-sm font-medium text-muted-foreground">Imagens</Label>
-								{#if images && images.length > 0}
-									<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-										{#each images as image (image.id)}
-											<div
-												role="button"
-												tabindex="0"
-												class="relative aspect-square rounded-lg overflow-hidden border bg-muted cursor-pointer hover:opacity-90 transition-opacity"
-												onclick={() => handleImageClick(image)}
-												onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && handleImageClick(image)}
-											>
-												<img
-													src={image.path.startsWith('http') ? image.path : `${env.API_URL}${image.path}`}
-													alt="Imagem da etapa"
-													class="w-full h-full object-cover"
-												/>
-											</div>
-										{/each}
-									</div>
-								{:else}
-									<div class="border-2 border-dashed rounded-lg p-6 text-center">
-										<ImageIcon class="w-10 h-10 mx-auto text-muted-foreground mb-2" />
-										<p class="text-sm text-muted-foreground">Nenhuma imagem adicionada</p>
-									</div>
-								{/if}
-							</div>
-						</div>
-
+					<CardContent class="space-y-4">
 						<!-- ── Checklist ─────────────────────────────────────────── -->
 						{#if isLoadingChecklists}
-							<div class="border-t pt-4 space-y-2">
+							<div class="space-y-2">
 								<Skeleton class="h-4 w-24" />
 								<Skeleton class="h-4 w-full" />
 								<Skeleton class="h-4 w-full" />
 							</div>
 						{:else if checklists.length > 0}
-							<div class="border-t pt-4 space-y-3">
+							<div class="space-y-3">
 								<div class="flex items-center gap-2">
 									<ClipboardList class="w-4 h-4 text-muted-foreground" />
 									<h3 class="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
@@ -1015,6 +905,51 @@
 										</label>
 									{/each}
 								</div>
+							</div>
+						{/if}
+
+						<!-- ── Resumo das informações preenchidas (read-only) ──────── -->
+						{@const hasInfo = !!(step.observation || step.responsableClient || images.length > 0)}
+						{#if hasInfo}
+							<div class="pt-3 border-t space-y-3">
+								{#if step.observation}
+									<div>
+										<p class="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Observação</p>
+										<p class="text-sm whitespace-pre-wrap">{step.observation}</p>
+									</div>
+								{/if}
+								{#if step.responsableClient}
+									<div>
+										<p class="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Responsável no cliente</p>
+										<p class="text-sm">{step.responsableClient}</p>
+									</div>
+								{/if}
+								{#if images.length > 0}
+									<div>
+										<p class="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">Fotos</p>
+										<div class="grid grid-cols-3 gap-2">
+											{#each images as image (image.id)}
+												<div class="aspect-square rounded-md overflow-hidden border bg-muted">
+													<img
+														src={image.path}
+														alt="Foto da etapa"
+														class="w-full h-full object-cover"
+													/>
+												</div>
+											{/each}
+										</div>
+									</div>
+								{/if}
+							</div>
+						{/if}
+
+						<!-- ── Preencher informações ──────────────────────────────── -->
+						{#if isFormEnabled && isResponsable}
+							<div class={checklists.length > 0 && !hasInfo ? 'pt-2 border-t' : 'pt-2'}>
+								<Button variant="ghost" size="sm" onclick={() => (showFormDialog = true)} class="gap-2 text-muted-foreground hover:text-foreground">
+									<Edit class="w-4 h-4" />
+									Preencher informações
+								</Button>
 							</div>
 						{/if}
 					</CardContent>
@@ -1150,20 +1085,6 @@
 	{/if}
 </div>
 
-<!-- Image Preview Dialog -->
-<Dialog.Root bind:open={showImagePreview}>
-	<Dialog.Content class="max-w-4xl max-h-[90vh] p-0">
-		{#if selectedImage}
-			<div class="relative w-full h-full">
-				<img
-					src={selectedImage.path.startsWith('http') ? selectedImage.path : `${env.API_URL}${selectedImage.path}`}
-					alt="Preview da imagem"
-					class="w-full h-auto max-h-[85vh] object-contain"
-				/>
-			</div>
-		{/if}
-	</Dialog.Content>
-</Dialog.Root>
 
 <ConfirmationDialog
 	bind:open={showCancelDialog}
