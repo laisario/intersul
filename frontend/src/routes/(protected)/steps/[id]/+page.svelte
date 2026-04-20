@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { useStep, useUpdateStep, useStartStep, useConcludeStep, useCancelStep, useStepImages } from '$lib/hooks/queries/use-steps.svelte.js';
+	import { useStep, useUpdateStep, useStartStep, useConcludeStep, useCancelStep, useStepImages, useStepChecklists, useToggleChecklist } from '$lib/hooks/queries/use-steps.svelte.js';
 	import { errorToast, successToast, showError } from '$lib/utils/toast.js';
 	import { formatDate, formatCurrency, getPaymentMethodLabel } from '$lib/utils/formatting.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -18,7 +18,9 @@
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { env } from '$lib/config/env.js';
-	import type { Image } from '$lib/api/types/service.types.js';
+	import type { Image, StepChecklist } from '$lib/api/types/service.types.js';
+	import StepFormDialog from '$lib/components/step-form-dialog.svelte';
+	import { ClipboardList } from 'lucide-svelte';
 	import { user, canManageServices } from '$lib/stores/auth.svelte.js';
 	import { useUpdateBilling, useBilling } from '$lib/hooks/queries/use-billings.svelte.js';
 	import { useUsers } from '$lib/hooks/queries/use-users.svelte.js';
@@ -81,18 +83,23 @@
 	// Filter to only active users for selects (defensive filtering)
 	const users = $derived((usersQuery.data || []).filter(u => u.active === true));
 
+	const checklistsQuery = $derived(useStepChecklists(stepId));
+	const checklists = $derived(checklistsQuery.data || []);
+	const isLoadingChecklists = $derived(checklistsQuery.isLoading);
+
 	const { mutate: updateStep, isPending: isUpdating } = useUpdateStep();
 	const { mutate: startStep, isPending: isStarting } = useStartStep();
 	const { mutate: concludeStep, isPending: isConcluding } = useConcludeStep();
 	const { mutate: cancelStep, isPending: isCancelling } = useCancelStep();
 	const { mutate: updateBilling, isPending: isUpdatingBilling } = useUpdateBilling();
+	const { mutate: toggleChecklist, isPending: isTogglingChecklist } = useToggleChecklist();
 
 	let observation = $state('');
 	let responsableClient = $state('');
 	let cancelReason = $state('');
 	let showCancelDialog = $state(false);
+	let showFormDialog = $state(false);
 	let isSaving = $state(false);
-	let isEditMode = $state(false);
 	let selectedImage = $state<Image | null>(null);
 	let showImagePreview = $state(false);
 	let showEditResponsableDialog = $state(false);
@@ -159,14 +166,6 @@
 				}
 			}
 			
-			// Start in preview mode if there's saved data, otherwise start in edit mode
-			// Only if form is enabled (IN_PROGRESS status)
-			if (isFormEnabled) {
-				const hasSavedData = (step.observation && step.observation.trim()) || (step.responsableClient && step.responsableClient.trim());
-				isEditMode = !hasSavedData;
-			} else {
-				isEditMode = false; // Always preview mode for non-editable steps
-			}
 		}
 	});
 
@@ -200,45 +199,34 @@
 		}
 	}
 
-	async function handleSave() {
+	function handleToggleChecklist(checklist: StepChecklist) {
 		if (!step) return;
-		
-		isSaving = true;
-		try {
-			updateStep(
-				{
-					id: step.id,
-					data: {
-						observation: observation.trim() || undefined,
-						responsableClient: responsableClient.trim() || undefined,
-					},
-				},
-				{
-					onSuccess: () => {
-						successToast.updated('Etapa');
-						isEditMode = false; // Switch to preview mode
-					},
-					onError: () => {
-						errorToast.update('Etapa');
-					},
-				},
-			);
-		} finally {
-			isSaving = false;
-		}
-	}
 
-	function handleEdit() {
-		isEditMode = true;
-	}
-
-	function handleCancelEdit() {
-		// Restore original values from step
-		if (step) {
-			observation = step.observation || '';
-			responsableClient = step.responsableClient || '';
+		if (step.status === 'PENDING') {
+			startStep(step.id, {
+				onSuccess: () => {
+					successToast.updated('Etapa iniciada');
+					toggleChecklist(checklist.id, {
+						onError: () => {
+							showError('Erro ao atualizar checklist');
+						},
+					});
+				},
+				onError: (error: any) => {
+					const message =
+						error?.response?.data?.errors?.[0]?.message ||
+						error?.response?.data?.message ||
+						'Erro ao iniciar etapa';
+					showError(message);
+				},
+			});
+		} else if (step.status === 'IN_PROGRESS') {
+			toggleChecklist(checklist.id, {
+				onError: () => {
+					showError('Erro ao atualizar checklist');
+				},
+			});
 		}
-		isEditMode = false;
 	}
 
 	function handleImageClick(image: Image) {
@@ -909,7 +897,7 @@
 							<div class="bg-muted/50 border border-muted rounded-lg p-4">
 								<p class="text-sm text-muted-foreground">
 									{#if step.status === 'PENDING'}
-										Para preencher este formulário, você precisa iniciar a etapa clicando no botão "Iniciar Etapa" ao lado.
+										Para preencher este formulário, você precisa iniciar a etapa clicando no botão "Iniciar Etapa".
 									{:else if step.status === 'CONCLUDED'}
 										Esta etapa já foi concluída e não pode mais ser editada.
 									{:else if step.status === 'CANCELLED'}
@@ -921,144 +909,32 @@
 							</div>
 						{/if}
 
-						{#if isEditMode && isFormEnabled && isResponsable}
-							<!-- Edit Mode: Form -->
-							<!-- Observation -->
-							<div class="space-y-2">
-								<Label for="observation">Observação</Label>
-								<textarea
-									id="observation"
-									placeholder="Adicione observações sobre esta etapa..."
-									bind:value={observation}
-									rows="4"
-									disabled={!isFormEnabled || !isResponsable}
-									class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-								></textarea>
-							</div>
-
-							<!-- Responsable Client -->
-							<div class="space-y-2">
-								<Label for="responsable-client">Responsável no Cliente</Label>
-								<Input
-									id="responsable-client"
-									type="text"
-									placeholder="Nome do responsável no local do cliente"
-									bind:value={responsableClient}
-									disabled={!isFormEnabled || !isResponsable}
-								/>
-							</div>
-
-							<!-- Images Section -->
-							<StepImagesUpload
-								stepId={stepId}
-								images={images}
-								disabled={!isFormEnabled || !isResponsable}
-								onImageUploaded={() => {
-									queryClient.invalidateQueries({ queryKey: ['steps', stepId, 'images'] });
-								}}
-								onImageDeleted={() => {
-									queryClient.invalidateQueries({ queryKey: ['steps', stepId, 'images'] });
-								}}
-								onImageClick={handleImageClick}
-							/>
-
-							<!-- Save and Cancel Buttons -->
-							<div class="flex justify-end gap-2">
-								<Button 
-									variant="outline" 
-									onclick={handleCancelEdit} 
-									disabled={isSaving || isUpdating}
-								>
-									<X class="w-4 h-4 mr-2" />
-									Cancelar
-								</Button>
-								<LoadingButton onclick={handleSave} loading={isSaving || isUpdating} disabled={!isFormEnabled}>
-									<Save class="w-4 h-4 mr-2" />
-									Salvar Alterações
-								</LoadingButton>
-							</div>
-						{:else if isFormEnabled}
-							<!-- Preview Mode: Read-only display -->
-							<div class="space-y-6">
-								<div class="flex items-center justify-between">
-									<h3 class="text-lg font-semibold">Informações da Etapa</h3>
-									{#if isResponsable}
-										<Button variant="outline" size="sm" onclick={handleEdit}>
-											<Edit class="w-4 h-4 mr-2" />
-											Editar
-										</Button>
-									{/if}
-								</div>
-								{#if !isResponsable}
-									<div class="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-										<div class="flex items-center gap-2">
-											<User class="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
-											<p class="text-sm font-medium text-yellow-800 dark:text-yellow-200">
-												Você não é o responsável por esta etapa. Apenas o responsável pode editar as informações.
-											</p>
-										</div>
-									</div>
+						<!-- ── Informações da Etapa ─────────────────────────────── -->
+						<div class="space-y-4">
+							<div class="flex items-center justify-between">
+								<h3 class="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Informações</h3>
+								{#if isFormEnabled && isResponsable}
+									<Button variant="outline" size="sm" onclick={() => (showFormDialog = true)}>
+										Preencher informações
+									</Button>
 								{/if}
-
-								<!-- Observation Preview -->
-								<div class="space-y-2">
-									<Label class="text-sm font-medium text-muted-foreground">Observação</Label>
-									<div class="min-h-[80px] w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm">
-										{#if observation}
-											{observation}
-										{:else}
-											<span class="text-muted-foreground italic">Nenhuma observação adicionada</span>
-										{/if}
-									</div>
-								</div>
-
-								<!-- Responsable Client Preview -->
-								<div class="space-y-2">
-									<Label class="text-sm font-medium text-muted-foreground">Responsável no Cliente</Label>
-									<div class="min-h-[40px] w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm">
-										{#if responsableClient}
-											{responsableClient}
-										{:else}
-											<span class="text-muted-foreground italic">Não informado</span>
-										{/if}
-									</div>
-								</div>
-
-								<!-- Images Preview -->
-								<div class="space-y-2">
-									<Label class="text-sm font-medium text-muted-foreground">Imagens</Label>
-									{#if images && images.length > 0}
-										<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-											{#each images as image (image.id)}
-												<div 
-													role="button"
-													tabindex="0"
-													class="relative group aspect-square rounded-lg overflow-hidden border bg-muted cursor-pointer hover:opacity-90 transition-opacity"
-													onclick={() => handleImageClick(image)}
-													onkeydown={(e) => e.key === 'Enter' || e.key === ' ' ? handleImageClick(image) : null}
-												>
-													<img
-														src={image.path.startsWith('http') ? image.path : `${env.API_URL}${image.path}`}
-														alt="Imagem da etapa"
-														class="w-full h-full object-cover"
-													/>
-												</div>
-											{/each}
-										</div>
-									{:else}
-										<div class="border-2 border-dashed rounded-lg p-8 text-center">
-											<ImageIcon class="w-12 h-12 mx-auto text-muted-foreground mb-2" />
-											<p class="text-sm text-muted-foreground">Nenhuma imagem adicionada</p>
-										</div>
-									{/if}
-								</div>
 							</div>
-						{:else}
-							<!-- View Mode for non-editable steps -->
-							<!-- Observation -->
-							<div class="space-y-2">
+
+							{#if isFormEnabled && !isResponsable}
+								<div class="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+									<div class="flex items-center gap-2">
+										<User class="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+										<p class="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+											Você não é o responsável por esta etapa. Apenas o responsável pode editar as informações.
+										</p>
+									</div>
+								</div>
+							{/if}
+
+							<!-- Observação -->
+							<div class="space-y-1">
 								<Label class="text-sm font-medium text-muted-foreground">Observação</Label>
-								<div class="min-h-[80px] w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm">
+								<div class="min-h-[60px] w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm">
 									{#if observation}
 										{observation}
 									{:else}
@@ -1067,10 +943,10 @@
 								</div>
 							</div>
 
-							<!-- Responsable Client -->
-							<div class="space-y-2">
+							<!-- Responsável no Cliente -->
+							<div class="space-y-1">
 								<Label class="text-sm font-medium text-muted-foreground">Responsável no Cliente</Label>
-								<div class="min-h-[40px] w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm">
+								<div class="min-h-[38px] w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm">
 									{#if responsableClient}
 										{responsableClient}
 									{:else}
@@ -1079,33 +955,71 @@
 								</div>
 							</div>
 
-							<!-- Images -->
-							<div class="space-y-2">
+							<!-- Imagens (preview read-only) -->
+							<div class="space-y-1">
 								<Label class="text-sm font-medium text-muted-foreground">Imagens</Label>
 								{#if images && images.length > 0}
-									<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+									<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
 										{#each images as image (image.id)}
-											<div 
+											<div
 												role="button"
 												tabindex="0"
-												class="relative group aspect-square rounded-lg overflow-hidden border bg-muted cursor-pointer hover:opacity-90 transition-opacity"
+												class="relative aspect-square rounded-lg overflow-hidden border bg-muted cursor-pointer hover:opacity-90 transition-opacity"
 												onclick={() => handleImageClick(image)}
-												onkeydown={(e) => e.key === 'Enter' || e.key === ' ' ? handleImageClick(image) : null}
+												onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && handleImageClick(image)}
 											>
-													<img
-														src={image.path.startsWith('http') ? image.path : `${env.API_URL}${image.path}`}
-														alt="Imagem da etapa"
-														class="w-full h-full object-cover"
-													/>
+												<img
+													src={image.path.startsWith('http') ? image.path : `${env.API_URL}${image.path}`}
+													alt="Imagem da etapa"
+													class="w-full h-full object-cover"
+												/>
 											</div>
 										{/each}
 									</div>
 								{:else}
-									<div class="border-2 border-dashed rounded-lg p-8 text-center">
-										<ImageIcon class="w-12 h-12 mx-auto text-muted-foreground mb-2" />
+									<div class="border-2 border-dashed rounded-lg p-6 text-center">
+										<ImageIcon class="w-10 h-10 mx-auto text-muted-foreground mb-2" />
 										<p class="text-sm text-muted-foreground">Nenhuma imagem adicionada</p>
 									</div>
 								{/if}
+							</div>
+						</div>
+
+						<!-- ── Checklist ─────────────────────────────────────────── -->
+						{#if isLoadingChecklists}
+							<div class="border-t pt-4 space-y-2">
+								<Skeleton class="h-4 w-24" />
+								<Skeleton class="h-4 w-full" />
+								<Skeleton class="h-4 w-full" />
+							</div>
+						{:else if checklists.length > 0}
+							<div class="border-t pt-4 space-y-3">
+								<div class="flex items-center gap-2">
+									<ClipboardList class="w-4 h-4 text-muted-foreground" />
+									<h3 class="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+										Checklist
+										<span class="font-normal normal-case ml-1">
+											({checklists.filter((c) => c.completed).length}/{checklists.length})
+										</span>
+									</h3>
+								</div>
+								<div class="space-y-2">
+									{#each checklists as checklist (checklist.id)}
+										{@const isEditable = step.status === 'PENDING' || step.status === 'IN_PROGRESS'}
+										<label class="flex items-start gap-3 cursor-pointer group">
+											<input
+												type="checkbox"
+												checked={checklist.completed}
+												disabled={!isEditable || isTogglingChecklist}
+												onchange={() => handleToggleChecklist(checklist)}
+												class="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary disabled:opacity-50"
+											/>
+											<span class={`text-sm ${checklist.completed ? 'line-through text-muted-foreground' : ''}`}>
+												{checklist.description}
+											</span>
+										</label>
+									{/each}
+								</div>
 							</div>
 						{/if}
 					</CardContent>
@@ -1346,3 +1260,13 @@
 	</Dialog.Content>
 </Dialog.Root>
 
+<!-- Step Form Dialog -->
+{#if step}
+	<StepFormDialog
+		step={step}
+		bind:open={showFormDialog}
+		onSuccess={() => {
+			queryClient.invalidateQueries({ queryKey: ['steps', stepId, 'images'] });
+		}}
+	/>
+{/if}
