@@ -9,6 +9,9 @@ import { Client } from '../../clients/entities/client.entity';
 import { ClientCopyMachine } from '../../copy-machines/entities/client-copy-machine.entity';
 import { User } from '../../auth/entities/user.entity';
 import { Billing } from '../../billings/entities/billing.entity';
+import { Approval } from '../../common/entities/approval.entity';
+import { ImageService } from '../../common/services/image.service';
+import { StorageService } from '../../common/services/storage.service';
 import { CreateServiceDto } from '../dto/create-service.dto';
 import { UpdateServiceDto } from '../dto/update-service.dto';
 import { CreateStepDto } from '../dto/create-step.dto';
@@ -35,6 +38,10 @@ export class ServicesService {
     private usersRepository: Repository<User>,
     @InjectRepository(Billing)
     private billingsRepository: Repository<Billing>,
+    @InjectRepository(Approval)
+    private approvalsRepository: Repository<Approval>,
+    private readonly imageService: ImageService,
+    private readonly storageService: StorageService,
   ) {}
 
   async findAll(filters?: {
@@ -605,7 +612,26 @@ export class ServicesService {
           await this.billingsRepository.remove(billings);
         }
       }
-      
+
+      // Delete images for each step (R2 files + DB rows)
+      for (const stepId of stepIds) {
+        const images = await this.imageService.findByStepId(stepId);
+        for (const image of images) {
+          const key = this.storageService.extractKeyFromUrl(image.path);
+          if (key) {
+            try {
+              await this.storageService.deleteFile(key);
+            } catch {
+              // File already gone from R2 — proceed with DB cleanup
+            }
+          }
+        }
+        await this.imageService.removeByStepId(stepId);
+      }
+
+      // Delete approvals for all steps
+      await this.approvalsRepository.delete({ step_id: In(stepIds) });
+
       // Now safe to delete the steps
       await this.stepsRepository.remove(service.steps);
     }

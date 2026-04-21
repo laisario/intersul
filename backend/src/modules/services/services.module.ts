@@ -15,13 +15,14 @@ import { CategoryController } from './controller/category';
 import { StepService } from './service/step';
 import { StepController } from './controller/step';
 import { CommonModule } from '../common/common.module';
+import { Approval } from '../common/entities/approval.entity';
 import { Billing } from '../billings/entities/billing.entity';
 import { StepChecklist } from './entities/step-checklist.entity';
 import { StepChecklistService } from './service/step-checklist';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Service, Category, Step, Client, ClientCopyMachine, User, Billing, StepChecklist]),
+    TypeOrmModule.forFeature([Service, Category, Step, Client, ClientCopyMachine, User, Billing, StepChecklist, Approval]),
     ClientsModule,
     CopyMachinesModule,
     CommonModule,
