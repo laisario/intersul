@@ -7,7 +7,8 @@
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
-	import { ArrowLeft, CheckCircle, Clock, User, Printer, MapPin, Phone, Mail, Calendar, FileText, XCircle, Loader2 } from 'lucide-svelte';
+	import { ArrowLeft, CheckCircle, Clock, User, Printer, MapPin, Phone, Mail, Calendar, FileText, XCircle, Loader2, Copy } from 'lucide-svelte';
+	import { copyToClipboard } from '$lib/utils/clipboard.js';
 	import { goto } from '$app/navigation';
 	import { ACQUISITION_TYPE, getServiceStatusLabel, getServiceStatusVariant, getServicePriorityLabel, getServicePriorityVariant } from '$lib/utils/constants.js';
 	import { successToast, showError, getApiErrorMessage } from '$lib/utils/toast.js';
@@ -228,6 +229,11 @@
 		showCancelDialog = false;
 		cancelReason = '';
 	}
+
+	function copyStepLink(stepId: number) {
+		const url = `${window.location.origin}/?stepId=${stepId}`;
+		copyToClipboard(url, 'Link copiado!');
+	}
 </script>
 
 <svelte:head>
@@ -375,9 +381,9 @@
 											</div>
 										</div>
 										<div class="flex-1 min-w-0">
-											<div class="flex items-center justify-between">
+											<div class="flex items-center justify-between gap-2">
 												<h4 class="font-medium">{step.name || `Passo ${index + 1}`}</h4>
-												<div class="flex items-center space-x-2">
+												<div class="flex items-center gap-1.5">
 													<StatusIcon class="w-4 h-4 {getStepStatusColor(status)}" />
 													<Badge variant={
 														normalizedStatus === 'CONCLUDED' || normalizedStatus === 'COMPLETED' ? 'default' :
@@ -387,6 +393,17 @@
 													}>
 														{formatStepStatus(status)}
 													</Badge>
+													{#if step.id}
+														<button
+															type="button"
+															onclick={(e) => { e.stopPropagation(); copyStepLink(step.id!); }}
+															class="shrink-0 rounded p-1 text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted transition-colors"
+															title="Copiar link desta etapa"
+															aria-label="Copiar link desta etapa"
+														>
+															<Copy class="w-3.5 h-3.5" />
+														</button>
+													{/if}
 												</div>
 											</div>
 											{#if step.description}

@@ -222,7 +222,9 @@
 		updateServiceFilters({ sortBy, sortOrder }, { resetPage: true });
 	}
 
-	let statusStepsPopoverId = $state<number | null>(null);
+	/** Separate open-state per layout: portals escape CSS, so sharing state causes both to open. */
+	let mobileStatusPopoverId = $state<number | null>(null);
+	let desktopStatusPopoverId = $state<number | null>(null);
 
 	/** On small screens filters are collapsed until the user opens them. */
 	let mobileServicesFiltersOpen = $state(false);
@@ -608,9 +610,9 @@
 												<div onclick={(e) => e.stopPropagation()} role="presentation">
 													<ServiceStepsOverviewPopover
 														{service}
-														open={statusStepsPopoverId === service.id}
+														open={mobileStatusPopoverId === service.id}
 														onOpenChange={(open) => {
-															statusStepsPopoverId = open ? service.id : null;
+															mobileStatusPopoverId = open ? service.id : null;
 														}}
 													/>
 												</div>
@@ -691,9 +693,9 @@
 											<TableCell class="align-top" onclick={(e) => e.stopPropagation()}>
 												<ServiceStepsOverviewPopover
 													{service}
-													open={statusStepsPopoverId === service.id}
+													open={desktopStatusPopoverId === service.id}
 													onOpenChange={(open) => {
-														statusStepsPopoverId = open ? service.id : null;
+														desktopStatusPopoverId = open ? service.id : null;
 													}}
 												/>
 											</TableCell>

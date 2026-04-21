@@ -9,10 +9,12 @@
 	let {
 		steps = [],
 		isLoading = false,
+		highlightedStepId = null,
 		onRowClick = () => {},
 	} = $props<{
 		steps: Step[];
 		isLoading?: boolean;
+		highlightedStepId?: number | null;
 		onRowClick?: (step: Step) => void;
 	}>();
 
@@ -87,8 +89,9 @@
 				</TableRow>
 			{:else}
 				{#each steps as step}
-					<TableRow 
-						class="cursor-pointer hover:bg-muted/50"
+					<TableRow
+						id="step-card-{step.id}"
+						class="cursor-pointer hover:bg-muted/50 transition-colors {highlightedStepId === step.id ? 'bg-primary/10' : ''}"
 						onclick={() => onRowClick(step)}
 					>
 						<TableCell>

@@ -13,6 +13,7 @@
 	let {
 		step,
 		isLoading = false,
+		highlighted = false,
 		onStart = () => {},
 		onFillForm = () => {},
 		onComplete = () => {},
@@ -21,6 +22,7 @@
 	} = $props<{
 		step?: Step;
 		isLoading?: boolean;
+		highlighted?: boolean;
 		onStart?: (step: Step) => void;
 		onFillForm?: (step: Step) => void;
 		onComplete?: (step: Step) => void;
@@ -120,7 +122,7 @@
 	</div>
 {:else if step}
 	<div
-		class="bg-card rounded-lg border shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+		class="bg-card rounded-lg border shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow {highlighted ? 'ring-2 ring-primary ring-offset-2' : ''}"
 		onclick={() => onCardClick(step)}
 		role="button"
 		tabindex="0"
@@ -220,6 +222,24 @@
 									</span>
 								</label>
 							{/each}
+						</div>
+					{/if}
+				</div>
+			{/if}
+
+			<!-- Form info -->
+			{#if step.responsableClient || step.observation}
+				<div class="border-t pt-3 space-y-2">
+					{#if step.responsableClient}
+						<div>
+							<p class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Resp. no cliente</p>
+							<p class="text-sm mt-0.5">{step.responsableClient}</p>
+						</div>
+					{/if}
+					{#if step.observation}
+						<div>
+							<p class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Observação</p>
+							<p class="text-sm mt-0.5 whitespace-pre-wrap">{step.observation}</p>
 						</div>
 					{/if}
 				</div>

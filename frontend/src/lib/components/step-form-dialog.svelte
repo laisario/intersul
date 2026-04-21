@@ -29,7 +29,7 @@
 	const { mutate: updateBilling, isPending: isUpdatingBilling } = useUpdateBilling();
 
 	// Images query — internal to dialog
-	const imagesQuery = $derived(useStepImages(step.id, { enabled: () => open }));
+	const imagesQuery = $derived(useStepImages(step?.id ?? 0, { enabled: () => open && !!step?.id }));
 	const images = $derived(imagesQuery.data || []);
 
 	// Image preview state
@@ -101,10 +101,10 @@
 			},
 			{
 				onSuccess: () => {
-					successToast.updated('Etapa');
-					onSuccess();
 					open = false;
 					isSaving = false;
+					successToast.updated('Etapa');
+					onSuccess();
 				},
 				onError: () => {
 					errorToast.update('Etapa');
@@ -153,10 +153,10 @@
 						},
 						{
 							onSuccess: () => {
-								successToast.updated('Fechamento');
-								onSuccess();
 								open = false;
 								isSaving = false;
+								successToast.updated('Fechamento');
+								onSuccess();
 							},
 							onError: () => {
 								errorToast.update('Fechamento');

@@ -23,6 +23,9 @@
 		Activity,
 	} from 'lucide-svelte';
 	import { goto } from '$app/navigation';
+	import { get } from 'svelte/store';
+	import { page } from '$app/stores';
+	import { tick } from 'svelte';
 	import { userRole } from '$lib/stores/auth.svelte';
 	import { UserRole } from '$lib/api/types/auth.types.js';
 	import { errorToast, successToast, showError } from '$lib/utils/toast.js';
@@ -34,8 +37,10 @@
 	let currentPage = $state(1);
 	let pageSize = $state(10);
 
-	/** Admin-only: which home tab is active */
-	let adminHomeTab = $state<'stats' | 'steps'>('stats');
+	/** Admin-only: which home tab is active. Pre-select "steps" when deep-linking to a step. */
+	let adminHomeTab = $state<'stats' | 'steps'>(
+		get(page).url.searchParams.has('stepId') ? 'steps' : 'stats'
+	);
 
 	let currentUserRole = $state<UserRole | undefined>(undefined);
 	$effect(() => {
@@ -52,6 +57,16 @@
 		if (currentUserRole !== UserRole.ADMIN) return true;
 		return adminHomeTab === 'steps';
 	});
+
+	// Deep-link: ?stepId=<id>
+	const targetStepId = $derived(
+		$page.url.searchParams.has('stepId')
+			? Number.parseInt($page.url.searchParams.get('stepId')!, 10)
+			: null
+	);
+	let highlightedStepId = $state<number | null>(null);
+	// Plain (non-reactive) flag — prevents re-handling if query data refreshes later
+	let deepLinkHandled = false;
 
 	let hasFetchedStats = $state(false);
 
@@ -76,6 +91,47 @@
 	// Infinite scroll - derive from query data
 	const displayedSteps = $derived((myStepsQuery.data || []).slice(0, currentPage * pageSize));
 	const hasMore = $derived((myStepsQuery.data?.length || 0) > (currentPage * pageSize));
+
+	// Handle deep-link ?stepId=<id> — runs once steps data is available
+	$effect(() => {
+		const stepId = targetStepId;
+		const stepsData = myStepsQuery.data;
+		const role = currentUserRole;
+
+		// Wait until role and steps data are both ready
+		if (!stepId || deepLinkHandled || role === undefined || stepsData === undefined) return;
+
+		deepLinkHandled = true;
+
+		const found = stepsData.find((s) => s.id === stepId);
+
+		if (!found) {
+			// Not responsible for this step → redirect to step detail page
+			goto(`/steps/${stepId}`);
+			return;
+		}
+
+		// Responsible → highlight the step in the list
+		highlightedStepId = stepId;
+
+		// Navigate to the correct page so the step is visible
+		const stepIndex = stepsData.findIndex((s) => s.id === stepId);
+		if (stepIndex !== -1) {
+			currentPage = Math.ceil((stepIndex + 1) / pageSize);
+		}
+
+		// Scroll to the card after the DOM settles
+		(async () => {
+			await tick();
+			const el = document.getElementById(`step-card-${stepId}`);
+			if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		})();
+
+		// Clear highlight ring after 3.5 s
+		setTimeout(() => {
+			highlightedStepId = null;
+		}, 3500);
+	});
 
 	// Reset page when filter changes
 	$effect(() => {
@@ -318,14 +374,17 @@
 					</div>
 				{:else}
 					{#each displayedSteps as step (step.id)}
-						<StepCard
-							{step}
-							onStart={handleStartStep}
-							onFillForm={handleFillFormStep}
-							onComplete={handleCompleteStep}
-							onCancel={handleCancelStep}
-							onCardClick={(s) => s.id && goto(`/steps/${s.id}?from=home`)}
-						/>
+						<div id="step-card-{step.id}">
+							<StepCard
+								{step}
+								highlighted={highlightedStepId === step.id}
+								onStart={handleStartStep}
+								onFillForm={handleFillFormStep}
+								onComplete={handleCompleteStep}
+								onCancel={handleCancelStep}
+								onCardClick={(s) => s.id && goto(`/steps/${s.id}?from=home`)}
+							/>
+						</div>
 					{/each}
 					{#if myStepsQuery.isFetching && displayedSteps.length > 0}
 						<div class="text-center py-4 text-muted-foreground">
@@ -345,6 +404,7 @@
 				<StepsTable
 					steps={paginatedSteps()}
 					isLoading={stepsLoading()}
+					{highlightedStepId}
 					onRowClick={(step) => step.id && goto(`/steps/${step.id}?from=home`)}
 				/>
 
@@ -481,8 +541,6 @@
 	<StepFormDialog
 		step={selectedStepForForm}
 		bind:open={showFormDialog}
-		onSuccess={() => {
-			selectedStepForForm = null;
-		}}
+		onSuccess={() => {}}
 	/>
 </div>
