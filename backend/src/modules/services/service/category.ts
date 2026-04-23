@@ -58,7 +58,7 @@ export class CategoryService {
     // Return category with steps
     return this.categoryRepository.findOne({
       where: { id: savedCategory.id },
-      relations: ['steps'],
+      relations: ['steps', 'steps.checklists'],
     });
   }
 
@@ -89,7 +89,7 @@ export class CategoryService {
 
   async findAll(): Promise<Category[]> {
     return this.categoryRepository.find({
-      relations: ['steps'],
+      relations: ['steps', 'steps.checklists'],
       order: { created_at: 'DESC' },
     });
   }
@@ -97,7 +97,7 @@ export class CategoryService {
   async findOne(id: number): Promise<Category> {
     return this.categoryRepository.findOne({ 
       where: { id },
-      relations: ['steps'],
+      relations: ['steps', 'steps.checklists'],
     });
   }
 
@@ -153,7 +153,7 @@ export class CategoryService {
     // Return category with updated steps
     return this.categoryRepository.findOne({
       where: { id },
-      relations: ['steps'],
+      relations: ['steps', 'steps.checklists'],
     });
   }
 }

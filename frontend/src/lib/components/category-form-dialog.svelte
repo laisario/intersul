@@ -49,7 +49,8 @@
 			// Load existing steps as templates
 			stepTemplates = (category.steps || []).map(step => ({
 				name: step.name || '',
-				description: step.description || ''
+				description: step.description || '',
+				checklist_descriptions: step.checklists?.map(c => c.description) || []
 			}));
 		} else if (!isEditing && open) {
 			resetForm();
@@ -65,7 +66,7 @@
 
 	// Add new step template
 	function addStepTemplate() {
-		stepTemplates = [...stepTemplates, { name: '', description: '' }];
+		stepTemplates = [...stepTemplates, { name: '', description: '', checklist_descriptions: [] }];
 	}
 
 	// Remove step template
@@ -74,7 +75,7 @@
 	}
 
 	// Update step template
-	function updateStepTemplate(index: number, field: 'name' | 'description', value: string) {
+	function updateStepTemplate(index: number, field: 'name' | 'description' | 'checklist_descriptions', value: string | string[]) {
 		stepTemplates = stepTemplates.map((step, i) => 
 			i === index ? { ...step, [field]: value } : step
 		);
@@ -91,7 +92,7 @@
 		// Validate step templates
 		for (let i = 0; i < stepTemplates.length; i++) {
 			const step = stepTemplates[i];
-			if (!step.name.trim() || !step.description.trim()) {
+			if (!step.name.trim() || !step.description?.trim()) {
 				showError(`A etapa ${i + 1} precisa ter nome e descrição preenchidos`);
 				return;
 			}
@@ -103,7 +104,8 @@
 				description: formData.description.trim() || undefined,
 				steps: stepTemplates.length > 0 ? stepTemplates.map(step => ({
 					name: step.name.trim(),
-					description: step.description.trim()
+					description: step.description?.trim() || '',
+					checklist_descriptions: step.checklist_descriptions?.filter(c => c.trim()) || []
 				})) : undefined
 			};
 
@@ -232,6 +234,48 @@
 											disabled={createMutation.isPending || updateMutation.isPending}
 											class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
 										></textarea>
+									</div>
+
+									<!-- Checklist Section -->
+									<div class="border-t pt-3 mt-3">
+										<Label class="mb-2 block text-sm font-medium">Checklist (itens a serem completados)</Label>
+										{#if step.checklist_descriptions && step.checklist_descriptions.length > 0}
+											<div class="space-y-2 mb-3">
+												{#each step.checklist_descriptions as checkItem, checkIndex}
+													<div class="flex items-center gap-2">
+														<Input
+															bind:value={step.checklist_descriptions[checkIndex]}
+															placeholder="Item do checklist"
+															class="flex-1"
+														/>
+														<Button
+															type="button"
+															variant="ghost"
+															size="sm"
+															onclick={() => {
+																const newChecklist = (step.checklist_descriptions || []).filter((_, i) => i !== checkIndex);
+																updateStepTemplate(index, 'checklist_descriptions', newChecklist);
+															}}
+															class="text-destructive hover:text-destructive/80"
+														>
+															<Trash2 class="w-4 h-4" />
+														</Button>
+													</div>
+												{/each}
+											</div>
+										{/if}
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											onclick={() => {
+												const currentChecklist = step.checklist_descriptions || [];
+												updateStepTemplate(index, 'checklist_descriptions', [...currentChecklist, '']);
+											}}
+										>
+											<Plus class="w-4 h-4 mr-2" />
+											Adicionar Item
+										</Button>
 									</div>
 								</div>
 							{/each}

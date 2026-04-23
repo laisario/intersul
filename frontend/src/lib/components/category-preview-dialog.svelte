@@ -102,6 +102,19 @@
 												<p class="text-sm text-muted-foreground mt-2 leading-relaxed">
 													{step.description}
 												</p>
+												{#if step.checklists && step.checklists.length > 0}
+													<div class="mt-3 pt-3 border-t">
+														<p class="text-xs font-medium text-muted-foreground mb-2">Checklist</p>
+														<ul class="space-y-1">
+															{#each step.checklists as checklist}
+																<li class="flex items-center gap-2 text-sm">
+																	<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+																	<span>{checklist.description}</span>
+																</li>
+															{/each}
+														</ul>
+													</div>
+												{/if}
 											</div>
 										</div>
 									</li>
