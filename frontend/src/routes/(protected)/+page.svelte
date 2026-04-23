@@ -21,6 +21,8 @@
 		CheckCircle,
 		AlertCircle,
 		Activity,
+		LayoutGrid,
+		Table,
 	} from 'lucide-svelte';
 	import { goto } from '$app/navigation';
 	import { get } from 'svelte/store';
@@ -33,7 +35,9 @@
 	import type { Step } from '$lib/api/types/service.types.js';
 
 	type FilterOption = 'all' | 'created_today' | 'expires_today' | 'expired';
+	type ViewMode = 'cards' | 'table';
 	let filterOption = $state<FilterOption>('all');
+	let viewMode = $state<ViewMode>('cards');
 	let currentPage = $state(1);
 	let pageSize = $state(10);
 
@@ -332,7 +336,7 @@
 
 	{#snippet myStepsCard()}
 		<div class="space-y-4">
-			<div class="flex items-center gap-4">
+			<div class="flex flex-col sm:flex-row sm:items-center gap-4">
 				<div class="w-[200px]">
 					<Select
 						type="single"
@@ -359,6 +363,28 @@
 							<SelectItem value="expired">Tarefas expiradas</SelectItem>
 						</SelectContent>
 					</Select>
+				</div>
+
+				<!-- Desktop View Toggle -->
+				<div class="hidden md:block ml-auto">
+					<div class="inline-flex items-center rounded-md bg-muted p-1">
+						<button
+							type="button"
+							class="inline-flex items-center rounded-sm px-3 py-1.5 text-sm font-medium transition-all {viewMode === 'cards' ? 'bg-background shadow-sm' : 'text-muted-foreground'}"
+							onclick={() => (viewMode = 'cards')}
+						>
+							<LayoutGrid class="w-4 h-4 mr-2" />
+							Card
+						</button>
+						<button
+							type="button"
+							class="inline-flex items-center rounded-sm px-3 py-1.5 text-sm font-medium transition-all {viewMode === 'table' ? 'bg-background shadow-sm' : 'text-muted-foreground'}"
+							onclick={() => (viewMode = 'table')}
+						>
+							<Table class="w-4 h-4 mr-2" />
+							Tabela
+						</button>
+					</div>
 				</div>
 			</div>
 
@@ -399,26 +425,74 @@
 				{/if}
 			</div>
 
-			<!-- Desktop Table View -->
+			<!-- Desktop Views (Card or Table) -->
 			<div class="hidden md:block">
-				<StepsTable
-					steps={paginatedSteps()}
-					isLoading={stepsLoading()}
-					{highlightedStepId}
-					onRowClick={(step) => step.id && goto(`/steps/${step.id}?from=home`)}
-				/>
+				{#if viewMode === 'cards'}
+					<!-- Desktop Card Stack View (one card per row) -->
+					<div class="space-y-4">
+						{#if stepsLoading() && displayedSteps.length === 0}
+							{#each Array(pageSize) as _}
+								<StepCard layout="horizontal" isLoading={true} />
+							{/each}
+						{:else if displayedSteps.length === 0}
+							<div class="text-center py-8 text-muted-foreground">
+								Nenhuma etapa encontrada
+							</div>
+						{:else}
+							{#each displayedSteps as step (step.id)}
+								<div id="step-card-{step.id}">
+									<StepCard
+										{step}
+										layout="horizontal"
+										highlighted={highlightedStepId === step.id}
+										onStart={handleStartStep}
+										onFillForm={handleFillFormStep}
+										onComplete={handleCompleteStep}
+										onCancel={handleCancelStep}
+										onCardClick={(s) => s.id && goto(`/steps/${s.id}?from=home`)}
+									/>
+								</div>
+							{/each}
+						{/if}
 
-				<PaginationControls
-					page={currentPage}
-					totalPages={totalPages()}
-					totalItems={mySteps().length || 0}
-					pageSize={pageSize}
-					label="etapas"
-					onPrevious={handlePreviousPage}
-					onNext={handleNextPage}
-					onSelectPage={handleSelectPage}
-					onPageSizeChange={handlePageSizeChange}
-				/>
+						<!-- Pagination for Card Mode -->
+						{#if displayedSteps.length > 0}
+							<PaginationControls
+								page={currentPage}
+								totalPages={totalPages()}
+								totalItems={mySteps().length || 0}
+								pageSize={pageSize}
+								label="etapas"
+								onPrevious={handlePreviousPage}
+								onNext={handleNextPage}
+								onSelectPage={handleSelectPage}
+								onPageSizeChange={handlePageSizeChange}
+							/>
+						{/if}
+					</div>
+				{:else}
+					<!-- Desktop Table View -->
+					<div>
+						<StepsTable
+							steps={paginatedSteps()}
+							isLoading={stepsLoading()}
+							{highlightedStepId}
+							onRowClick={(step) => step.id && goto(`/steps/${step.id}?from=home`)}
+						/>
+
+						<PaginationControls
+							page={currentPage}
+							totalPages={totalPages()}
+							totalItems={mySteps().length || 0}
+							pageSize={pageSize}
+							label="etapas"
+							onPrevious={handlePreviousPage}
+							onNext={handleNextPage}
+							onSelectPage={handleSelectPage}
+							onPageSizeChange={handlePageSizeChange}
+						/>
+					</div>
+				{/if}
 			</div>
 		</div>
 	{/snippet}
