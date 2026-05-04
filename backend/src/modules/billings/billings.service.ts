@@ -288,6 +288,31 @@ export class BillingsService {
 
   async remove(id: number): Promise<void> {
     const billing = await this.findOne(id);
+
+    // Block deletion if billing is invoiced/faturado
+    if (billing.is_invoiced) {
+      throw new BadRequestException('Não é possível excluir um fechamento já faturado');
+    }
+
+    // Block deletion if related step is CONCLUDED
+    if (billing.step) {
+      const stepStatus = billing.step.status;
+      if (stepStatus === 'CONCLUDED') {
+        throw new BadRequestException(
+          `Não é possível excluir um fechamento com etapa concluída (status: ${stepStatus})`
+        );
+      }
+    }
+
+    // Delete associated service if exists (to avoid orphaned services, especially for boleto)
+    if (billing.step?.service_id) {
+      const serviceId = billing.step.service_id;
+      const serviceExists = await this.servicesRepository.findOne({ where: { id: serviceId } });
+      if (serviceExists) {
+        await this.servicesRepository.remove(serviceExists);
+      }
+    }
+
     await this.billingsRepository.remove(billing);
   }
 

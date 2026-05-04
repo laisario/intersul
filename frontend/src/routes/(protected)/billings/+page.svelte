@@ -9,6 +9,7 @@
 	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
 	import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '$lib/components/ui/table/index.js';
 	import { Select, SelectTrigger, SelectContent, SelectItem } from '$lib/components/ui/select/index.js';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import ClientAsyncSelect from '$lib/components/client-async-select.svelte';
 	import type { Billing } from '$lib/api/types/billing.types.js';
 	import type { BillingQueryParams } from '$lib/api/types/billing.types.js';
@@ -193,6 +194,45 @@
 		}
 	});
 
+	// Delete billing state and handlers
+	let billingToDelete = $state<Billing | null>(null);
+	let showDeleteConfirmation = $state(false);
+
+	function handleDeleteClick(billing: Billing) {
+		billingToDelete = billing;
+		showDeleteConfirmation = true;
+	}
+
+	function handleConfirmDelete() {
+		if (!billingToDelete) return;
+
+		deleteBillingMutation.mutate(
+			billingToDelete.id,
+			{
+				onSuccess: () => {
+					successToast.deleted('Fechamento');
+					billingToDelete = null;
+					showDeleteConfirmation = false;
+				},
+				onError: (error: any) => {
+					console.error('Error deleting billing:', error);
+					if (error.response?.data?.message) {
+						showError(error.response.data.message);
+					} else {
+						errorToast.delete('Fechamento');
+					}
+					billingToDelete = null;
+					showDeleteConfirmation = false;
+				},
+			}
+		);
+	}
+
+	function handleCancelDelete() {
+		billingToDelete = null;
+		showDeleteConfirmation = false;
+	}
+
 	const pageSizeOptions = [10, 25, 50, 100];
 </script>
 
@@ -337,6 +377,7 @@
 								<th class="text-left p-3 font-medium">Valor a Receber</th>
 								<th class="text-left p-3 font-medium">Forma de Pagamento</th>
 								<th class="text-left p-3 font-medium">Pagamento Concluído</th>
+								<th class="text-left p-3 font-medium">Ações</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -370,6 +411,27 @@
 									<td class="p-3">{billing.paymentMethod ? getPaymentMethodLabel(billing.paymentMethod) : '-'}</td>
 									<td class="p-3">
 										{billing.isInvoiced ? 'Sim' : 'Não'}
+									</td>
+									<td class="p-3" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
+										<DropdownMenu.Root>
+											<DropdownMenu.Trigger asChild>
+												<Button variant="ghost" size="sm" class="h-8 w-8 p-0 hover:bg-transparent">
+													<span class="sr-only">Abrir menu</span>
+													<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+														<path stroke-linecap="round" stroke-linejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+													</svg>
+												</Button>
+											</DropdownMenu.Trigger>
+											<DropdownMenu.Content align="end">
+												<DropdownMenu.Item disabled>
+													Editar
+												</DropdownMenu.Item>
+												<DropdownMenu.Separator />
+												<DropdownMenu.Item class="text-red-600 cursor-pointer" onclick={() => handleDeleteClick(billing)}>
+													Excluir
+												</DropdownMenu.Item>
+											</DropdownMenu.Content>
+										</DropdownMenu.Root>
 									</td>
 								</tr>
 							{/each}
@@ -421,4 +483,17 @@
 	loading={isGeneratingBillings}
 	onConfirm={handleResponsablesSelected}
 	onCancel={handleCancelBilling}
+/>
+
+<ConfirmationDialog
+	bind:open={showDeleteConfirmation}
+	title="Excluir Fechamento"
+	description={`Tem certeza que deseja excluir o fechamento de ${billingToDelete?.client?.name || 'cliente'}? Esta ação não pode ser desfeita.`}
+	confirmText="Excluir"
+	cancelText="Cancelar"
+	variant="destructive"
+	icon="warning"
+	loading={deleteBillingMutation.isPending}
+	onConfirm={handleConfirmDelete}
+	onCancel={handleCancelDelete}
 />

@@ -117,7 +117,7 @@ export class Billing {
   @JoinColumn({ name: 'responsible_user_id' })
   responsibleUser: User;
 
-  @OneToOne(() => Step, (step) => step.billing, { nullable: true })
+  @OneToOne(() => Step, (step) => step.billing, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'step_id' })
   step: Step;
 }
