@@ -71,8 +71,12 @@
 			responsableClient = step.responsableClient ?? '';
 
 			if (step.billing) {
-				previousCounter = step.billing.previousCounter ?? null;
-				currentCounter = step.billing.currentCounter ?? null;
+				if (previousCounter === null) {
+					previousCounter = step.billing.previousCounter ?? null;
+				}
+				if (currentCounter === null) {
+					currentCounter = step.billing.currentCounter ?? null;
+				}
 				paymentMethod = step.billing.paymentMethod ?? '';
 				isInvoiced = step.billing.isInvoiced ?? false;
 
@@ -144,8 +148,8 @@
 						{
 							id: step.billing.id,
 							data: {
-								previousCounter,
-								currentCounter,
+								previousCounter: previousCounter || undefined,
+								currentCounter: currentCounter || undefined,
 								paymentMethod: paymentMethod || undefined,
 								amountToReceive,
 								isInvoiced,
@@ -172,6 +176,10 @@
 			},
 		);
 	}
+
+	$effect(() => {
+		console.log(currentCounter, previousCounter, "currentcounter")
+	})
 
 	const canSave = $derived(isFormEnabled);
 
