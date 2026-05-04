@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { useBillings, useGenerateBillingsByCity, useDeleteBilling } from '$lib/hooks/queries/use-billings.svelte.js';
 	import { useClients } from '$lib/hooks/queries/use-clients.svelte.js';
-	import { formatDate, formatCurrency, getPaymentMethodLabel } from '$lib/utils/formatting.js';
+	import { formatDate, formatCurrency, getPaymentMethodLabel, getBillingStatusLabel } from '$lib/utils/formatting.js';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
@@ -9,6 +9,7 @@
 	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
 	import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '$lib/components/ui/table/index.js';
 	import { Select, SelectTrigger, SelectContent, SelectItem } from '$lib/components/ui/select/index.js';
+	import { Badge } from '$lib/components/ui/badge/index.js';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import ClientAsyncSelect from '$lib/components/client-async-select.svelte';
 	import type { Billing } from '$lib/api/types/billing.types.js';
@@ -16,6 +17,7 @@
 	import type { City } from '$lib/api/types/address.types.js';
 	import PaginationControls from '$lib/components/pagination-controls.svelte';
 	import { errorToast, successToast, showError } from '$lib/utils/toast.js';
+	import { MoreVertical, Edit, Trash2 } from 'lucide-svelte';
 	import { PAGINATION } from '$lib/utils/constants.js';
 	import { goto } from '$app/navigation';
 	import CityBillingDialog from '$lib/components/city-billing-dialog.svelte';
@@ -253,8 +255,8 @@
 		</div>
 	</div>
 
-	<div class="flex items-center gap-4">
-		<div class="w-[200px]">
+	<div class="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+		<div class="w-full sm:w-[200px]">
 			<Select
 				type="single"
 				value={selectedCityFilter}
@@ -262,7 +264,7 @@
 					updateFilters({ cityId: value ? parseInt(value) : undefined }, { resetPage: true });
 				}}
 			>
-				<SelectTrigger>
+				<SelectTrigger class="w-full">
 					<span class="block text-left text-sm">
 						{selectedCityFilter
 							? cityOptions.find((opt) => opt.id.toString() === selectedCityFilter)?.label
@@ -277,15 +279,16 @@
 				</SelectContent>
 			</Select>
 		</div>
-		<div class="w-[260px]">
+		<div class="w-full sm:w-[260px]">
 			<ClientAsyncSelect
 				value={billingFilters.clientId ?? 0}
 				onValueChange={(clientId) => updateFilters({ clientId: clientId || undefined }, { resetPage: true })}
 				label=""
 				placeholder="Todos os clientes"
+				class="w-full"
 			/>
 		</div>
-		<div class="w-[200px]">
+		<div class="w-full sm:w-[200px]">
 			<Select
 				type="single"
 				value={selectedPaymentMethodFilter}
@@ -293,7 +296,7 @@
 					updateFilters({ paymentMethod: value || undefined }, { resetPage: true });
 				}}
 			>
-				<SelectTrigger>
+				<SelectTrigger class="w-full">
 					<span class="block text-left text-sm">
 						{selectedPaymentMethodFilter ? selectedPaymentMethodFilter : 'Todas as formas'}
 					</span>
@@ -310,7 +313,7 @@
 				</SelectContent>
 			</Select>
 		</div>
-		<div class="w-[220px]">
+		<div class="w-full sm:w-[220px]">
 			<Select
 				type="single"
 				value={sortOptionValue}
@@ -322,7 +325,7 @@
 					);
 				}}
 			>
-				<SelectTrigger>
+				<SelectTrigger class="w-full">
 					<span class="block text-left text-sm">
 						{sortOptionValue === 'date:desc'
 							? 'Data (mais recentes)'
@@ -364,20 +367,104 @@
 					</div>
 				</div>
 			{:else}
-				<div class="overflow-x-auto">
+				<!-- Mobile cards -->
+				<div class="md:hidden space-y-3">
+					{#each billings as billing (billing.id)}
+						<div
+							class="bg-card rounded-lg border shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+							onclick={() => handleViewBilling(billing.id)}
+							role="button"
+							tabindex="0"
+							onkeydown={(e) => {
+								if (e.key === 'Enter' || e.key === ' ') {
+									e.preventDefault();
+									handleViewBilling(billing.id);
+								}
+							}}
+						>
+							<div class="p-4 pb-3 border-b">
+								<div class="flex items-start justify-between gap-3">
+									<div class="flex-1 min-w-0">
+										<h3 class="font-semibold text-base leading-tight">{billing.client?.name || '-'}</h3>
+										<p class="text-xs text-muted-foreground mt-1">
+											{billing.client?.address?.neighborhood?.city?.name || '-'} · {formatDate(billing.date)}
+										</p>
+									</div>
+									{#if billing.isInvoiced}
+										<Badge variant="default" class="bg-green-100 text-green-800 border-green-300 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700 shrink-0">
+											Pago
+										</Badge>
+									{:else}
+										<span class="text-muted-foreground text-xs shrink-0">Pendente</span>
+									{/if}
+								</div>
+							</div>
+							<div class="p-4 space-y-2">
+								<div class="flex items-center justify-between text-sm">
+									<span class="text-muted-foreground">Máquina</span>
+									<span class="font-medium">
+										{billing.copyMachine?.catalogCopyMachine?.model ||
+											billing.copyMachine?.externalModel ||
+											billing.copyMachine?.serialNumber ||
+											'-'}
+									</span>
+								</div>
+								<div class="flex items-center justify-between text-sm">
+									<span class="text-muted-foreground">Contador</span>
+									<span class="font-mono text-sm">
+										{billing.previousCounter ?? '-'} → {billing.currentCounter ?? '-'}
+									</span>
+								</div>
+								<div class="flex items-center justify-between text-sm">
+									<span class="text-muted-foreground">Valor</span>
+									<span class="font-medium">{formatCurrency(billing.amountToReceive)}</span>
+								</div>
+								<div class="flex items-center justify-between text-sm">
+									<span class="text-muted-foreground">Pagamento</span>
+									<span class="text-muted-foreground">
+										{billing.paymentMethod ? getPaymentMethodLabel(billing.paymentMethod) : '-'}
+									</span>
+								</div>
+							</div>
+							<div class="p-3 border-t bg-muted/20 flex justify-end" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="presentation">
+								<DropdownMenu.Root>
+									<DropdownMenu.Trigger asChild>
+										<Button variant="ghost" size="sm" class="h-8 w-8 p-0">
+											<MoreVertical class="h-4 w-4" />
+										</Button>
+									</DropdownMenu.Trigger>
+									<DropdownMenu.Content align="end">
+										<DropdownMenu.Item disabled>
+											<Edit class="w-4 h-4 mr-2" />
+											Editar
+										</DropdownMenu.Item>
+										<DropdownMenu.Separator />
+										<DropdownMenu.Item class="text-red-600 cursor-pointer" onclick={(e) => { e.stopPropagation(); handleDeleteClick(billing); }}>
+											<Trash2 class="w-4 h-4 mr-2" />
+											Excluir
+										</DropdownMenu.Item>
+									</DropdownMenu.Content>
+								</DropdownMenu.Root>
+							</div>
+						</div>
+					{/each}
+				</div>
+
+				<!-- Desktop table -->
+				<div class="hidden md:block overflow-x-auto">
 					<table class="w-full">
 						<thead>
 							<tr class="border-b">
-								<th class="text-left p-3 font-medium">Data</th>
 								<th class="text-left p-3 font-medium">Cliente</th>
 								<th class="text-left p-3 font-medium">Cidade</th>
+								<th class="text-left p-3 font-medium">Data</th>
 								<th class="text-left p-3 font-medium">Máquina</th>
-								<th class="text-left p-3 font-medium">Contador Anterior</th>
-								<th class="text-left p-3 font-medium">Contador Atual</th>
-								<th class="text-left p-3 font-medium">Valor a Receber</th>
-								<th class="text-left p-3 font-medium">Forma de Pagamento</th>
-								<th class="text-left p-3 font-medium">Pagamento Concluído</th>
-								<th class="text-left p-3 font-medium">Ações</th>
+								<th class="text-center p-3 font-medium">Contador Anterior</th>
+								<th class="text-center p-3 font-medium">Contador Atual</th>
+								<th class="text-right p-3 font-medium">Valor</th>
+								<th class="text-left p-3 font-medium">Pagamento</th>
+								<th class="text-center p-3 font-medium">Status</th>
+								<th class="text-right p-3 font-medium w-12">Ações</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -394,23 +481,29 @@
 										}
 									}}
 								>
-									<td class="p-3">{formatDate(billing.date)}</td>
-									<td class="p-3">{billing.client?.name || '-'}</td>
-									<td class="p-3">
+									<td class="p-3 font-medium text-foreground">{billing.client?.name || '-'}</td>
+									<td class="p-3 text-muted-foreground">
 										{billing.client?.address?.neighborhood?.city?.name || '-'}
 									</td>
-									<td class="p-3">
+									<td class="p-3 text-muted-foreground">{formatDate(billing.date)}</td>
+									<td class="p-3 text-muted-foreground">
 										{billing.copyMachine?.catalogCopyMachine?.model ||
 											billing.copyMachine?.externalModel ||
 											billing.copyMachine?.serialNumber ||
 											'-'}
 									</td>
-									<td class="p-3">{billing.previousCounter ?? '-'}</td>
-									<td class="p-3">{billing.currentCounter ?? '-'}</td>
-									<td class="p-3">{formatCurrency(billing.amountToReceive)}</td>
-									<td class="p-3">{billing.paymentMethod ? getPaymentMethodLabel(billing.paymentMethod) : '-'}</td>
-									<td class="p-3">
-										{billing.isInvoiced ? 'Sim' : 'Não'}
+									<td class="p-3 text-center font-mono text-sm">{billing.previousCounter ?? '-'}</td>
+									<td class="p-3 text-center font-mono text-sm">{billing.currentCounter ?? '-'}</td>
+									<td class="p-3 text-right font-medium">{formatCurrency(billing.amountToReceive)}</td>
+									<td class="p-3 text-muted-foreground">{billing.paymentMethod ? getPaymentMethodLabel(billing.paymentMethod) : '-'}</td>
+									<td class="p-3 text-center">
+										{#if billing.isInvoiced}
+											<Badge variant="default" class="bg-green-100 text-green-800 border-green-300 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700">
+												Pago
+											</Badge>
+										{:else}
+											<span class="text-muted-foreground text-sm">Pendente</span>
+										{/if}
 									</td>
 									<td class="p-3" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
 										<DropdownMenu.Root>

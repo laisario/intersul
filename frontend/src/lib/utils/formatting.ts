@@ -275,3 +275,16 @@ export function getPaymentMethodLabel(method?: string | null): string {
   if (lower === 'credit card' || lower === 'cartão' || lower === 'cartao') return 'Cartão';
   return normalized;
 }
+
+/** Boolean billing status → Portuguese labels */
+const BILLING_STATUS_LABELS: Record<boolean, string> = {
+  true: 'Pago',
+  false: 'Pendente',
+};
+
+/**
+ * Display label for billing paid status.
+ */
+export function getBillingStatusLabel(isInvoiced: boolean): string {
+  return BILLING_STATUS_LABELS[isInvoiced] || 'Pendente';
+}
