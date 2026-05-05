@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, QueryFailedError, Repository } from 'typeorm';
 import { Client } from './entities/client.entity';
@@ -111,9 +115,13 @@ export class ClientsService {
     if (!(err instanceof QueryFailedError)) {
       throw err;
     }
-    const driverError = (err as QueryFailedError & { driverError?: { errno?: number; code?: string } })
-      .driverError;
-    const isDup = driverError?.errno === 1062 || driverError?.code === 'ER_DUP_ENTRY';
+    const driverError = (
+      err as QueryFailedError & {
+        driverError?: { errno?: number; code?: string };
+      }
+    ).driverError;
+    const isDup =
+      driverError?.errno === 1062 || driverError?.code === 'ER_DUP_ENTRY';
     if (!isDup) {
       throw err;
     }
@@ -122,15 +130,21 @@ export class ClientsService {
     const keyRef = keyMatch?.[1] ?? '';
     // UNIQUE (`cpf`)
     if (keyRef.includes('IDX_4245ac34add1ceeb505efc9877')) {
-      throw new BadRequestException('Este CPF já está cadastrado para outro cliente.');
+      throw new BadRequestException(
+        'Este CPF já está cadastrado para outro cliente.',
+      );
     }
     // UNIQUE (`cnpj`)
     if (keyRef.includes('IDX_c2528f5ea78df3e939950b861c')) {
-      throw new BadRequestException('Este CNPJ já está cadastrado para outro cliente.');
+      throw new BadRequestException(
+        'Este CNPJ já está cadastrado para outro cliente.',
+      );
     }
     // UNIQUE (`email`)
     if (keyRef.includes('IDX_b48860677afe62cd96e1265948')) {
-      throw new BadRequestException('Este e-mail já está cadastrado para outro cliente.');
+      throw new BadRequestException(
+        'Este e-mail já está cadastrado para outro cliente.',
+      );
     }
     throw new BadRequestException(
       'Já existe um cadastro com este dado. Verifique CPF, CNPJ ou e-mail.',

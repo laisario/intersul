@@ -1,6 +1,11 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In, IsNull } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { Billing } from './entities/billing.entity';
 import { CreateBillingDto } from './dto/create-billing.dto';
 import { UpdateBillingDto } from './dto/update-billing.dto';
@@ -43,7 +48,13 @@ export class BillingsService {
     sort_order?: 'asc' | 'desc';
     page?: number;
     limit?: number;
-  }): Promise<{ data: Billing[]; total: number; page: number; limit: number; totalPages: number }> {
+  }): Promise<{
+    data: Billing[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
     const page = Math.max(filters?.page ?? 1, 1);
     const limit = Math.max(Math.min(filters?.limit ?? 10, 100), 1);
     const skip = (page - 1) * limit;
@@ -62,27 +73,32 @@ export class BillingsService {
       query.andWhere('city.id = :city_id', { city_id: filters.city_id });
     }
     if (filters?.client_id) {
-      query.andWhere('billing.client_id = :client_id', { client_id: filters.client_id });
+      query.andWhere('billing.client_id = :client_id', {
+        client_id: filters.client_id,
+      });
     }
     const pm = filters?.payment_method?.trim();
     if (pm) {
-      query.andWhere('billing.payment_method = :payment_method', { payment_method: pm });
+      query.andWhere('billing.payment_method = :payment_method', {
+        payment_method: pm,
+      });
     }
 
     const sortOrder = filters?.sort_order === 'asc' ? 'ASC' : 'DESC';
     const sortBy = filters?.sort_by ?? 'date';
     if (sortBy === 'payment_method') {
-      query.orderBy('billing.payment_method', sortOrder).addOrderBy('billing.date', 'DESC');
+      query
+        .orderBy('billing.payment_method', sortOrder)
+        .addOrderBy('billing.date', 'DESC');
     } else if (sortBy === 'created_at') {
       query.orderBy('billing.created_at', sortOrder);
     } else {
-      query.orderBy('billing.date', sortOrder).addOrderBy('billing.created_at', 'DESC');
+      query
+        .orderBy('billing.date', sortOrder)
+        .addOrderBy('billing.created_at', 'DESC');
     }
 
-    const [data, total] = await query
-      .take(limit)
-      .skip(skip)
-      .getManyAndCount();
+    const [data, total] = await query.take(limit).skip(skip).getManyAndCount();
 
     const totalPages = Math.ceil(total / limit) || 1;
 
@@ -125,7 +141,9 @@ export class BillingsService {
       where: { id: createBillingDto.copy_machine_id },
     });
     if (!copyMachine) {
-      throw new BadRequestException(`Copy machine with ID ${createBillingDto.copy_machine_id} not found`);
+      throw new BadRequestException(
+        `Copy machine with ID ${createBillingDto.copy_machine_id} not found`,
+      );
     }
 
     // Validate client exists
@@ -133,7 +151,9 @@ export class BillingsService {
       where: { id: createBillingDto.client_id },
     });
     if (!client) {
-      throw new BadRequestException(`Client with ID ${createBillingDto.client_id} not found`);
+      throw new BadRequestException(
+        `Client with ID ${createBillingDto.client_id} not found`,
+      );
     }
 
     // Validate responsible user exists and is active
@@ -143,19 +163,23 @@ export class BillingsService {
     if (!user) {
       throw new BadRequestException({
         message: 'Validation failed',
-        errors: [{
-          field: 'responsible_user_id',
-          message: `User with ID ${createBillingDto.responsible_user_id} not found`
-        }]
+        errors: [
+          {
+            field: 'responsible_user_id',
+            message: `User with ID ${createBillingDto.responsible_user_id} not found`,
+          },
+        ],
       });
     }
     if (!user.active) {
       throw new BadRequestException({
         message: 'Validation failed',
-        errors: [{
-          field: 'responsible_user_id',
-          message: 'Usuário responsável selecionado está inativo'
-        }]
+        errors: [
+          {
+            field: 'responsible_user_id',
+            message: 'Usuário responsável selecionado está inativo',
+          },
+        ],
       });
     }
 
@@ -168,7 +192,11 @@ export class BillingsService {
 
     // If payment method is boleto, create service automatically
     const paymentMethod = createBillingDto.payment_method?.toLowerCase();
-    if (paymentMethod === 'boleto' || paymentMethod === 'bank slip' || paymentMethod === 'bankslip') {
+    if (
+      paymentMethod === 'boleto' ||
+      paymentMethod === 'bank slip' ||
+      paymentMethod === 'bankslip'
+    ) {
       await this.createBoletoBillingService(
         savedBilling.client_id,
         savedBilling.copy_machine_id,
@@ -181,18 +209,26 @@ export class BillingsService {
     return savedBilling;
   }
 
-  async update(id: number, updateBillingDto: UpdateBillingDto, user?: { id: number; role: string }): Promise<Billing> {
+  async update(
+    id: number,
+    updateBillingDto: UpdateBillingDto,
+    user?: { id: number; role: string },
+  ): Promise<Billing> {
     const billing = await this.findOne(id);
-    
+
     // Check permissions: Admin/Manager can update any billing, others can only update if they're the responsible user
     if (user) {
       const isAdminOrManager = user.role === 'ADMIN' || user.role === 'MANAGER';
       const isBillingResponsibleUser = billing.responsible_user_id === user?.id;
-      
+
       // Also check if user is responsible for the associated step
       const isStepResponsibleUser = billing.step?.responsable?.id === user?.id;
-      
-      if (!isAdminOrManager && !isBillingResponsibleUser && !isStepResponsibleUser) {
+
+      if (
+        !isAdminOrManager &&
+        !isBillingResponsibleUser &&
+        !isStepResponsibleUser
+      ) {
         throw new ForbiddenException('Forbidden resource');
       }
     }
@@ -202,7 +238,9 @@ export class BillingsService {
         where: { id: updateBillingDto.copy_machine_id },
       });
       if (!copyMachine) {
-        throw new BadRequestException(`Copy machine with ID ${updateBillingDto.copy_machine_id} not found`);
+        throw new BadRequestException(
+          `Copy machine with ID ${updateBillingDto.copy_machine_id} not found`,
+        );
       }
     }
 
@@ -211,7 +249,9 @@ export class BillingsService {
         where: { id: updateBillingDto.client_id },
       });
       if (!client) {
-        throw new BadRequestException(`Client with ID ${updateBillingDto.client_id} not found`);
+        throw new BadRequestException(
+          `Client with ID ${updateBillingDto.client_id} not found`,
+        );
       }
     }
 
@@ -220,7 +260,9 @@ export class BillingsService {
         where: { id: updateBillingDto.responsible_user_id },
       });
       if (!user) {
-        throw new BadRequestException(`User with ID ${updateBillingDto.responsible_user_id} not found`);
+        throw new BadRequestException(
+          `User with ID ${updateBillingDto.responsible_user_id} not found`,
+        );
       }
     }
 
@@ -233,7 +275,11 @@ export class BillingsService {
 
     // If payment method is boleto and service doesn't exist yet, create it automatically
     const paymentMethod = updateBillingDto.payment_method?.toLowerCase();
-    if (paymentMethod === 'boleto' || paymentMethod === 'bank slip' || paymentMethod === 'bankslip') {
+    if (
+      paymentMethod === 'boleto' ||
+      paymentMethod === 'bank slip' ||
+      paymentMethod === 'bankslip'
+    ) {
       // Check if service already exists
       const currentBilling = await this.findOne(id);
       if (!currentBilling.step?.service) {
@@ -248,7 +294,10 @@ export class BillingsService {
     }
 
     // If current_counter was updated, update last_counter on the machine and recalculate amount_to_receive if needed
-    if (updateBillingDto.current_counter !== undefined && savedBilling.current_counter !== null) {
+    if (
+      updateBillingDto.current_counter !== undefined &&
+      savedBilling.current_counter !== null
+    ) {
       const copyMachine = await this.copyMachinesRepository.findOne({
         where: { id: savedBilling.copy_machine_id },
         relations: ['franchise'],
@@ -267,7 +316,7 @@ export class BillingsService {
 
           // Always charge for franchise value
           const franchiseValue = franchiseQuantity * unitPrice;
-          
+
           if (copiesMade > franchiseQuantity) {
             // Counter exceeded franchise: charge franchise value + excess
             const excessCopies = copiesMade - franchiseQuantity;
@@ -277,7 +326,7 @@ export class BillingsService {
             // Within franchise: charge only franchise value
             savedBilling.amount_to_receive = franchiseValue;
           }
-          
+
           await this.billingsRepository.save(savedBilling);
         }
       }
@@ -291,7 +340,9 @@ export class BillingsService {
 
     // Block deletion if billing is invoiced/faturado
     if (billing.is_invoiced) {
-      throw new BadRequestException('Não é possível excluir um fechamento já faturado');
+      throw new BadRequestException(
+        'Não é possível excluir um fechamento já faturado',
+      );
     }
 
     // Block deletion if related step is CONCLUDED
@@ -299,7 +350,7 @@ export class BillingsService {
       const stepStatus = billing.step.status;
       if (stepStatus === 'CONCLUDED') {
         throw new BadRequestException(
-          `Não é possível excluir um fechamento com etapa concluída (status: ${stepStatus})`
+          `Não é possível excluir um fechamento com etapa concluída (status: ${stepStatus})`,
         );
       }
     }
@@ -307,7 +358,9 @@ export class BillingsService {
     // Delete associated service if exists (to avoid orphaned services, especially for boleto)
     if (billing.step?.service_id) {
       const serviceId = billing.step.service_id;
-      const serviceExists = await this.servicesRepository.findOne({ where: { id: serviceId } });
+      const serviceExists = await this.servicesRepository.findOne({
+        where: { id: serviceId },
+      });
       if (serviceExists) {
         await this.servicesRepository.remove(serviceExists);
       }
@@ -393,7 +446,7 @@ export class BillingsService {
 
     // Check if service already has steps (to avoid duplication)
     const existingServiceSteps = await this.stepsRepository.find({
-      where: { 
+      where: {
         service_id: service.id,
         is_billing: false,
       },
@@ -410,67 +463,53 @@ export class BillingsService {
       if (Object.keys(updateData).length > 0) {
         await this.stepsRepository.update(
           { service_id: service.id, is_billing: false },
-          updateData
+          updateData,
         );
       }
       return service;
     }
 
-    // Get ONLY template steps (steps with category_id but NO service_id) - these are the 3 templates from migration
-    // Use DISTINCT to avoid duplicates and limit to 3 to ensure we only get the templates
-    const templateSteps = await this.stepsRepository
-      .createQueryBuilder('step')
-      .where('step.category_id = :categoryId', { categoryId: category.id })
-      .andWhere('step.service_id IS NULL')
-      .orderBy('step.id', 'ASC')
-      .limit(3)
-      .getMany();
-
-    if (!templateSteps || templateSteps.length === 0) {
-      throw new BadRequestException('No template steps found for Boleto Billing category. Please run migrations.');
-    }
-
-    // Get responsable user if provided (any active user is allowed; no role restriction)
+    // Validate responsibleUserId if provided
     let responsableUser: User | null = null;
     if (responsibleUserId && responsibleUserId > 0) {
       responsableUser = await this.usersRepository.findOne({
         where: { id: responsibleUserId },
       });
       if (!responsableUser) {
-        throw new BadRequestException(`User with ID ${responsibleUserId} not found`);
+        throw new BadRequestException(
+          `User with ID ${responsibleUserId} not found`,
+        );
       }
       if (!responsableUser.active) {
-        throw new BadRequestException(`User with ID ${responsibleUserId} is inactive`);
+        throw new BadRequestException(
+          `User with ID ${responsibleUserId} is inactive`,
+        );
       }
     }
 
-    // Create service steps from templates - create exactly 3 steps
-    const stepsToCreate = templateSteps.map((template, index) => {
-      const stepData: any = {
-        name: template.name,
-        description: template.description,
-        service_id: service.id,
-        category_id: category.id,
-        status: StepStatus.PENDING,
-        is_billing: false,
-        // Use the relation object instead of responsable_id directly
-        responsable: responsableUser !== null && responsableUser !== undefined ? responsableUser : undefined,
-      };
-      
-      // Set expiration date for ALL steps if provided
-      if (expirationDate) {
-        stepData.datetime_expiration = new Date(expirationDate);
-      }
-      
-      return stepData;
-    });
+    // Create exactly one step for Boleto billing service
+    const stepData: any = {
+      name: 'Cobrança de Boleto',
+      description: 'Serviço de cobrança de boleto para fechamento',
+      service_id: service.id,
+      category_id: category.id,
+      status: StepStatus.PENDING,
+      is_billing: false,
+      responsable:
+        responsableUser !== null && responsableUser !== undefined
+          ? responsableUser
+          : undefined,
+    };
 
-    // Create all steps at once
-    const savedSteps = await this.stepsRepository.save(stepsToCreate);
+    if (expirationDate) {
+      stepData.datetime_expiration = new Date(expirationDate);
+    }
 
-    // Link first step to billing if billing doesn't have a step_id yet
-    if (savedSteps.length > 0 && billing && !billing.step_id) {
-      billing.step_id = savedSteps[0].id;
+    const savedStep = await this.stepsRepository.save(stepData);
+
+    // Link step to billing if billing doesn't have a step_id yet
+    if (billing && !billing.step_id) {
+      billing.step_id = savedStep.id;
       await this.billingsRepository.save(billing);
     }
 
@@ -503,42 +542,56 @@ export class BillingsService {
       .leftJoinAndSelect('neighborhood.city', 'city')
       .leftJoinAndSelect('client.copyMachines', 'copyMachines')
       .leftJoinAndSelect('copyMachines.franchise', 'franchise')
-      .leftJoinAndSelect('copyMachines.catalogCopyMachine', 'catalogCopyMachine')
+      .leftJoinAndSelect(
+        'copyMachines.catalogCopyMachine',
+        'catalogCopyMachine',
+      )
       .where('city.id = :cityId', { cityId: generateDto.city_id })
       .andWhere('client.active = :active', { active: true })
       .getMany();
 
     if (clients.length === 0) {
-      throw new BadRequestException(`No active clients found in the selected city`);
+      throw new BadRequestException(
+        `No active clients found in the selected city`,
+      );
     }
 
     // Filter RENT machines
     const rentMachines: ClientCopyMachine[] = [];
     clients.forEach((client) => {
-      const machines = client.copyMachines?.filter(
-        (m) => m.acquisition_type === AcquisitionType.RENT && m.franchise,
-      ) || [];
+      const machines =
+        client.copyMachines?.filter(
+          (m) => m.acquisition_type === AcquisitionType.RENT && m.franchise,
+        ) || [];
       rentMachines.push(...machines);
     });
 
     if (rentMachines.length === 0) {
-      throw new BadRequestException(`No RENT machines found in the selected city`);
+      throw new BadRequestException(
+        `No RENT machines found in the selected city`,
+      );
     }
 
     // Validate all machines in the mapping exist
     const machineIds = generateDto.machines.map((m) => m.copy_machine_id);
     const validMachines = rentMachines.filter((m) => machineIds.includes(m.id));
     if (validMachines.length !== machineIds.length) {
-      throw new BadRequestException(`Some machines were not found or are not RENT`);
+      throw new BadRequestException(
+        `Some machines were not found or are not RENT`,
+      );
     }
 
     // Validate all users exist and are active
-    const userIds = [...new Set(generateDto.machines.map((m) => m.responsible_user_id))];
+    const userIds = [
+      ...new Set(generateDto.machines.map((m) => m.responsible_user_id)),
+    ];
     const users = await this.usersRepository.find({
       where: { id: In(userIds), active: true },
     });
     if (users.length !== userIds.length) {
-      throw new BadRequestException(`Some users were not found or are inactive`);
+      throw new BadRequestException(
+        `Some users were not found or are inactive`,
+      );
     }
 
     // Ensure category exists
@@ -582,7 +635,9 @@ export class BillingsService {
 
       // Create billing and step for each machine
       for (const machine of machines) {
-        const machineMapping = generateDto.machines.find((m) => m.copy_machine_id === machine.id);
+        const machineMapping = generateDto.machines.find(
+          (m) => m.copy_machine_id === machine.id,
+        );
         if (!machineMapping) continue;
 
         // previous_counter: prefer value provided at generation time (secretaria),
@@ -593,7 +648,10 @@ export class BillingsService {
             : undefined;
         const lastBilling = await this.getLastBilling(machine.id);
         const previousCounter =
-          mappedPreviousCounter ?? lastBilling?.current_counter ?? machine.ultimo_contador ?? null;
+          mappedPreviousCounter ??
+          lastBilling?.current_counter ??
+          machine.ultimo_contador ??
+          null;
 
         // Calculate amount_to_receive (initially 0, will be calculated when counters are filled)
         // The amount is calculated based on: (current_counter - previous_counter - franchise.quantity) * unit_price
@@ -621,50 +679,94 @@ export class BillingsService {
         const savedBilling = await this.billingsRepository.save(billing);
         createdBillings.push(savedBilling);
 
-        // If payment method is Boleto, create boleto billing service
+        // If payment method is Boleto, create a "Cobrança de Boleto" step inside the existing fechamento service
         const paymentMethod = savedBilling.payment_method?.toLowerCase();
         if (paymentMethod === 'bank slip' || paymentMethod === 'boleto') {
-          const boletoServiceUserId = (machineMapping as any).boleto_service_responsible_user_id;
-          const boletoServiceExpiration = (machineMapping as any).boleto_service_expiration_date;
-          await this.createBoletoBillingService(
-            savedBilling.client_id,
-            savedBilling.copy_machine_id,
-            savedBilling.id,
-            boletoServiceUserId,
-            boletoServiceExpiration,
-          );
+          const boletoResponsibleUserId = (machineMapping as any)
+            .boleto_service_responsible_user_id;
+          const boletoExpirationDate = (machineMapping as any)
+            .boleto_service_expiration_date;
+
+          // Validate responsable user if provided
+          let boletoResponsableUser: User | null = null;
+          if (boletoResponsibleUserId && boletoResponsibleUserId > 0) {
+            boletoResponsableUser = await this.usersRepository.findOne({
+              where: { id: boletoResponsibleUserId },
+            });
+            if (!boletoResponsableUser) {
+              throw new BadRequestException(
+                `User with ID ${boletoResponsibleUserId} not found`,
+              );
+            }
+            if (!boletoResponsableUser.active) {
+              throw new BadRequestException(
+                `User with ID ${boletoResponsibleUserId} is inactive`,
+              );
+            }
+          }
+
+          // Get machine info for the boleto step description
+          const machineSerialNumber = machine.serial_number || 'N/A';
+
+          // Create "Cobrança de Boleto" step inside the existing fechamento service
+          const boletoStepData: any = {
+            name: 'Cobrança de Boleto',
+            description: `Serviço de cobrança de boleto para fechamento\nMáquina: ${modelName}\nNúmero de série: ${machineSerialNumber}`,
+            service_id: savedService.id, // Use the existing fechamento service
+            category_id: savedService.category_id,
+            status: StepStatus.PENDING,
+            is_billing: false,
+            responsable:
+              boletoResponsableUser !== null
+                ? boletoResponsableUser
+                : undefined,
+          };
+
+          if (boletoExpirationDate) {
+            boletoStepData.datetime_expiration = new Date(boletoExpirationDate);
+          }
+
+          const savedBoletoStep =
+            await this.stepsRepository.save(boletoStepData);
+          createdSteps.push(savedBoletoStep);
         }
 
         // Create step
         const stepDescription = `Modelo: ${modelName}\nFranquia: ${machine.franchise.quantity} páginas\nÚltimo contador: ${previousCounter ?? 'N/A'}`;
-        
+
         // Validate and get responsable user if provided
         let responsableUser: User | null = null;
         if (machineMapping.responsible_user_id) {
-          const machineIndex = generateDto.machines.findIndex(m => m.copy_machine_id === machine.id);
+          const machineIndex = generateDto.machines.findIndex(
+            (m) => m.copy_machine_id === machine.id,
+          );
           responsableUser = await this.usersRepository.findOne({
             where: { id: machineMapping.responsible_user_id },
           });
           if (!responsableUser) {
             throw new BadRequestException({
               message: 'Validation failed',
-              errors: [{
-                field: `machines[${machineIndex}].responsible_user_id`,
-                message: `User with ID ${machineMapping.responsible_user_id} not found`
-              }]
+              errors: [
+                {
+                  field: `machines[${machineIndex}].responsible_user_id`,
+                  message: `User with ID ${machineMapping.responsible_user_id} not found`,
+                },
+              ],
             });
           }
           if (!responsableUser.active) {
             throw new BadRequestException({
               message: 'Validation failed',
-              errors: [{
-                field: `machines[${machineIndex}].responsible_user_id`,
-                message: 'Usuário responsável selecionado está inativo'
-              }]
+              errors: [
+                {
+                  field: `machines[${machineIndex}].responsible_user_id`,
+                  message: 'Usuário responsável selecionado está inativo',
+                },
+              ],
             });
           }
         }
-        
+
         const stepData: any = {
           name: `fechamento – ${client.name} – ${cityName}`,
           description: stepDescription,
@@ -673,17 +775,22 @@ export class BillingsService {
           status: StepStatus.PENDING,
           // Use the relation object instead of responsable_id directly
           // This is the correct way to set ManyToOne relations in TypeORM
-          responsable: responsableUser !== null && responsableUser !== undefined ? responsableUser : undefined,
+          responsable:
+            responsableUser !== null && responsableUser !== undefined
+              ? responsableUser
+              : undefined,
         };
-        
+
         // Add expiration date if provided
         const expirationDate = (machineMapping as any).datetime_expiration;
         if (expirationDate) {
           stepData.datetime_expiration = new Date(expirationDate);
         }
-        
+
         const step = this.stepsRepository.create(stepData);
-        const savedStep = (await this.stepsRepository.save(step)) as unknown as Step;
+        const savedStep = (await this.stepsRepository.save(
+          step,
+        )) as unknown as Step;
         createdSteps.push(savedStep);
 
         // Link billing to step
@@ -699,4 +806,3 @@ export class BillingsService {
     };
   }
 }
-

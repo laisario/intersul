@@ -70,7 +70,11 @@ export class Service {
   @JoinColumn({ name: 'category_id' })
   category: Category;
 
-  @ManyToOne(() => ClientCopyMachine, (clientCopyMachine) => clientCopyMachine.services, { nullable: true })
+  @ManyToOne(
+    () => ClientCopyMachine,
+    (clientCopyMachine) => clientCopyMachine.services,
+    { nullable: true },
+  )
   @JoinColumn({ name: 'client_copy_machine_id' })
   clientCopyMachine: ClientCopyMachine;
 

@@ -69,7 +69,7 @@ export class Billing {
   payment_method: string;
 
   @ApiProperty({
-    example: 100.00,
+    example: 100.0,
     description: 'Amount to receive',
     required: false,
   })
@@ -117,8 +117,10 @@ export class Billing {
   @JoinColumn({ name: 'responsible_user_id' })
   responsibleUser: User;
 
-  @OneToOne(() => Step, (step) => step.billing, { nullable: true, onDelete: 'SET NULL' })
+  @OneToOne(() => Step, (step) => step.billing, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
   @JoinColumn({ name: 'step_id' })
   step: Step;
 }
-

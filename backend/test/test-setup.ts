@@ -21,8 +21,12 @@ export const testDatabaseConfig = {
 };
 
 // Create test application
-export async function createTestApp(moduleMetadata: any): Promise<INestApplication> {
-  const moduleFixture: TestingModule = await Test.createTestingModule(moduleMetadata)
+export async function createTestApp(
+  moduleMetadata: any,
+): Promise<INestApplication> {
+  const moduleFixture: TestingModule = await Test.createTestingModule(
+    moduleMetadata,
+  )
     .overrideModule(TypeOrmModule)
     .useModule(
       TypeOrmModule.forRoot({
@@ -34,7 +38,7 @@ export async function createTestApp(moduleMetadata: any): Promise<INestApplicati
 
   const app = moduleFixture.createNestApplication();
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
-  
+
   await app.init();
   return app;
 }
@@ -103,8 +107,8 @@ export const testData = {
     manufacturer: 'Test Manufacturer',
     description: 'Test Description',
     features: ['feature1', 'feature2'],
-    price: 1000.00,
-    monthly_rent_price: 100.00,
+    price: 1000.0,
+    monthly_rent_price: 100.0,
     quantity: 5,
     created_at: new Date(),
     updated_at: new Date(),
@@ -118,7 +122,7 @@ export const testData = {
     external_manufacturer: 'External Manufacturer',
     external_description: 'External Description',
     acquisition_type: 'RENT',
-    value: 1500.00,
+    value: 1500.0,
     franchise_id: 1,
     created_at: new Date(),
     updated_at: new Date(),
@@ -130,7 +134,7 @@ export const testData = {
     colorida: false,
     quantidade: 1000,
     preco_unidade: 0.05,
-    valor: 50.00,
+    valor: 50.0,
     created_at: new Date(),
     updated_at: new Date(),
   },

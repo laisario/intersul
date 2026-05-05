@@ -5,4 +5,3 @@ export enum HowMetCompanyEnum {
   WALK_IN = 'WALK_IN',
   OTHER = 'OTHER',
 }
-

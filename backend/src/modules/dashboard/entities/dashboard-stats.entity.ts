@@ -54,4 +54,3 @@ export class DashboardStats {
   @UpdateDateColumn()
   updated_at: Date;
 }
-

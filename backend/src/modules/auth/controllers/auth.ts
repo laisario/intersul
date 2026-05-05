@@ -1,10 +1,18 @@
 import { Controller, Post, Body, UseGuards, Get, Param } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { AuthService } from '../services/auth';
 import { LoginDto } from '../dto/login.dto';
 import { RegisterDto } from '../dto/register.dto';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
-import { CurrentUser, CurrentUserData } from '../../../common/decorators/current-user.decorator';
+import {
+  CurrentUser,
+  CurrentUserData,
+} from '../../../common/decorators/current-user.decorator';
 import { InvitationService } from '../services/invitation';
 import { AcceptInvitationDto } from '../dto/accept-invitation.dto';
 
@@ -43,14 +51,20 @@ export class AuthController {
 
   @Get('invitations/:token')
   @ApiOperation({ summary: 'Get invitation details by token' })
-  @ApiResponse({ status: 200, description: 'Invitation details retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Invitation details retrieved successfully',
+  })
   async getInvitation(@Param('token') token: string) {
     return this.invitationService.getInvitationByToken(token);
   }
 
   @Post('invitations/accept')
   @ApiOperation({ summary: 'Accept user invitation and complete registration' })
-  @ApiResponse({ status: 201, description: 'User created successfully from invitation' })
+  @ApiResponse({
+    status: 201,
+    description: 'User created successfully from invitation',
+  })
   async acceptInvitation(@Body() acceptInvitationDto: AcceptInvitationDto) {
     return this.invitationService.acceptInvitation(acceptInvitationDto);
   }

@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Category } from '../entities/category.entity';
@@ -28,27 +32,30 @@ export class CategoryService {
 
     // Create steps if provided
     if (steps && steps.length > 0) {
-      const stepEntities = steps.map(stepTemplate => 
+      const stepEntities = steps.map((stepTemplate) =>
         this.stepRepository.create({
           name: stepTemplate.name,
           description: stepTemplate.description,
           observation: stepTemplate.observation,
           responsable_client: stepTemplate.responsable_client,
           category_id: savedCategory.id,
-        })
+        }),
       );
       const savedSteps = await this.stepRepository.save(stepEntities);
 
       // Create checklists for steps
       for (let i = 0; i < savedSteps.length; i++) {
         const stepTemplate = steps[i];
-        if (stepTemplate.checklist_descriptions && stepTemplate.checklist_descriptions.length > 0) {
-          const checklists = stepTemplate.checklist_descriptions.map(desc =>
+        if (
+          stepTemplate.checklist_descriptions &&
+          stepTemplate.checklist_descriptions.length > 0
+        ) {
+          const checklists = stepTemplate.checklist_descriptions.map((desc) =>
             this.checklistRepository.create({
               description: desc,
               completed: false,
               step_id: savedSteps[i].id,
-            })
+            }),
           );
           await this.checklistRepository.save(checklists);
         }
@@ -79,7 +86,7 @@ export class CategoryService {
 
     if (servicesCount > 0) {
       throw new BadRequestException(
-        `Não é possível excluir a categoria "${category.name}" pois existem ${servicesCount} serviço(s) associado(s) a ela. Remova ou altere os serviços antes de excluir a categoria.`
+        `Não é possível excluir a categoria "${category.name}" pois existem ${servicesCount} serviço(s) associado(s) a ela. Remova ou altere os serviços antes de excluir a categoria.`,
       );
     }
 
@@ -95,16 +102,22 @@ export class CategoryService {
   }
 
   async findOne(id: number): Promise<Category> {
-    return this.categoryRepository.findOne({ 
+    return this.categoryRepository.findOne({
       where: { id },
       relations: ['steps', 'steps.checklists'],
     });
   }
 
-  async update(id: number, updateCategoryDto: UpdateCategoryDto): Promise<Category> {
+  async update(
+    id: number,
+    updateCategoryDto: UpdateCategoryDto,
+  ): Promise<Category> {
     const { steps, ...categoryData } = updateCategoryDto;
-    const category = await this.categoryRepository.findOne({ where: { id }, relations: ['steps'] });
-    
+    const category = await this.categoryRepository.findOne({
+      where: { id },
+      relations: ['steps'],
+    });
+
     if (!category) {
       throw new NotFoundException(`Category with ID ${id} not found`);
     }
@@ -122,27 +135,30 @@ export class CategoryService {
 
       // Create new steps
       if (steps.length > 0) {
-        const stepEntities = steps.map(stepTemplate => 
+        const stepEntities = steps.map((stepTemplate) =>
           this.stepRepository.create({
             name: stepTemplate.name,
             description: stepTemplate.description,
             observation: stepTemplate.observation,
             responsable_client: stepTemplate.responsable_client,
             category_id: category.id,
-          })
+          }),
         );
         const savedSteps = await this.stepRepository.save(stepEntities);
 
         // Create checklists for steps
         for (let i = 0; i < savedSteps.length; i++) {
           const stepTemplate = steps[i];
-          if (stepTemplate.checklist_descriptions && stepTemplate.checklist_descriptions.length > 0) {
-            const checklists = stepTemplate.checklist_descriptions.map(desc =>
+          if (
+            stepTemplate.checklist_descriptions &&
+            stepTemplate.checklist_descriptions.length > 0
+          ) {
+            const checklists = stepTemplate.checklist_descriptions.map((desc) =>
               this.checklistRepository.create({
                 description: desc,
                 completed: false,
                 step_id: savedSteps[i].id,
-              })
+              }),
             );
             await this.checklistRepository.save(checklists);
           }

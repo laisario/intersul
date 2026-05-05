@@ -27,7 +27,9 @@ describe('ClientsController Integration', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({ transform: true, whitelist: true }),
+    );
     await app.init();
 
     clientsController = moduleFixture.get<ClientsController>(ClientsController);
@@ -149,7 +151,10 @@ describe('ClientsController Integration', () => {
         email: 'updated@example.com',
       };
 
-      const result = await clientsController.update(createdClient.id, updateClientDto);
+      const result = await clientsController.update(
+        createdClient.id,
+        updateClientDto,
+      );
 
       expect(result.name).toBe('Updated Client');
       expect(result.email).toBe('updated@example.com');
@@ -162,7 +167,9 @@ describe('ClientsController Integration', () => {
         name: 'Updated Client',
       };
 
-      await expect(clientsController.update(999, updateClientDto)).rejects.toThrow();
+      await expect(
+        clientsController.update(999, updateClientDto),
+      ).rejects.toThrow();
     });
   });
 
@@ -182,7 +189,9 @@ describe('ClientsController Integration', () => {
       await clientsController.remove(createdClient.id);
 
       // Verify it's deleted
-      await expect(clientsController.findOne(createdClient.id)).rejects.toThrow();
+      await expect(
+        clientsController.findOne(createdClient.id),
+      ).rejects.toThrow();
     });
 
     it('should throw error when deleting non-existent client', async () => {

@@ -27,4 +27,3 @@ import { User } from '../auth/entities/user.entity';
   exports: [BillingsService],
 })
 export class BillingsModule {}
-

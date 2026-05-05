@@ -1,6 +1,8 @@
 import { MigrationInterface, QueryRunner, TableColumn } from 'typeorm';
 
-export class AddPriceAndPaymentFieldsToServices1771783423001 implements MigrationInterface {
+export class AddPriceAndPaymentFieldsToServices1771783423001
+  implements MigrationInterface
+{
   name = 'AddPriceAndPaymentFieldsToServices1771783423001';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

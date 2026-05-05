@@ -43,6 +43,9 @@ export class CopyMachineCatalog {
   @UpdateDateColumn()
   updated_at: Date;
 
-  @OneToMany(() => ClientCopyMachine, (clientCopyMachine) => clientCopyMachine.catalogCopyMachine)
+  @OneToMany(
+    () => ClientCopyMachine,
+    (clientCopyMachine) => clientCopyMachine.catalogCopyMachine,
+  )
   clientCopyMachines: ClientCopyMachine[];
 }

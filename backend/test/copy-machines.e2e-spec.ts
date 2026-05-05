@@ -40,8 +40,10 @@ describe('Copy Machines E2E', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
-    
+    app.useGlobalPipes(
+      new ValidationPipe({ transform: true, whitelist: true }),
+    );
+
     await app.init();
 
     copyMachineRepository = moduleFixture.get<Repository<CopyMachineCatalog>>(
@@ -77,7 +79,7 @@ describe('Copy Machines E2E', () => {
         manufacturer: 'HP',
         description: 'High-performance monochrome laser printer',
         features: ['Print', 'Copy', 'Scan', 'Network printing'],
-        price: 1500.00,
+        price: 1500.0,
         quantity: 5,
       };
 
@@ -154,7 +156,7 @@ describe('Copy Machines E2E', () => {
           manufacturer: 'HP',
           description: 'High-performance monochrome laser printer',
           features: ['Print', 'Copy', 'Scan'],
-          price: 1500.00,
+          price: 1500.0,
           quantity: 5,
         },
         {
@@ -162,7 +164,7 @@ describe('Copy Machines E2E', () => {
           manufacturer: 'Canon',
           description: 'Compact monochrome laser printer',
           features: ['Print', 'Network printing'],
-          price: 800.00,
+          price: 800.0,
           quantity: 3,
         },
         {
@@ -170,7 +172,7 @@ describe('Copy Machines E2E', () => {
           manufacturer: 'Xerox',
           description: 'Multifunctional color printer',
           features: ['Print', 'Copy', 'Scan', 'Fax'],
-          price: 2300.00,
+          price: 2300.0,
           quantity: 2,
         },
       ];
@@ -248,7 +250,7 @@ describe('Copy Machines E2E', () => {
         manufacturer: 'HP',
         description: 'High-performance monochrome laser printer',
         features: ['Print', 'Copy', 'Scan'],
-        price: 1500.00,
+        price: 1500.0,
         quantity: 5,
       });
       const saved = await copyMachineRepository.save(machine);
@@ -295,7 +297,7 @@ describe('Copy Machines E2E', () => {
         manufacturer: 'HP',
         description: 'High-performance monochrome laser printer',
         features: ['Print', 'Copy', 'Scan'],
-        price: 1500.00,
+        price: 1500.0,
         quantity: 5,
       });
       const saved = await copyMachineRepository.save(machine);
@@ -308,7 +310,7 @@ describe('Copy Machines E2E', () => {
         manufacturer: 'HP',
         description: 'Updated description',
         features: ['Print', 'Copy', 'Scan', 'Network printing'],
-        price: 1800.00,
+        price: 1800.0,
         quantity: 10,
       };
 
@@ -377,7 +379,7 @@ describe('Copy Machines E2E', () => {
         manufacturer: 'HP',
         description: 'High-performance monochrome laser printer',
         features: ['Print', 'Copy', 'Scan'],
-        price: 1500.00,
+        price: 1500.0,
         quantity: 5,
       });
       const saved = await copyMachineRepository.save(machine);

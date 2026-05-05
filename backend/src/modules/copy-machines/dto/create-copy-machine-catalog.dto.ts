@@ -1,4 +1,10 @@
-import { IsString, IsArray, IsOptional, MinLength, IsNumber } from 'class-validator';
+import {
+  IsString,
+  IsArray,
+  IsOptional,
+  MinLength,
+  IsNumber,
+} from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -44,7 +50,7 @@ export class CreateCopyMachineCatalogDto {
   features?: string[];
 
   @ApiProperty({
-    example: 1500.00,
+    example: 1500.0,
     description: 'Selling price',
     required: false,
   })
@@ -71,5 +77,4 @@ export class CreateCopyMachineCatalogDto {
   @IsString()
   @IsOptional()
   file?: any;
-
 }

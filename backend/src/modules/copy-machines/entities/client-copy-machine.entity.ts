@@ -58,18 +58,26 @@ export class ClientCopyMachine {
   @UpdateDateColumn()
   updated_at: Date;
 
-  @ManyToOne(() => Client, (client) => client.copyMachines, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Client, (client) => client.copyMachines, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'client_id' })
   client: Client;
 
-  @ManyToOne(() => CopyMachineCatalog, (catalogCopyMachine) => catalogCopyMachine.clientCopyMachines, { nullable: true })
+  @ManyToOne(
+    () => CopyMachineCatalog,
+    (catalogCopyMachine) => catalogCopyMachine.clientCopyMachines,
+    { nullable: true },
+  )
   @JoinColumn({ name: 'catalog_copy_machine_id' })
   catalogCopyMachine: CopyMachineCatalog;
 
   @OneToMany(() => Service, (service) => service.clientCopyMachine)
   services: Service[];
 
-  @ManyToOne(() => Franchise, (franchise) => franchise.clientCopyMachines, { nullable: true })
+  @ManyToOne(() => Franchise, (franchise) => franchise.clientCopyMachines, {
+    nullable: true,
+  })
   @JoinColumn({ name: 'franchise_id' })
   franchise: Franchise;
 }

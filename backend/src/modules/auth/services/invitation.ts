@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { randomBytes } from 'crypto';
@@ -47,11 +51,15 @@ export class InvitationService {
       relations: ['createdBy'],
     });
 
-    return invitations.map((invitation) => this.normalizeInvitation(invitation));
+    return invitations.map((invitation) =>
+      this.normalizeInvitation(invitation),
+    );
   }
 
   async getInvitationByToken(token: string) {
-    const invitation = await this.invitationRepository.findOne({ where: { token } });
+    const invitation = await this.invitationRepository.findOne({
+      where: { token },
+    });
     if (!invitation) {
       throw new NotFoundException('Invitation not found');
     }
@@ -75,7 +83,10 @@ export class InvitationService {
       throw new BadRequestException('Invitation has expired');
     }
 
-    if (invitation.email && invitation.email.toLowerCase() !== payload.email.toLowerCase()) {
+    if (
+      invitation.email &&
+      invitation.email.toLowerCase() !== payload.email.toLowerCase()
+    ) {
       throw new BadRequestException('Email does not match invitation');
     }
 
@@ -96,14 +107,18 @@ export class InvitationService {
   }
 
   private resolveExpiration(expiresInHours?: number | null) {
-    const hours = expiresInHours && expiresInHours > 0 ? expiresInHours : DEFAULT_EXPIRATION_HOURS;
+    const hours =
+      expiresInHours && expiresInHours > 0
+        ? expiresInHours
+        : DEFAULT_EXPIRATION_HOURS;
     const date = new Date();
     date.setHours(date.getHours() + hours);
     return date;
   }
 
   private normalizeInvitation(invitation: UserInvitation) {
-    const { createdBy, expires_at, used_at, created_at, updated_at, ...rest } = invitation;
+    const { createdBy, expires_at, used_at, created_at, updated_at, ...rest } =
+      invitation;
     return {
       id: invitation.id,
       token: invitation.token,
@@ -125,4 +140,3 @@ export class InvitationService {
     };
   }
 }
-

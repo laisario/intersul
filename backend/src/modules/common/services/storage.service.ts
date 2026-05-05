@@ -1,5 +1,13 @@
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import {
+  S3Client,
+  PutObjectCommand,
+  DeleteObjectCommand,
+} from '@aws-sdk/client-s3';
 import { ConfigService } from '@nestjs/config';
 
 const PLACEHOLDERS = new Set([
@@ -24,7 +32,9 @@ export class StorageService {
 
   constructor(private configService: ConfigService) {
     const accessKeyId = this.configService.get<string>('R2_ACCESS_KEY_ID');
-    const secretAccessKey = this.configService.get<string>('R2_SECRET_ACCESS_KEY');
+    const secretAccessKey = this.configService.get<string>(
+      'R2_SECRET_ACCESS_KEY',
+    );
     const endpoint = this.configService.get<string>('ENDPOINT_FOR_S3_CLIENTS');
     const publicUrl = this.configService.get<string>('R2_PUBLIC_URL');
     const bucketName = 'intersul';
@@ -39,7 +49,7 @@ export class StorageService {
       this.ready = false;
       this.logger.warn(
         'StorageService: Cloudflare R2 credentials are not configured — image upload will be unavailable. ' +
-        'Set R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, ENDPOINT_FOR_S3_CLIENTS, and R2_PUBLIC_URL in your .env file.',
+          'Set R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, ENDPOINT_FOR_S3_CLIENTS, and R2_PUBLIC_URL in your .env file.',
       );
       return;
     }
@@ -49,7 +59,9 @@ export class StorageService {
     this.publicUrl = publicUrl;
     this.ready = true;
 
-    this.logger.log(`StorageService initialized — endpoint: ${endpoint}, bucket: ${bucketName}`);
+    this.logger.log(
+      `StorageService initialized — endpoint: ${endpoint}, bucket: ${bucketName}`,
+    );
 
     this.s3Client = new S3Client({
       region: 'auto',
@@ -103,7 +115,10 @@ export class StorageService {
     try {
       await this.s3Client.send(command);
     } catch (error) {
-      this.logger.error(`Upload failed for key "${key}" to endpoint "${this.endpoint}": ${error?.message}`, error?.stack);
+      this.logger.error(
+        `Upload failed for key "${key}" to endpoint "${this.endpoint}": ${error?.message}`,
+        error?.stack,
+      );
       throw error;
     }
 
@@ -113,7 +128,7 @@ export class StorageService {
     // Note: Bucket name is NOT included in the public URL path for R2 public domains
     const baseUrl = this.publicUrl.replace(/\/$/, '');
     const fileUrl = `${baseUrl}/${key}`;
-    
+
     return fileUrl;
   }
 
@@ -141,7 +156,7 @@ export class StorageService {
     try {
       const urlObj = new URL(url);
       const pathParts = urlObj.pathname.split('/').filter(Boolean);
-      
+
       // Handle both old format (with bucket name) and new format (without bucket name)
       // Old format: https://pub-...r2.dev/intersul/copy-machines/filename.png
       // New format: https://pub-...r2.dev/copy-machines/filename.png
@@ -150,12 +165,12 @@ export class StorageService {
         // Old format: bucket name is in the path, get everything after it
         return pathParts.slice(bucketIndex + 1).join('/');
       }
-      
+
       // New format: bucket name is not in the path, pathname is the key directly
       if (pathParts.length > 0) {
         return pathParts.join('/');
       }
-      
+
       return null;
     } catch (error) {
       return null;

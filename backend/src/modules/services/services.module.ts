@@ -22,13 +22,33 @@ import { StepChecklistService } from './service/step-checklist';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Service, Category, Step, Client, ClientCopyMachine, User, Billing, StepChecklist, Approval]),
+    TypeOrmModule.forFeature([
+      Service,
+      Category,
+      Step,
+      Client,
+      ClientCopyMachine,
+      User,
+      Billing,
+      StepChecklist,
+      Approval,
+    ]),
     ClientsModule,
     CopyMachinesModule,
     CommonModule,
   ],
   controllers: [ServicesController, CategoryController, StepController],
-  providers: [ServicesService, CategoryService, StepService, StepChecklistService],
-  exports: [ServicesService, CategoryService, StepService, StepChecklistService],
+  providers: [
+    ServicesService,
+    CategoryService,
+    StepService,
+    StepChecklistService,
+  ],
+  exports: [
+    ServicesService,
+    CategoryService,
+    StepService,
+    StepChecklistService,
+  ],
 })
 export class ServicesModule {}

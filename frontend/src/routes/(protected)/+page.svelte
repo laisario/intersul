@@ -96,6 +96,41 @@
 	const displayedSteps = $derived((myStepsQuery.data || []).slice(0, currentPage * pageSize));
 	const hasMore = $derived((myStepsQuery.data?.length || 0) > (currentPage * pageSize));
 
+	// Group steps by service for card view
+	type StepWithService = Step & { service?: { id: number; description?: string; client?: { name: string }; category?: { name: string } } };
+	type ServiceGroup = {
+		serviceId: number | null;
+		serviceInfo: { id?: number; clientName?: string; categoryName?: string; description?: string } | null;
+		steps: StepWithService[];
+	};
+	const groupedStepsByService = $derived.by(() => {
+		const steps = displayedSteps as StepWithService[];
+		const groups = new Map<number | string, ServiceGroup>();
+
+		for (const step of steps) {
+			const serviceId = step.serviceId ?? step.service?.id ?? null;
+			const groupKey = serviceId ?? `no-service-${step.id}`;
+
+			if (!groups.has(groupKey)) {
+				groups.set(groupKey, {
+					serviceId,
+					serviceInfo: serviceId
+						? {
+								id: step.service?.id,
+								clientName: step.service?.client?.name,
+								categoryName: step.service?.category?.name,
+								description: step.service?.description,
+						  }
+						: null,
+					steps: [],
+				});
+			}
+			groups.get(groupKey)!.steps.push(step);
+		}
+
+		return Array.from(groups.values());
+	});
+
 	// Handle deep-link ?stepId=<id> — runs once steps data is available
 	$effect(() => {
 		const stepId = targetStepId;
@@ -399,18 +434,47 @@
 						Nenhuma etapa encontrada
 					</div>
 				{:else}
-					{#each displayedSteps as step (step.id)}
-						<div id="step-card-{step.id}">
-							<StepCard
-								{step}
-								highlighted={highlightedStepId === step.id}
-								onStart={handleStartStep}
-								onFillForm={handleFillFormStep}
-								onComplete={handleCompleteStep}
-								onCancel={handleCancelStep}
-								onCardClick={(s) => s.id && goto(`/steps/${s.id}?from=home`)}
-							/>
-						</div>
+					{#each groupedStepsByService as group (group.serviceId)}
+						{#if group.serviceInfo && group.steps.length > 1}
+							<div class="border-l-4 border-blue-500 bg-slate-50 dark:bg-slate-900 rounded-r-lg p-3 space-y-3">
+								<div class="text-sm font-medium text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700 pb-2">
+									<span class="text-blue-600 dark:text-blue-400">Serviço #{group.serviceInfo.id}</span>
+									{#if group.serviceInfo.clientName}
+										<span class="text-slate-500 dark:text-slate-400"> - {group.serviceInfo.clientName}</span>
+									{/if}
+									{#if group.serviceInfo.categoryName}
+										<span class="text-muted-foreground"> | {group.serviceInfo.categoryName}</span>
+									{/if}
+								</div>
+								{#each group.steps as step (step.id)}
+									<div id="step-card-{step.id}">
+										<StepCard
+											{step}
+											highlighted={highlightedStepId === step.id}
+											onStart={handleStartStep}
+											onFillForm={handleFillFormStep}
+											onComplete={handleCompleteStep}
+											onCancel={handleCancelStep}
+											onCardClick={(s) => s.id && goto(`/steps/${s.id}?from=home`)}
+										/>
+									</div>
+								{/each}
+							</div>
+						{:else}
+							{#each group.steps as step (step.id)}
+								<div id="step-card-{step.id}">
+									<StepCard
+										{step}
+										highlighted={highlightedStepId === step.id}
+										onStart={handleStartStep}
+										onFillForm={handleFillFormStep}
+										onComplete={handleCompleteStep}
+										onCancel={handleCancelStep}
+										onCardClick={(s) => s.id && goto(`/steps/${s.id}?from=home`)}
+									/>
+								</div>
+							{/each}
+						{/if}
 					{/each}
 					{#if myStepsQuery.isFetching && displayedSteps.length > 0}
 						<div class="text-center py-4 text-muted-foreground">
@@ -439,19 +503,49 @@
 								Nenhuma etapa encontrada
 							</div>
 						{:else}
-							{#each displayedSteps as step (step.id)}
-								<div id="step-card-{step.id}">
-									<StepCard
-										{step}
-										layout="horizontal"
-										highlighted={highlightedStepId === step.id}
-										onStart={handleStartStep}
-										onFillForm={handleFillFormStep}
-										onComplete={handleCompleteStep}
-										onCancel={handleCancelStep}
-										onCardClick={(s) => s.id && goto(`/steps/${s.id}?from=home`)}
-									/>
-								</div>
+							{#each groupedStepsByService as group (group.serviceId)}
+								{#if group.serviceInfo && group.steps.length > 1}
+									<div class="border-l-4 border-blue-500 bg-slate-50 dark:bg-slate-900 rounded-r-lg p-4 space-y-4">
+										<div class="text-sm font-medium text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700 pb-2">
+											<span class="text-blue-600 dark:text-blue-400">Serviço #{group.serviceInfo.id}</span>
+											{#if group.serviceInfo.clientName}
+												<span class="text-slate-500 dark:text-slate-400"> - {group.serviceInfo.clientName}</span>
+											{/if}
+											{#if group.serviceInfo.categoryName}
+												<span class="text-muted-foreground"> | {group.serviceInfo.categoryName}</span>
+											{/if}
+										</div>
+										{#each group.steps as step (step.id)}
+											<div id="step-card-{step.id}">
+												<StepCard
+													{step}
+													layout="horizontal"
+													highlighted={highlightedStepId === step.id}
+													onStart={handleStartStep}
+													onFillForm={handleFillFormStep}
+													onComplete={handleCompleteStep}
+													onCancel={handleCancelStep}
+													onCardClick={(s) => s.id && goto(`/steps/${s.id}?from=home`)}
+												/>
+											</div>
+										{/each}
+									</div>
+								{:else}
+									{#each group.steps as step (step.id)}
+										<div id="step-card-{step.id}">
+											<StepCard
+												{step}
+												layout="horizontal"
+												highlighted={highlightedStepId === step.id}
+												onStart={handleStartStep}
+												onFillForm={handleFillFormStep}
+												onComplete={handleCompleteStep}
+												onCancel={handleCancelStep}
+												onCardClick={(s) => s.id && goto(`/steps/${s.id}?from=home`)}
+											/>
+										</div>
+									{/each}
+								{/if}
 							{/each}
 						{/if}
 

@@ -1,11 +1,21 @@
-import { MigrationInterface, QueryRunner, TableColumn, TableIndex } from 'typeorm';
+import {
+  MigrationInterface,
+  QueryRunner,
+  TableColumn,
+  TableIndex,
+} from 'typeorm';
 
-export class MakeMachineSerialNumberOptional1772000000001 implements MigrationInterface {
+export class MakeMachineSerialNumberOptional1772000000001
+  implements MigrationInterface
+{
   name = 'MakeMachineSerialNumberOptional1772000000001';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Drop the unique index first
-    await queryRunner.dropIndex('client_copy_machines', 'IDX_f1616c3660cf9fd84ea79a4718');
+    await queryRunner.dropIndex(
+      'client_copy_machines',
+      'IDX_f1616c3660cf9fd84ea79a4718',
+    );
 
     // Make serial_number nullable
     await queryRunner.changeColumn(
@@ -34,7 +44,10 @@ export class MakeMachineSerialNumberOptional1772000000001 implements MigrationIn
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Drop the unique index
-    await queryRunner.dropIndex('client_copy_machines', 'IDX_f1616c3660cf9fd84ea79a4718');
+    await queryRunner.dropIndex(
+      'client_copy_machines',
+      'IDX_f1616c3660cf9fd84ea79a4718',
+    );
 
     // Update any NULL serial numbers to a default value
     await queryRunner.query(`

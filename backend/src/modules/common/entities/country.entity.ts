@@ -1,4 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  OneToMany,
+} from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { State } from './state.entity';
 
@@ -25,7 +32,7 @@ export class Country {
   @Column({ length: 2, unique: true })
   code: string;
 
-  @OneToMany(() => State, state => state.country)
+  @OneToMany(() => State, (state) => state.country)
   states: State[];
 
   @CreateDateColumn()
@@ -34,4 +41,3 @@ export class Country {
   @UpdateDateColumn()
   updated_at: Date;
 }
-

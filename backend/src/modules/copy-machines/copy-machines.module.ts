@@ -9,7 +9,11 @@ import { CommonModule } from '../common/common.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([CopyMachineCatalog, ClientCopyMachine, Franchise]),
+    TypeOrmModule.forFeature([
+      CopyMachineCatalog,
+      ClientCopyMachine,
+      Franchise,
+    ]),
     CommonModule,
   ],
   controllers: [CopyMachinesController],

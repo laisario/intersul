@@ -1,5 +1,11 @@
 import { Type } from 'class-transformer';
-import { IsString, IsNotEmpty, IsOptional, IsArray, ValidateNested } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsArray,
+  ValidateNested,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { CreateStepTemplateDto } from './create-step-template.dto';
 
@@ -26,13 +32,13 @@ export class CreateCategoryDto {
       {
         name: 'Initial Assessment',
         description: 'Evaluate the machine condition',
-        responsable_client: 'John Doe'
+        responsable_client: 'John Doe',
       },
       {
         name: 'Diagnosis',
         description: 'Identify the problem',
-        observation: 'Check all components'
-      }
+        observation: 'Check all components',
+      },
     ],
     description: 'Template steps for this category',
     type: [CreateStepTemplateDto],

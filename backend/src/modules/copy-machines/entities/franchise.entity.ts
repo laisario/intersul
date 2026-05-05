@@ -1,4 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  OneToMany,
+} from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { ClientCopyMachine } from './client-copy-machine.entity';
 
@@ -68,6 +75,9 @@ export class Franchise {
   updated_at: Date;
 
   // Relationships
-  @OneToMany(() => ClientCopyMachine, (clientCopyMachine) => clientCopyMachine.franchise)
+  @OneToMany(
+    () => ClientCopyMachine,
+    (clientCopyMachine) => clientCopyMachine.franchise,
+  )
   clientCopyMachines: ClientCopyMachine[];
 }

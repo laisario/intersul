@@ -39,7 +39,10 @@ export class UserInvitation {
   @Column({ type: 'timestamp', nullable: true })
   used_at: Date | null;
 
-  @ManyToOne(() => User, (user) => user.invitationsCreated, { nullable: false, onDelete: 'CASCADE' })
+  @ManyToOne(() => User, (user) => user.invitationsCreated, {
+    nullable: false,
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'created_by_id' })
   createdBy: User;
 
@@ -52,4 +55,3 @@ export class UserInvitation {
   @UpdateDateColumn()
   updated_at: Date;
 }
-

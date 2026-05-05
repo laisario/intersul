@@ -75,9 +75,13 @@ describe('CategoryController', () => {
 
     it('should throw error when category not found', async () => {
       const categoryId = 999;
-      jest.spyOn(categoryService, 'findOne').mockRejectedValue(new Error('Category not found'));
+      jest
+        .spyOn(categoryService, 'findOne')
+        .mockRejectedValue(new Error('Category not found'));
 
-      await expect(categoryController.findOne(categoryId)).rejects.toThrow('Category not found');
+      await expect(categoryController.findOne(categoryId)).rejects.toThrow(
+        'Category not found',
+      );
       expect(categoryService.findOne).toHaveBeenCalledWith(categoryId);
     });
   });
@@ -131,9 +135,13 @@ describe('CategoryController', () => {
         description: 'New Category Description',
       };
 
-      jest.spyOn(categoryService, 'create').mockRejectedValue(new Error('Category already exists'));
+      jest
+        .spyOn(categoryService, 'create')
+        .mockRejectedValue(new Error('Category already exists'));
 
-      await expect(categoryController.create(createCategoryDto)).rejects.toThrow('Category already exists');
+      await expect(
+        categoryController.create(createCategoryDto),
+      ).rejects.toThrow('Category already exists');
       expect(categoryService.create).toHaveBeenCalledWith(createCategoryDto);
     });
   });
@@ -146,17 +154,23 @@ describe('CategoryController', () => {
         description: 'Updated Category Description',
       };
 
-      const updatedCategory = { 
-        ...mockCategory, 
+      const updatedCategory = {
+        ...mockCategory,
         name: updateCategoryDto.name,
         description: updateCategoryDto.description,
       };
       jest.spyOn(categoryService, 'update').mockResolvedValue(updatedCategory);
 
-      const result = await categoryController.update(categoryId, updateCategoryDto);
+      const result = await categoryController.update(
+        categoryId,
+        updateCategoryDto,
+      );
 
       expect(result).toBe(updatedCategory);
-      expect(categoryService.update).toHaveBeenCalledWith(categoryId, updateCategoryDto);
+      expect(categoryService.update).toHaveBeenCalledWith(
+        categoryId,
+        updateCategoryDto,
+      );
     });
 
     it('should throw error when category update fails', async () => {
@@ -165,10 +179,17 @@ describe('CategoryController', () => {
         name: 'Updated Category',
       };
 
-      jest.spyOn(categoryService, 'update').mockRejectedValue(new Error('Category not found'));
+      jest
+        .spyOn(categoryService, 'update')
+        .mockRejectedValue(new Error('Category not found'));
 
-      await expect(categoryController.update(categoryId, updateCategoryDto)).rejects.toThrow('Category not found');
-      expect(categoryService.update).toHaveBeenCalledWith(categoryId, updateCategoryDto);
+      await expect(
+        categoryController.update(categoryId, updateCategoryDto),
+      ).rejects.toThrow('Category not found');
+      expect(categoryService.update).toHaveBeenCalledWith(
+        categoryId,
+        updateCategoryDto,
+      );
     });
   });
 
@@ -184,11 +205,14 @@ describe('CategoryController', () => {
 
     it('should throw error when category deletion fails', async () => {
       const categoryId = 999;
-      jest.spyOn(categoryService, 'delete').mockRejectedValue(new Error('Category not found'));
+      jest
+        .spyOn(categoryService, 'delete')
+        .mockRejectedValue(new Error('Category not found'));
 
-      await expect(categoryController.delete(categoryId)).rejects.toThrow('Category not found');
+      await expect(categoryController.delete(categoryId)).rejects.toThrow(
+        'Category not found',
+      );
       expect(categoryService.delete).toHaveBeenCalledWith(categoryId);
     });
   });
-
 });

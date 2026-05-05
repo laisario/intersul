@@ -79,9 +79,13 @@ describe('AuthController', () => {
         password: 'wrongpassword',
       };
 
-      jest.spyOn(authService, 'login').mockRejectedValue(new Error('Invalid credentials'));
+      jest
+        .spyOn(authService, 'login')
+        .mockRejectedValue(new Error('Invalid credentials'));
 
-      await expect(authController.login(loginDto)).rejects.toThrow('Invalid credentials');
+      await expect(authController.login(loginDto)).rejects.toThrow(
+        'Invalid credentials',
+      );
       expect(authService.login).toHaveBeenCalledWith(loginDto);
     });
   });
@@ -111,16 +115,22 @@ describe('AuthController', () => {
         role: UserRole.TECHNICIAN,
       };
 
-      jest.spyOn(authService, 'register').mockRejectedValue(new Error('User already exists'));
+      jest
+        .spyOn(authService, 'register')
+        .mockRejectedValue(new Error('User already exists'));
 
-      await expect(authController.register(registerDto)).rejects.toThrow('User already exists');
+      await expect(authController.register(registerDto)).rejects.toThrow(
+        'User already exists',
+      );
       expect(authService.register).toHaveBeenCalledWith(registerDto);
     });
   });
 
   describe('getProfile', () => {
     it('should return user profile', async () => {
-      const request = { user: { sub: 1, email: 'test@example.com', role: UserRole.ADMIN } };
+      const request = {
+        user: { sub: 1, email: 'test@example.com', role: UserRole.ADMIN },
+      };
 
       jest.spyOn(authService, 'getProfile').mockResolvedValue(mockUser);
 
@@ -131,11 +141,21 @@ describe('AuthController', () => {
     });
 
     it('should throw error when user not found', async () => {
-      const request = { user: { sub: 999, email: 'nonexistent@example.com', role: UserRole.ADMIN } };
+      const request = {
+        user: {
+          sub: 999,
+          email: 'nonexistent@example.com',
+          role: UserRole.ADMIN,
+        },
+      };
 
-      jest.spyOn(authService, 'getProfile').mockRejectedValue(new Error('User not found'));
+      jest
+        .spyOn(authService, 'getProfile')
+        .mockRejectedValue(new Error('User not found'));
 
-      await expect(authController.getProfile(request)).rejects.toThrow('User not found');
+      await expect(authController.getProfile(request)).rejects.toThrow(
+        'User not found',
+      );
       expect(authService.getProfile).toHaveBeenCalledWith(request.user.sub);
     });
   });

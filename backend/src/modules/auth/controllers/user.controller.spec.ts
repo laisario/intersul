@@ -58,9 +58,13 @@ describe('UserController', () => {
     });
 
     it('should handle service errors', async () => {
-      jest.spyOn(userService, 'findAll').mockRejectedValue(new Error('Database connection failed'));
+      jest
+        .spyOn(userService, 'findAll')
+        .mockRejectedValue(new Error('Database connection failed'));
 
-      await expect(userController.findAll()).rejects.toThrow('Database connection failed');
+      await expect(userController.findAll()).rejects.toThrow(
+        'Database connection failed',
+      );
       expect(userService.findAll).toHaveBeenCalled();
     });
   });

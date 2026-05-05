@@ -75,9 +75,13 @@ describe('ClientsController', () => {
 
     it('should throw error when client not found', async () => {
       const clientId = 999;
-      jest.spyOn(clientsService, 'findOne').mockRejectedValue(new Error('Client not found'));
+      jest
+        .spyOn(clientsService, 'findOne')
+        .mockRejectedValue(new Error('Client not found'));
 
-      await expect(clientsController.findOne(clientId)).rejects.toThrow('Client not found');
+      await expect(clientsController.findOne(clientId)).rejects.toThrow(
+        'Client not found',
+      );
       expect(clientsService.findOne).toHaveBeenCalledWith(clientId);
     });
   });
@@ -107,9 +111,13 @@ describe('ClientsController', () => {
         address: '456 New St',
       };
 
-      jest.spyOn(clientsService, 'create').mockRejectedValue(new Error('Client already exists'));
+      jest
+        .spyOn(clientsService, 'create')
+        .mockRejectedValue(new Error('Client already exists'));
 
-      await expect(clientsController.create(createClientDto)).rejects.toThrow('Client already exists');
+      await expect(clientsController.create(createClientDto)).rejects.toThrow(
+        'Client already exists',
+      );
       expect(clientsService.create).toHaveBeenCalledWith(createClientDto);
     });
   });
@@ -128,7 +136,10 @@ describe('ClientsController', () => {
       const result = await clientsController.update(clientId, updateClientDto);
 
       expect(result).toBe(updatedClient);
-      expect(clientsService.update).toHaveBeenCalledWith(clientId, updateClientDto);
+      expect(clientsService.update).toHaveBeenCalledWith(
+        clientId,
+        updateClientDto,
+      );
     });
 
     it('should throw error when client update fails', async () => {
@@ -137,10 +148,17 @@ describe('ClientsController', () => {
         name: 'Updated Client',
       };
 
-      jest.spyOn(clientsService, 'update').mockRejectedValue(new Error('Client not found'));
+      jest
+        .spyOn(clientsService, 'update')
+        .mockRejectedValue(new Error('Client not found'));
 
-      await expect(clientsController.update(clientId, updateClientDto)).rejects.toThrow('Client not found');
-      expect(clientsService.update).toHaveBeenCalledWith(clientId, updateClientDto);
+      await expect(
+        clientsController.update(clientId, updateClientDto),
+      ).rejects.toThrow('Client not found');
+      expect(clientsService.update).toHaveBeenCalledWith(
+        clientId,
+        updateClientDto,
+      );
     });
   });
 
@@ -156,9 +174,13 @@ describe('ClientsController', () => {
 
     it('should throw error when client removal fails', async () => {
       const clientId = 999;
-      jest.spyOn(clientsService, 'remove').mockRejectedValue(new Error('Client not found'));
+      jest
+        .spyOn(clientsService, 'remove')
+        .mockRejectedValue(new Error('Client not found'));
 
-      await expect(clientsController.remove(clientId)).rejects.toThrow('Client not found');
+      await expect(clientsController.remove(clientId)).rejects.toThrow(
+        'Client not found',
+      );
       expect(clientsService.remove).toHaveBeenCalledWith(clientId);
     });
   });

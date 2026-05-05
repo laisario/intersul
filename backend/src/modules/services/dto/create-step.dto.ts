@@ -1,4 +1,12 @@
-import { IsString, IsNotEmpty, IsOptional, IsEnum, IsNumber, IsDateString, IsArray } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsEnum,
+  IsNumber,
+  IsDateString,
+  IsArray,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { StepStatus } from '../../../common/enums/step-status.enum';
 

@@ -4,6 +4,8 @@
  */
 export const FRANCHISE_CLOSING_CATEGORY_NAME = 'Fechamento de Franquia';
 
-export function isFranchiseClosingCategoryName(name: string | undefined | null): boolean {
+export function isFranchiseClosingCategoryName(
+  name: string | undefined | null,
+): boolean {
   return (name ?? '').trim() === FRANCHISE_CLOSING_CATEGORY_NAME;
 }

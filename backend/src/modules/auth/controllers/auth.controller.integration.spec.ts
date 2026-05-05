@@ -43,7 +43,9 @@ describe('AuthController Integration', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({ transform: true, whitelist: true }),
+    );
     await app.init();
 
     authController = moduleFixture.get<AuthController>(AuthController);
@@ -78,7 +80,8 @@ describe('AuthController Integration', () => {
       const loginDto: LoginDto = {
         email: 'test@example.com',
         password: 'password123',
-      };''
+      };
+      ('');
 
       const result = await authController.login(loginDto);
 
@@ -145,7 +148,9 @@ describe('AuthController Integration', () => {
 
       const user = await authController.register(registerDto);
 
-      const request = { user: { sub: user.id, email: user.email, role: user.role } };
+      const request = {
+        user: { sub: user.id, email: user.email, role: user.role },
+      };
       const result = await authController.getProfile(request);
 
       expect(result.id).toBe(user.id);
@@ -154,7 +159,13 @@ describe('AuthController Integration', () => {
     });
 
     it('should fail with non-existent user', async () => {
-      const request = { user: { sub: 999, email: 'nonexistent@example.com', role: UserRole.ADMIN } };
+      const request = {
+        user: {
+          sub: 999,
+          email: 'nonexistent@example.com',
+          role: UserRole.ADMIN,
+        },
+      };
 
       await expect(authController.getProfile(request)).rejects.toThrow();
     });

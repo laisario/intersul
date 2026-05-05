@@ -12,10 +12,18 @@ import { StorageService } from './services/storage.service';
 import { AddressController } from './controllers/address.controller';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Address, Country, State, City, Neighborhood, Image])],
+  imports: [
+    TypeOrmModule.forFeature([
+      Address,
+      Country,
+      State,
+      City,
+      Neighborhood,
+      Image,
+    ]),
+  ],
   controllers: [AddressController],
   providers: [LocationService, ImageService, StorageService],
   exports: [TypeOrmModule, LocationService, ImageService, StorageService],
 })
 export class CommonModule {}
-

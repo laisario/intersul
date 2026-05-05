@@ -1,4 +1,10 @@
-import { IsString, IsBoolean, IsNumber, IsDecimal, MinLength } from 'class-validator';
+import {
+  IsString,
+  IsBoolean,
+  IsNumber,
+  IsDecimal,
+  MinLength,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateFranchiseDto {

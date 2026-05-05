@@ -13,9 +13,14 @@ async function bootstrap() {
   try {
     app = await NestFactory.createApplicationContext(AppModule);
   } catch (error: any) {
-    if (error.message?.includes('database') || error.message?.includes('Access denied')) {
+    if (
+      error.message?.includes('database') ||
+      error.message?.includes('Access denied')
+    ) {
       console.error('❌ Erro de conexão com o banco de dados');
-      console.error('Verifique se o banco está rodando e as credenciais estão corretas');
+      console.error(
+        'Verifique se o banco está rodando e as credenciais estão corretas',
+      );
       process.exit(1);
     }
     throw error;
@@ -36,7 +41,8 @@ async function bootstrap() {
     console.log(`📋 Encontrados ${total} serviços. Recalculando status...`);
 
     for (page = 1; page <= totalPages; page++) {
-      const result = page === 1 ? firstPage : await servicesService.findAll({ limit, page });
+      const result =
+        page === 1 ? firstPage : await servicesService.findAll({ limit, page });
       for (const service of result.data) {
         if (service.status === ServiceStatus.CANCELLED) {
           skipped++;

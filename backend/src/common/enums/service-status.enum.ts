@@ -4,4 +4,3 @@ export enum ServiceStatus {
   CONCLUDED = 'CONCLUDED',
   CANCELLED = 'CANCELLED',
 }
-

@@ -1,4 +1,11 @@
-import { IsString, IsOptional, MinLength, IsEnum, IsNumber, IsDateString } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  MinLength,
+  IsEnum,
+  IsNumber,
+  IsDateString,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { AcquisitionType } from '../../../common/enums/acquisition-type.enum';
 
@@ -10,7 +17,9 @@ export class CreateClientCopyMachineDto {
   })
   @IsString()
   @IsOptional()
-  @MinLength(5, { message: 'Serial number must be at least 5 characters if provided' })
+  @MinLength(5, {
+    message: 'Serial number must be at least 5 characters if provided',
+  })
   serial_number?: string;
 
   @ApiProperty({
@@ -83,7 +92,7 @@ export class CreateClientCopyMachineDto {
   contract_end_date?: string;
 
   @ApiProperty({
-    example: 2500.00,
+    example: 2500.0,
     description: 'Machine value in currency',
     required: false,
   })

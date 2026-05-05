@@ -22,6 +22,7 @@
 	import { goto } from '$app/navigation';
 	import CityBillingDialog from '$lib/components/city-billing-dialog.svelte';
 	import BillingResponsablesDialog from '$lib/components/billing-responsables-dialog.svelte';
+	import BillingEditDialog from '$lib/components/billing-edit-dialog.svelte';
 	import ConfirmationDialog from '$lib/components/confirmation-dialog.svelte';
 
 	let billingFilters = $state<BillingQueryParams>({ page: 1, limit: PAGINATION.DEFAULT_PAGE_SIZE });
@@ -199,6 +200,16 @@
 	// Delete billing state and handlers
 	let billingToDelete = $state<Billing | null>(null);
 	let showDeleteConfirmation = $state(false);
+
+	// Edit billing state
+	let editingBilling = $state<Billing | null>(null);
+	let showEditDialog = $state(false);
+
+	function handleEditClick(billing: Billing, event: Event) {
+		event.stopPropagation();
+		editingBilling = billing;
+		showEditDialog = true;
+	}
 
 	function handleDeleteClick(billing: Billing) {
 		billingToDelete = billing;
@@ -434,7 +445,7 @@
 										</Button>
 									</DropdownMenu.Trigger>
 									<DropdownMenu.Content align="end">
-										<DropdownMenu.Item disabled>
+										<DropdownMenu.Item onclick={(e) => { e.stopPropagation(); handleEditClick(billing, e); }}>
 											<Edit class="w-4 h-4 mr-2" />
 											Editar
 										</DropdownMenu.Item>
@@ -516,7 +527,8 @@
 												</Button>
 											</DropdownMenu.Trigger>
 											<DropdownMenu.Content align="end">
-												<DropdownMenu.Item disabled>
+												<DropdownMenu.Item onclick={(e) => handleEditClick(billing, e)}>
+													<Edit class="w-4 h-4 mr-2" />
 													Editar
 												</DropdownMenu.Item>
 												<DropdownMenu.Separator />
@@ -589,4 +601,12 @@
 	loading={deleteBillingMutation.isPending}
 	onConfirm={handleConfirmDelete}
 	onCancel={handleCancelDelete}
+/>
+
+<BillingEditDialog
+	bind:open={showEditDialog}
+	billing={editingBilling!}
+	onSuccess={() => {
+		billingsQuery.refetch();
+	}}
 />

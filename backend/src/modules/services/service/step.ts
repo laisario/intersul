@@ -1,4 +1,11 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Inject, forwardRef } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, LessThan } from 'typeorm';
 import { Step } from '../entities/step.entity';
@@ -21,11 +28,18 @@ export class StepService {
     private servicesService: ServicesService,
   ) {}
 
-  async findMySteps(userId: number, filter?: 'created_today' | 'expires_today' | 'expired'): Promise<Step[]> {
+  async findMySteps(
+    userId: number,
+    filter?: 'created_today' | 'expires_today' | 'expired',
+  ): Promise<Step[]> {
     const where: any = { responsable: { id: userId } };
 
     // Apply date filters
-    if (filter === 'created_today' || filter === 'expires_today' || filter === 'expired') {
+    if (
+      filter === 'created_today' ||
+      filter === 'expires_today' ||
+      filter === 'expired'
+    ) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const tomorrow = new Date(today);
@@ -43,17 +57,36 @@ export class StepService {
 
     return this.stepsRepository.find({
       where,
-      relations: ['service', 'service.client', 'category', 'responsable', 'images', 'billing', 'billing.copyMachine', 'billing.copyMachine.franchise', 'billing.client', 'billing.responsibleUser', 'checklists'],
+      relations: [
+        'service',
+        'service.client',
+        'category',
+        'responsable',
+        'images',
+        'billing',
+        'billing.copyMachine',
+        'billing.copyMachine.franchise',
+        'billing.client',
+        'billing.responsibleUser',
+        'checklists',
+      ],
       order: { created_at: 'DESC' },
     });
   }
 
-  async findStepsByUserId(userId: number, filter?: 'created_today' | 'expires_today' | 'expired'): Promise<Step[]> {
+  async findStepsByUserId(
+    userId: number,
+    filter?: 'created_today' | 'expires_today' | 'expired',
+  ): Promise<Step[]> {
     // This method allows admins/managers to view steps for any user
     const where: any = { responsable: { id: userId } };
 
     // Apply date filters
-    if (filter === 'created_today' || filter === 'expires_today' || filter === 'expired') {
+    if (
+      filter === 'created_today' ||
+      filter === 'expires_today' ||
+      filter === 'expired'
+    ) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const tomorrow = new Date(today);
@@ -71,7 +104,19 @@ export class StepService {
 
     return this.stepsRepository.find({
       where,
-      relations: ['service', 'service.client', 'category', 'responsable', 'images', 'billing', 'billing.copyMachine', 'billing.copyMachine.franchise', 'billing.client', 'billing.responsibleUser', 'checklists'],
+      relations: [
+        'service',
+        'service.client',
+        'category',
+        'responsable',
+        'images',
+        'billing',
+        'billing.copyMachine',
+        'billing.copyMachine.franchise',
+        'billing.client',
+        'billing.responsibleUser',
+        'checklists',
+      ],
       order: { created_at: 'DESC' },
     });
   }
@@ -102,7 +147,7 @@ export class StepService {
 
     // Compute canStart flag for frontend
     let canStart = false;
-    let blockReason: string | undefined = undefined;
+    const blockReason: string | undefined = undefined;
 
     const serviceCategoryName = step.service?.category?.name;
     // Steps can be started independently - no dependency check needed
@@ -122,12 +167,17 @@ export class StepService {
     return step;
   }
 
-  async update(id: number, userId: number, updateStepDto: UpdateStepDto, userRole?: string): Promise<Step> {
+  async update(
+    id: number,
+    userId: number,
+    updateStepDto: UpdateStepDto,
+    userRole?: string,
+  ): Promise<Step> {
     const step = await this.stepsRepository.findOne({
       where: { id },
-      relations: ['responsable'], 
+      relations: ['responsable'],
     });
-    
+
     if (!step) {
       throw new NotFoundException(`Step with ID ${id} not found`);
     }
@@ -136,14 +186,18 @@ export class StepService {
     const isResponsable = step.responsable?.id === userId;
 
     if (!isAdminOrManager && !isResponsable) {
-      throw new NotFoundException(`Step with ID ${id} not found or you are not responsible for it`);
+      throw new NotFoundException(
+        `Step with ID ${id} not found or you are not responsible for it`,
+      );
     }
 
     if (updateStepDto.responsable_id !== undefined) {
       if (!isAdminOrManager) {
-        throw new ForbiddenException('Only admins and managers can update the responsible user');
+        throw new ForbiddenException(
+          'Only admins and managers can update the responsible user',
+        );
       }
-      
+
       if (updateStepDto.responsable_id === null) {
         step.responsable = null;
       } else {
@@ -153,20 +207,24 @@ export class StepService {
         if (!newResponsable) {
           throw new BadRequestException({
             message: 'Validation failed',
-            errors: [{
-              field: 'responsable_id',
-              message: `User with ID ${updateStepDto.responsable_id} not found`
-            }]
+            errors: [
+              {
+                field: 'responsable_id',
+                message: `User with ID ${updateStepDto.responsable_id} not found`,
+              },
+            ],
           });
         }
         // Validate that user is active
         if (!newResponsable.active) {
           throw new BadRequestException({
             message: 'Validation failed',
-            errors: [{
-              field: 'responsable_id',
-              message: 'Responsável selecionado está inativo'
-            }]
+            errors: [
+              {
+                field: 'responsable_id',
+                message: 'Responsável selecionado está inativo',
+              },
+            ],
           });
         }
         step.responsable = newResponsable;
@@ -217,11 +275,15 @@ export class StepService {
 
     // Explicit validation: only the responsable can start the step
     if (step.responsable?.id !== userId) {
-      throw new BadRequestException('Only the responsable assigned to this step can start it');
+      throw new BadRequestException(
+        'Only the responsable assigned to this step can start it',
+      );
     }
 
     if (step.status !== StepStatus.PENDING) {
-      throw new BadRequestException('Step can only be started if it is pending');
+      throw new BadRequestException(
+        'Step can only be started if it is pending',
+      );
     }
 
     // Steps can be started independently - no dependency check needed
@@ -241,7 +303,18 @@ export class StepService {
     // First, find the step by ID
     const step = await this.stepsRepository.findOne({
       where: { id },
-      relations: ['service', 'service.client', 'category', 'responsable', 'images', 'billing', 'billing.copyMachine', 'billing.copyMachine.franchise', 'billing.client', 'billing.responsibleUser'],
+      relations: [
+        'service',
+        'service.client',
+        'category',
+        'responsable',
+        'images',
+        'billing',
+        'billing.copyMachine',
+        'billing.copyMachine.franchise',
+        'billing.client',
+        'billing.responsibleUser',
+      ],
     });
 
     if (!step) {
@@ -250,11 +323,15 @@ export class StepService {
 
     // Explicit validation: only the responsable can conclude the step
     if (step.responsable?.id !== userId) {
-      throw new BadRequestException('Only the responsable assigned to this step can conclude it');
+      throw new BadRequestException(
+        'Only the responsable assigned to this step can conclude it',
+      );
     }
 
     if (step.status !== StepStatus.IN_PROGRESS) {
-      throw new BadRequestException('Step can only be concluded if it is in progress');
+      throw new BadRequestException(
+        'Step can only be concluded if it is in progress',
+      );
     }
 
     step.status = StepStatus.CONCLUDED;
@@ -284,7 +361,18 @@ export class StepService {
     // First, find the step by ID
     const step = await this.stepsRepository.findOne({
       where: { id },
-      relations: ['service', 'service.client', 'category', 'responsable', 'images', 'billing', 'billing.copyMachine', 'billing.copyMachine.franchise', 'billing.client', 'billing.responsibleUser'],
+      relations: [
+        'service',
+        'service.client',
+        'category',
+        'responsable',
+        'images',
+        'billing',
+        'billing.copyMachine',
+        'billing.copyMachine.franchise',
+        'billing.client',
+        'billing.responsibleUser',
+      ],
     });
 
     if (!step) {
@@ -293,7 +381,9 @@ export class StepService {
 
     // Explicit validation: only the responsable can cancel the step
     if (step.responsable?.id !== userId) {
-      throw new BadRequestException('Only the responsable assigned to this step can cancel it');
+      throw new BadRequestException(
+        'Only the responsable assigned to this step can cancel it',
+      );
     }
 
     if (step.status === StepStatus.CONCLUDED) {
@@ -312,4 +402,3 @@ export class StepService {
     return savedStep;
   }
 }
-

@@ -1,13 +1,25 @@
-import { Controller, Get, Post, Param, Body, HttpException, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  Body,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiBody,
+} from '@nestjs/swagger';
 import { LocationService } from '../services/location.service';
 
 @ApiTags('address')
 @Controller('address')
 export class AddressController {
-  constructor(
-    private readonly locationService: LocationService,
-  ) {}
+  constructor(private readonly locationService: LocationService) {}
 
   @Post('process-location')
   @ApiOperation({ summary: 'Process location data and return neighborhood ID' })
@@ -21,12 +33,17 @@ export class AddressController {
       },
     },
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Location processed successfully',
   })
   async processLocation(
-    @Body() body: { state_code: string; city_name: string; neighborhood_name: string }
+    @Body()
+    body: {
+      state_code: string;
+      city_name: string;
+      neighborhood_name: string;
+    },
   ) {
     const { neighborhood } = await this.locationService.processViaCepLocation(
       body.state_code,
@@ -73,9 +90,11 @@ export class AddressController {
   @Get('cities/:cityId/neighborhoods')
   @ApiOperation({ summary: 'Get neighborhoods by city' })
   @ApiParam({ name: 'cityId', description: 'City ID' })
-  @ApiResponse({ status: 200, description: 'Neighborhoods retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Neighborhoods retrieved successfully',
+  })
   async getNeighborhoodsByCity(@Param('cityId') cityId: number) {
     return this.locationService.getNeighborhoodsByCity(+cityId);
   }
 }
-

@@ -14,16 +14,30 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery, ApiConsumes } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiQuery,
+  ApiConsumes,
+} from '@nestjs/swagger';
 import * as path from 'path';
 import { StepService } from '../service/step';
 import { StepChecklistService } from '../service/step-checklist';
 import { UpdateStepDto } from '../dto/update-step.dto';
 import { Step } from '../entities/step.entity';
 import { StepChecklist } from '../entities/step-checklist.entity';
-import { CreateStepChecklistDto, UpdateStepChecklistDto, BulkCreateStepChecklistDto } from '../dto/step-checklist.dto';
+import {
+  CreateStepChecklistDto,
+  UpdateStepChecklistDto,
+  BulkCreateStepChecklistDto,
+} from '../dto/step-checklist.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { CurrentUser, CurrentUserData } from '../../../common/decorators/current-user.decorator';
+import {
+  CurrentUser,
+  CurrentUserData,
+} from '../../../common/decorators/current-user.decorator';
 import { ImageService } from '../../common/services/image.service';
 import { StorageService } from '../../common/services/storage.service';
 import { Image } from '../../common/entities/image.entity';
@@ -42,8 +56,17 @@ export class StepController {
 
   @Get('my-steps')
   @ApiOperation({ summary: 'Get all steps assigned to current user' })
-  @ApiQuery({ name: 'filter', required: false, enum: ['created_today', 'expires_today', 'expired'], description: 'Filter steps by date' })
-  @ApiResponse({ status: 200, description: 'List of steps returned successfully', type: [Step] })
+  @ApiQuery({
+    name: 'filter',
+    required: false,
+    enum: ['created_today', 'expires_today', 'expired'],
+    description: 'Filter steps by date',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of steps returned successfully',
+    type: [Step],
+  })
   async findMySteps(
     @CurrentUser() user: CurrentUserData,
     @Query('filter') filter?: 'created_today' | 'expires_today' | 'expired',
@@ -52,9 +75,20 @@ export class StepController {
   }
 
   @Get('user/:userId')
-  @ApiOperation({ summary: 'Get all steps assigned to a specific user (for admins/managers)' })
-  @ApiQuery({ name: 'filter', required: false, enum: ['created_today', 'expires_today', 'expired'], description: 'Filter steps by date' })
-  @ApiResponse({ status: 200, description: 'List of steps returned successfully', type: [Step] })
+  @ApiOperation({
+    summary: 'Get all steps assigned to a specific user (for admins/managers)',
+  })
+  @ApiQuery({
+    name: 'filter',
+    required: false,
+    enum: ['created_today', 'expires_today', 'expired'],
+    description: 'Filter steps by date',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of steps returned successfully',
+    type: [Step],
+  })
   async findStepsByUserId(
     @Param('userId', ParseIntPipe) userId: number,
     @Query('filter') filter?: 'created_today' | 'expires_today' | 'expired',
@@ -75,7 +109,11 @@ export class StepController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update step' })
-  @ApiResponse({ status: 200, description: 'Step updated successfully', type: Step })
+  @ApiResponse({
+    status: 200,
+    description: 'Step updated successfully',
+    type: Step,
+  })
   @ApiResponse({ status: 404, description: 'Step not found' })
   async update(
     @Param('id', ParseIntPipe) id: number,
@@ -86,8 +124,14 @@ export class StepController {
   }
 
   @Patch(':id/start')
-  @ApiOperation({ summary: 'Start a step (change status from PENDING to IN_PROGRESS)' })
-  @ApiResponse({ status: 200, description: 'Step started successfully', type: Step })
+  @ApiOperation({
+    summary: 'Start a step (change status from PENDING to IN_PROGRESS)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Step started successfully',
+    type: Step,
+  })
   @ApiResponse({ status: 400, description: 'Step cannot be started' })
   @ApiResponse({ status: 404, description: 'Step not found' })
   async startStep(
@@ -98,8 +142,14 @@ export class StepController {
   }
 
   @Patch(':id/conclude')
-  @ApiOperation({ summary: 'Conclude a step (change status from IN_PROGRESS to CONCLUDED)' })
-  @ApiResponse({ status: 200, description: 'Step concluded successfully', type: Step })
+  @ApiOperation({
+    summary: 'Conclude a step (change status from IN_PROGRESS to CONCLUDED)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Step concluded successfully',
+    type: Step,
+  })
   @ApiResponse({ status: 400, description: 'Step cannot be concluded' })
   @ApiResponse({ status: 404, description: 'Step not found' })
   async concludeStep(
@@ -111,7 +161,11 @@ export class StepController {
 
   @Patch(':id/cancel')
   @ApiOperation({ summary: 'Cancel a step (change status to CANCELLED)' })
-  @ApiResponse({ status: 200, description: 'Step cancelled successfully', type: Step })
+  @ApiResponse({
+    status: 200,
+    description: 'Step cancelled successfully',
+    type: Step,
+  })
   @ApiResponse({ status: 400, description: 'Step cannot be cancelled' })
   @ApiResponse({ status: 404, description: 'Step not found' })
   async cancelStep(
@@ -129,7 +183,11 @@ export class StepController {
   @UseInterceptors(FileInterceptor('image'))
   @ApiOperation({ summary: 'Upload an image for a step' })
   @ApiConsumes('multipart/form-data')
-  @ApiResponse({ status: 201, description: 'Image uploaded successfully', type: Image })
+  @ApiResponse({
+    status: 201,
+    description: 'Image uploaded successfully',
+    type: Image,
+  })
   @ApiResponse({ status: 400, description: 'Invalid file' })
   @ApiResponse({ status: 404, description: 'Step not found' })
   async uploadImage(
@@ -141,7 +199,9 @@ export class StepController {
     const step = await this.stepService.findOne(id, user.id);
     // Additional check: user must be the responsable to upload images
     if (step.responsable?.id !== user.id) {
-      throw new BadRequestException('Only the responsable can upload images to this step');
+      throw new BadRequestException(
+        'Only the responsable can upload images to this step',
+      );
     }
 
     if (!file) {
@@ -155,7 +215,7 @@ export class StepController {
 
     // Generate unique filename
     const fileExtension = path.extname(file.originalname);
-    const fileName = `${Date.now()}-${Math.round(Math.random() * 1E9)}${fileExtension}`;
+    const fileName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${fileExtension}`;
 
     // Upload file to R2 storage
     const imageUrl = await this.storageService.uploadFile(
@@ -171,7 +231,11 @@ export class StepController {
 
   @Get(':id/images')
   @ApiOperation({ summary: 'Get all images for a step' })
-  @ApiResponse({ status: 200, description: 'List of images returned successfully', type: [Image] })
+  @ApiResponse({
+    status: 200,
+    description: 'List of images returned successfully',
+    type: [Image],
+  })
   @ApiResponse({ status: 404, description: 'Step not found' })
   async getImages(
     @Param('id', ParseIntPipe) id: number,
@@ -195,15 +259,19 @@ export class StepController {
     const step = await this.stepService.findOne(id, user.id);
     // Additional check: user must be the responsable to delete images
     if (step.responsable?.id !== user.id) {
-      throw new BadRequestException('Only the responsable can delete images from this step');
+      throw new BadRequestException(
+        'Only the responsable can delete images from this step',
+      );
     }
 
     // Get image to verify it belongs to the step
     const images = await this.imageService.findByStepId(id);
-    const image = images.find(img => img.id === imageId);
+    const image = images.find((img) => img.id === imageId);
 
     if (!image) {
-      throw new BadRequestException('Image not found or does not belong to this step');
+      throw new BadRequestException(
+        'Image not found or does not belong to this step',
+      );
     }
 
     // Delete file from R2 storage
@@ -224,7 +292,11 @@ export class StepController {
 
   @Get(':id/checklists')
   @ApiOperation({ summary: 'Get all checklist items for a step' })
-  @ApiResponse({ status: 200, description: 'Checklist items returned successfully', type: [StepChecklist] })
+  @ApiResponse({
+    status: 200,
+    description: 'Checklist items returned successfully',
+    type: [StepChecklist],
+  })
   async getChecklists(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: CurrentUserData,
@@ -235,7 +307,11 @@ export class StepController {
 
   @Post(':id/checklists')
   @ApiOperation({ summary: 'Create a checklist item for a step' })
-  @ApiResponse({ status: 201, description: 'Checklist item created successfully', type: StepChecklist })
+  @ApiResponse({
+    status: 201,
+    description: 'Checklist item created successfully',
+    type: StepChecklist,
+  })
   async createChecklist(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: CurrentUserData,
@@ -247,7 +323,11 @@ export class StepController {
 
   @Post(':id/checklists/bulk')
   @ApiOperation({ summary: 'Create multiple checklist items for a step' })
-  @ApiResponse({ status: 201, description: 'Checklist items created successfully', type: [StepChecklist] })
+  @ApiResponse({
+    status: 201,
+    description: 'Checklist items created successfully',
+    type: [StepChecklist],
+  })
   async createChecklistsBulk(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: CurrentUserData,
@@ -259,7 +339,11 @@ export class StepController {
 
   @Patch('checklists/:checklistId')
   @ApiOperation({ summary: 'Update a checklist item' })
-  @ApiResponse({ status: 200, description: 'Checklist item updated successfully', type: StepChecklist })
+  @ApiResponse({
+    status: 200,
+    description: 'Checklist item updated successfully',
+    type: StepChecklist,
+  })
   async updateChecklist(
     @Param('checklistId', ParseIntPipe) checklistId: number,
     @CurrentUser() user: CurrentUserData,
@@ -270,7 +354,11 @@ export class StepController {
 
   @Patch('checklists/:checklistId/toggle')
   @ApiOperation({ summary: 'Toggle checklist item completion status' })
-  @ApiResponse({ status: 200, description: 'Checklist item toggled successfully', type: StepChecklist })
+  @ApiResponse({
+    status: 200,
+    description: 'Checklist item toggled successfully',
+    type: StepChecklist,
+  })
   async toggleChecklist(
     @Param('checklistId', ParseIntPipe) checklistId: number,
     @CurrentUser() user: CurrentUserData,
@@ -280,7 +368,10 @@ export class StepController {
 
   @Delete('checklists/:checklistId')
   @ApiOperation({ summary: 'Delete a checklist item' })
-  @ApiResponse({ status: 200, description: 'Checklist item deleted successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Checklist item deleted successfully',
+  })
   async deleteChecklist(
     @Param('checklistId', ParseIntPipe) checklistId: number,
     @CurrentUser() user: CurrentUserData,
@@ -290,7 +381,10 @@ export class StepController {
 
   @Delete(':id/checklists')
   @ApiOperation({ summary: 'Delete all checklist items for a step' })
-  @ApiResponse({ status: 200, description: 'All checklist items deleted successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'All checklist items deleted successfully',
+  })
   async deleteAllChecklists(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: CurrentUserData,
@@ -298,4 +392,3 @@ export class StepController {
     await this.stepChecklistService.deleteAllByStepId(id, user.id);
   }
 }
-

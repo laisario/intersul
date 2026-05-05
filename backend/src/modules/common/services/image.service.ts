@@ -33,4 +33,3 @@ export class ImageService {
     await this.imageRepository.delete({ step_id: stepId });
   }
 }
-

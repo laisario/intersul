@@ -26,7 +26,13 @@ import { Step } from '../services/entities/step.entity';
     }),
     ConfigModule,
   ],
-  providers: [AuthService, JwtStrategy, UserService, InvitationService, RolesGuard],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    UserService,
+    InvitationService,
+    RolesGuard,
+  ],
   controllers: [AuthController, UserInvitationController, UserController],
   exports: [AuthService, UserService, InvitationService],
 })

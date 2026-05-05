@@ -1,4 +1,12 @@
-import { IsString, IsEmail, IsOptional, MinLength, ValidateNested, IsEnum, IsNotEmpty } from 'class-validator';
+import {
+  IsString,
+  IsEmail,
+  IsOptional,
+  MinLength,
+  ValidateNested,
+  IsEnum,
+  IsNotEmpty,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { CreateAddressDto } from '../../common/dto/create-address.dto';

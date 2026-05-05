@@ -1,4 +1,11 @@
-import { IsNumber, IsNotEmpty, IsBoolean, IsOptional, IsString, IsDateString } from 'class-validator';
+import {
+  IsNumber,
+  IsNotEmpty,
+  IsBoolean,
+  IsOptional,
+  IsString,
+  IsDateString,
+} from 'class-validator';
 
 export class CreateApprovalDto {
   @IsNumber()

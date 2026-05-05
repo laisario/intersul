@@ -10,7 +10,13 @@ import {
   ParseIntPipe,
   Query,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { ServicesService } from '../service/services';
 import { Service } from '../entities/service.entity';
 import { CreateServiceDto } from '../dto/create-service.dto';
@@ -30,23 +36,52 @@ export class ServicesController {
 
   @Get()
   @ApiOperation({ summary: 'Get all services with optional filters' })
-  @ApiResponse({ status: 200, description: 'List of services', type: [Service] })
-  @ApiQuery({ name: 'category_id', required: false, description: 'Filter by service category' })
-  @ApiQuery({ name: 'client_id', required: false, description: 'Filter by client ID' })
-  @ApiQuery({ name: 'client_copy_machine_id', required: false, description: 'Filter by client copy machine ID' })
-  @ApiQuery({ name: 'city_id', required: false, description: 'Filter by city ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of services',
+    type: [Service],
+  })
+  @ApiQuery({
+    name: 'category_id',
+    required: false,
+    description: 'Filter by service category',
+  })
+  @ApiQuery({
+    name: 'client_id',
+    required: false,
+    description: 'Filter by client ID',
+  })
+  @ApiQuery({
+    name: 'client_copy_machine_id',
+    required: false,
+    description: 'Filter by client copy machine ID',
+  })
+  @ApiQuery({
+    name: 'city_id',
+    required: false,
+    description: 'Filter by city ID',
+  })
   @ApiQuery({
     name: 'acquisition_type',
     required: false,
     description: 'Filter by acquisition type',
     enum: AcquisitionType,
   })
-  @ApiQuery({ name: 'page', required: false, description: 'Page number for pagination' })
-  @ApiQuery({ name: 'limit', required: false, description: 'Number of records per page' })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number for pagination',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Number of records per page',
+  })
   @ApiQuery({
     name: 'search',
     required: false,
-    description: 'Filter by client name (substring match); when set, results ordered by name relevance then newest first',
+    description:
+      'Filter by client name (substring match); when set, results ordered by name relevance then newest first',
   })
   @ApiQuery({
     name: 'sort_by',
@@ -57,7 +92,8 @@ export class ServicesController {
   @ApiQuery({
     name: 'sort_order',
     required: false,
-    description: 'asc or desc (default desc for created_at; asc/desc for priority and status)',
+    description:
+      'asc or desc (default desc for created_at; asc/desc for priority and status)',
     enum: ['asc', 'desc'],
   })
   async findAll(
@@ -71,17 +107,32 @@ export class ServicesController {
     @Query('sort_order') sort_order?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
-  ): Promise<{ data: Service[]; total: number; page: number; limit: number; totalPages: number }> {
+  ): Promise<{
+    data: Service[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
     const filters: Record<string, unknown> = {};
     if (category_id) filters.category_id = Number(category_id);
     if (client_id) filters.client_id = Number(client_id);
-    if (client_copy_machine_id) filters.client_copy_machine_id = Number(client_copy_machine_id);
+    if (client_copy_machine_id)
+      filters.client_copy_machine_id = Number(client_copy_machine_id);
     if (city_id) filters.city_id = Number(city_id);
     if (acquisition_type) filters.acquisition_type = acquisition_type;
-    if (search !== undefined && search !== null && String(search).trim() !== '') {
+    if (
+      search !== undefined &&
+      search !== null &&
+      String(search).trim() !== ''
+    ) {
       filters.search = String(search).trim();
     }
-    if (sort_by === 'priority' || sort_by === 'status' || sort_by === 'created_at') {
+    if (
+      sort_by === 'priority' ||
+      sort_by === 'status' ||
+      sort_by === 'created_at'
+    ) {
       filters.sort_by = sort_by;
     }
     if (sort_order === 'asc' || sort_order === 'desc') {
@@ -119,7 +170,11 @@ export class ServicesController {
   @Post()
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @ApiOperation({ summary: 'Create a new service' })
-  @ApiResponse({ status: 201, description: 'Service created successfully', type: Service })
+  @ApiResponse({
+    status: 201,
+    description: 'Service created successfully',
+    type: Service,
+  })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   async create(@Body() createServiceDto: CreateServiceDto): Promise<Service> {
     return this.servicesService.create(createServiceDto);
@@ -135,7 +190,11 @@ export class ServicesController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update service' })
-  @ApiResponse({ status: 200, description: 'Service updated successfully', type: Service })
+  @ApiResponse({
+    status: 200,
+    description: 'Service updated successfully',
+    type: Service,
+  })
   @ApiResponse({ status: 404, description: 'Service not found' })
   async update(
     @Param('id', ParseIntPipe) id: number,

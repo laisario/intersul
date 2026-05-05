@@ -1,4 +1,10 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MinLength,
+} from 'class-validator';
 
 export class AcceptInvitationDto {
   @IsString()
@@ -20,4 +26,3 @@ export class AcceptInvitationDto {
   @IsString()
   position?: string;
 }
-

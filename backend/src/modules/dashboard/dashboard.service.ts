@@ -57,7 +57,7 @@ export class DashboardService {
     };
 
     // Save to cache (upsert - find existing or create new)
-    let existingStats = await this.statsRepository.findOne({
+    const existingStats = await this.statsRepository.findOne({
       where: { year, month },
     });
 
@@ -141,4 +141,3 @@ export class DashboardService {
     };
   }
 }
-

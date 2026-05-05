@@ -1,5 +1,20 @@
-import { Controller, Get, Delete, Patch, Param, ParseIntPipe, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Delete,
+  Patch,
+  Param,
+  ParseIntPipe,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiQuery,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { User } from '../entities/user.entity';
 import { UserService } from '../services/user';
 import { UserRole } from '../../../common/enums/user-role.enum';
@@ -14,10 +29,29 @@ export class UserController {
 
   @Get()
   @ApiOperation({ summary: 'Get all users (defaults to active users only)' })
-  @ApiQuery({ name: 'role', required: false, enum: UserRole, description: 'Filter by role' })
-  @ApiQuery({ name: 'active', required: false, type: Boolean, description: 'Filter by active status (overrides default)' })
-  @ApiQuery({ name: 'includeInactive', required: false, type: Boolean, description: 'Include inactive users (admin only, for list views)' })
-  @ApiResponse({ status: 200, description: 'Users returned successfully', type: [User] })
+  @ApiQuery({
+    name: 'role',
+    required: false,
+    enum: UserRole,
+    description: 'Filter by role',
+  })
+  @ApiQuery({
+    name: 'active',
+    required: false,
+    type: Boolean,
+    description: 'Filter by active status (overrides default)',
+  })
+  @ApiQuery({
+    name: 'includeInactive',
+    required: false,
+    type: Boolean,
+    description: 'Include inactive users (admin only, for list views)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Users returned successfully',
+    type: [User],
+  })
   async findAll(
     @Query('role') role?: UserRole,
     @Query('active') active?: string | boolean,
@@ -31,22 +65,30 @@ export class UserController {
         activeFilter = active === 'true' || active === '1';
       }
     }
-    
+
     let includeInactiveFilter = false;
     if (includeInactive !== undefined) {
       if (typeof includeInactive === 'boolean') {
         includeInactiveFilter = includeInactive;
       } else {
-        includeInactiveFilter = includeInactive === 'true' || includeInactive === '1';
+        includeInactiveFilter =
+          includeInactive === 'true' || includeInactive === '1';
       }
     }
-    
-    return this.userService.findAll({ role, active: activeFilter, includeInactive: includeInactiveFilter });
+
+    return this.userService.findAll({
+      role,
+      active: activeFilter,
+      includeInactive: includeInactiveFilter,
+    });
   }
 
   @Get('stats')
   @ApiOperation({ summary: 'Get user statistics' })
-  @ApiResponse({ status: 200, description: 'User statistics returned successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'User statistics returned successfully',
+  })
   async getStats() {
     return this.userService.getStats();
   }
@@ -61,7 +103,11 @@ export class UserController {
 
   @Patch(':id/toggle-active')
   @ApiOperation({ summary: 'Toggle user active status' })
-  @ApiResponse({ status: 200, description: 'User active status toggled successfully', type: User })
+  @ApiResponse({
+    status: 200,
+    description: 'User active status toggled successfully',
+    type: User,
+  })
   @ApiResponse({ status: 404, description: 'User not found' })
   async toggleActive(@Param('id', ParseIntPipe) id: number): Promise<User> {
     return this.userService.toggleActive(id);

@@ -1,4 +1,10 @@
-import { IsString, IsNumber, IsOptional, MinLength, Matches } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsOptional,
+  MinLength,
+  Matches,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateAddressDto {
@@ -7,7 +13,9 @@ export class CreateAddressDto {
     description: 'Postal code (CEP)',
   })
   @IsString()
-  @Matches(/^\d{5}-?\d{3}$/, { message: 'CEP inválido. Use o formato 00000-000' })
+  @Matches(/^\d{5}-?\d{3}$/, {
+    message: 'CEP inválido. Use o formato 00000-000',
+  })
   postal_code: string;
 
   @ApiProperty({

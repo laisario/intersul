@@ -17,9 +17,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const status = exception.getStatus();
 
     const exceptionResponse = exception.getResponse();
-    
+
     // Preserve field-level errors from ValidationPipe or BadRequestException with errors array
-    let errorResponse: any = {
+    const errorResponse: any = {
       statusCode: status,
       timestamp: new Date().toISOString(),
       path: request.url,

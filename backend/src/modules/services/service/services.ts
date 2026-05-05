@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, DeepPartial, Repository, In } from 'typeorm';
 import { Service } from '../entities/service.entity';
@@ -55,7 +59,13 @@ export class ServicesService {
     sort_order?: 'asc' | 'desc';
     page?: number;
     limit?: number;
-  }): Promise<{ data: Service[]; total: number; page: number; limit: number; totalPages: number }> {
+  }): Promise<{
+    data: Service[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
     const page = Math.max(filters?.page ?? 1, 1);
     const limit = Math.max(Math.min(filters?.limit ?? 10, 100), 1);
     const skip = (page - 1) * limit;
@@ -70,18 +80,28 @@ export class ServicesService {
       .leftJoinAndSelect('city.state', 'state')
       .leftJoinAndSelect('service.category', 'category')
       .leftJoinAndSelect('service.clientCopyMachine', 'clientCopyMachine')
-      .leftJoinAndSelect('clientCopyMachine.catalogCopyMachine', 'catalogCopyMachine');
+      .leftJoinAndSelect(
+        'clientCopyMachine.catalogCopyMachine',
+        'catalogCopyMachine',
+      );
 
     if (filters?.category_id) {
-      query.andWhere('service.category_id = :category_id', { category_id: filters.category_id });
+      query.andWhere('service.category_id = :category_id', {
+        category_id: filters.category_id,
+      });
     }
     if (filters?.client_id) {
-      query.andWhere('service.client_id = :client_id', { client_id: filters.client_id });
+      query.andWhere('service.client_id = :client_id', {
+        client_id: filters.client_id,
+      });
     }
     if (filters?.client_copy_machine_id) {
-      query.andWhere('service.client_copy_machine_id = :client_copy_machine_id', {
-        client_copy_machine_id: filters.client_copy_machine_id,
-      });
+      query.andWhere(
+        'service.client_copy_machine_id = :client_copy_machine_id',
+        {
+          client_copy_machine_id: filters.client_copy_machine_id,
+        },
+      );
     }
     if (filters?.city_id) {
       query.andWhere('city.id = :city_id', { city_id: filters.city_id });
@@ -97,23 +117,37 @@ export class ServicesService {
       query.andWhere('client.name LIKE :clientSearchLike', {
         clientSearchLike: `%${searchTrim}%`,
       });
-      query.orderBy('client.name', 'ASC').addOrderBy('service.created_at', 'DESC');
+      query
+        .orderBy('client.name', 'ASC')
+        .addOrderBy('service.created_at', 'DESC');
     } else {
       const sortOrder = filters?.sort_order === 'asc' ? 'ASC' : 'DESC';
       const sortBy = filters?.sort_by;
-      const allowedSort: Array<'priority' | 'status' | 'created_at'> = ['priority', 'status', 'created_at'];
-      const effectiveSort = sortBy && allowedSort.includes(sortBy) ? sortBy : 'created_at';
+      const allowedSort: Array<'priority' | 'status' | 'created_at'> = [
+        'priority',
+        'status',
+        'created_at',
+      ];
+      const effectiveSort =
+        sortBy && allowedSort.includes(sortBy) ? sortBy : 'created_at';
 
       if (effectiveSort === 'priority') {
-        query.orderBy('service.priority', sortOrder).addOrderBy('service.created_at', 'DESC');
+        query
+          .orderBy('service.priority', sortOrder)
+          .addOrderBy('service.created_at', 'DESC');
       } else if (effectiveSort === 'status') {
-        query.orderBy('service.status', sortOrder).addOrderBy('service.created_at', 'DESC');
+        query
+          .orderBy('service.status', sortOrder)
+          .addOrderBy('service.created_at', 'DESC');
       } else {
         query.orderBy('service.created_at', sortOrder);
       }
     }
 
-    const [pageRows, total] = await query.take(limit).skip(skip).getManyAndCount();
+    const [pageRows, total] = await query
+      .take(limit)
+      .skip(skip)
+      .getManyAndCount();
     const totalPages = Math.ceil(total / limit) || 1;
 
     const ids = pageRows.map((s) => s.id);
@@ -147,7 +181,9 @@ export class ServicesService {
     }
 
     const orderMap = new Map(ids.map((id, i) => [id, i]));
-    withSteps.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));
+    withSteps.sort(
+      (a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0),
+    );
 
     return {
       data: withSteps,
@@ -161,7 +197,16 @@ export class ServicesService {
   async findOne(id: number): Promise<Service> {
     const service = await this.servicesRepository.findOne({
       where: { id },
-      relations: ['client', 'category', 'clientCopyMachine', 'steps', 'steps.responsable', 'steps.approval', 'steps.images', 'steps.checklists'],
+      relations: [
+        'client',
+        'category',
+        'clientCopyMachine',
+        'steps',
+        'steps.responsable',
+        'steps.approval',
+        'steps.images',
+        'steps.checklists',
+      ],
     });
 
     if (!service) {
@@ -175,13 +220,24 @@ export class ServicesService {
     const { steps: rawSteps, has_payment, ...serviceData } = createServiceDto;
 
     const isInternal = serviceData.is_internal;
-    const hasPayment = this.resolveHasPaymentForCreate(has_payment, serviceData, !!isInternal);
+    const hasPayment = this.resolveHasPaymentForCreate(
+      has_payment,
+      serviceData,
+      !!isInternal,
+    );
     const steps = this.filterStepsForPaymentMode(rawSteps, hasPayment);
 
     // Validate external service payment fields (amount_to_receive is now optional)
-    if (hasPayment && !isInternal && serviceData.amount_to_receive !== undefined && serviceData.amount_to_receive !== null) {
+    if (
+      hasPayment &&
+      !isInternal &&
+      serviceData.amount_to_receive !== undefined &&
+      serviceData.amount_to_receive !== null
+    ) {
       if (serviceData.amount_to_receive <= 0) {
-        throw new BadRequestException('amount_to_receive must be a positive number');
+        throw new BadRequestException(
+          'amount_to_receive must be a positive number',
+        );
       }
     }
 
@@ -190,7 +246,9 @@ export class ServicesService {
         where: { id: serviceData.client_id },
       });
       if (!client) {
-        throw new BadRequestException(`Cliente com id ${serviceData.client_id} não encontrado`);
+        throw new BadRequestException(
+          `Cliente com id ${serviceData.client_id} não encontrado`,
+        );
       }
     }
 
@@ -200,9 +258,14 @@ export class ServicesService {
         where: { id: serviceData.category_id },
       });
       if (!category) {
-        throw new BadRequestException(`Categoria com id ${serviceData.category_id} não encontrada`);
+        throw new BadRequestException(
+          `Categoria com id ${serviceData.category_id} não encontrada`,
+        );
       }
-      if (!serviceData.priority && category.name.toLowerCase().includes('cobrança')) {
+      if (
+        !serviceData.priority &&
+        category.name.toLowerCase().includes('cobrança')
+      ) {
         serviceData.priority = 'high';
       }
     }
@@ -212,82 +275,112 @@ export class ServicesService {
         where: { id: serviceData.client_copy_machine_id },
       });
       if (!clientCopyMachine) {
-          throw new BadRequestException(`Máquina de cópia de cliente com id ${serviceData.client_copy_machine_id} não encontrada`);
+        throw new BadRequestException(
+          `Máquina de cópia de cliente com id ${serviceData.client_copy_machine_id} não encontrada`,
+        );
       }
     }
 
     const cleanServiceData: DeepPartial<Service> = {
       client_id: isInternal ? null : serviceData.client_id,
       category_id: serviceData.category_id,
-      client_copy_machine_id: isInternal ? null : serviceData.client_copy_machine_id,
+      client_copy_machine_id: isInternal
+        ? null
+        : serviceData.client_copy_machine_id,
       description: serviceData.description,
       priority: serviceData.priority,
       is_internal: serviceData.is_internal,
-      amount_to_receive: isInternal ? null : hasPayment ? serviceData.amount_to_receive : null,
-      payment_method: isInternal ? null : hasPayment ? serviceData.payment_method : null,
-      is_invoiced: isInternal ? false : hasPayment ? (serviceData.is_invoiced ?? false) : false,
+      amount_to_receive: isInternal
+        ? null
+        : hasPayment
+          ? serviceData.amount_to_receive
+          : null,
+      payment_method: isInternal
+        ? null
+        : hasPayment
+          ? serviceData.payment_method
+          : null,
+      is_invoiced: isInternal
+        ? false
+        : hasPayment
+          ? (serviceData.is_invoiced ?? false)
+          : false,
     };
 
     const service = this.servicesRepository.create(cleanServiceData);
     const savedService: Service = await this.servicesRepository.save(service);
 
     // Helper function to create a step entity
-    const createStepEntity = async (step: CreateStepDto, existingStepNames: Set<string>): Promise<Step | null> => {
-          // Skip if step with same name already exists (idempotency)
-          if (existingStepNames.has(step.name.toLowerCase())) {
-            return null;
+    const createStepEntity = async (
+      step: CreateStepDto,
+      existingStepNames: Set<string>,
+    ): Promise<Step | null> => {
+      // Skip if step with same name already exists (idempotency)
+      if (existingStepNames.has(step.name.toLowerCase())) {
+        return null;
+      }
+
+      let responsableUser: User | null = null;
+      if (step.responsable_id !== undefined) {
+        if (step.responsable_id === null) {
+          responsableUser = null;
+        } else {
+          const user = await this.usersRepository.findOne({
+            where: { id: step.responsable_id },
+          });
+          if (!user) {
+            throw new BadRequestException({
+              message: 'Validation failed',
+              errors: [
+                {
+                  field: `steps[${steps?.findIndex((s) => s.name === step.name) ?? 0}].responsable_id`,
+                  message: `User with ID ${step.responsable_id} not found`,
+                },
+              ],
+            });
           }
-
-          let responsableUser: User | null = null;
-          if (step.responsable_id !== undefined) {
-            if (step.responsable_id === null) {
-              responsableUser = null;
-            } else {
-              const user = await this.usersRepository.findOne({
-                where: { id: step.responsable_id },
-              });
-              if (!user) {
-                throw new BadRequestException({
-                  message: 'Validation failed',
-                  errors: [{
-                    field: `steps[${steps?.findIndex(s => s.name === step.name) ?? 0}].responsable_id`,
-                    message: `User with ID ${step.responsable_id} not found`
-                  }]
-                });
-              }
-              // Validate that user is active
-              if (!user.active) {
-                throw new BadRequestException({
-                  message: 'Validation failed',
-                  errors: [{
-                    field: `steps[${steps?.findIndex(s => s.name === step.name) ?? 0}].responsable_id`,
-                    message: `Responsável selecionado está inativo`
-                  }]
-                });
-              }
-              responsableUser = user;
-            }
+          // Validate that user is active
+          if (!user.active) {
+            throw new BadRequestException({
+              message: 'Validation failed',
+              errors: [
+                {
+                  field: `steps[${steps?.findIndex((s) => s.name === step.name) ?? 0}].responsable_id`,
+                  message: `Responsável selecionado está inativo`,
+                },
+              ],
+            });
           }
+          responsableUser = user;
+        }
+      }
 
-          const stepData: DeepPartial<Step> = {
-            name: step.name,
-            description: step.description,
-            service_id: savedService.id,
-            observation: step.observation ?? undefined,
-            datetime_start: step.datetime_start ? new Date(step.datetime_start) : undefined,
-            datetime_conclusion: step.datetime_conclusion ? new Date(step.datetime_conclusion) : undefined,
-            datetime_expiration: step.datetime_expiration ? new Date(step.datetime_expiration) : undefined,
-            status: step.status ?? StepStatus.PENDING,
-            responsable_client: step.responsable_client ?? undefined,
-            reason_cancellament: step.reason_cancellament ?? undefined,
-            responsable: responsableUser !== undefined ? responsableUser : undefined,
-          };
+      const stepData: DeepPartial<Step> = {
+        name: step.name,
+        description: step.description,
+        service_id: savedService.id,
+        observation: step.observation ?? undefined,
+        datetime_start: step.datetime_start
+          ? new Date(step.datetime_start)
+          : undefined,
+        datetime_conclusion: step.datetime_conclusion
+          ? new Date(step.datetime_conclusion)
+          : undefined,
+        datetime_expiration: step.datetime_expiration
+          ? new Date(step.datetime_expiration)
+          : undefined,
+        status: step.status ?? StepStatus.PENDING,
+        responsable_client: step.responsable_client ?? undefined,
+        reason_cancellament: step.reason_cancellament ?? undefined,
+        responsable:
+          responsableUser !== undefined ? responsableUser : undefined,
+      };
 
-          const stepEntity = this.stepsRepository.create(stepData);
-          // Store checklist_descriptions on the entity for later processing
-          (stepEntity as any).checklist_descriptions = step.checklist_descriptions;
+      const stepEntity = this.stepsRepository.create(stepData);
+      // Store checklist_descriptions on the entity for later processing
+      (stepEntity as any).checklist_descriptions = step.checklist_descriptions;
 
-          return stepEntity;
+      return stepEntity;
     };
 
     // Get existing step names for duplicate checking
@@ -295,32 +388,43 @@ export class ServicesService {
       where: { service_id: savedService.id },
       select: ['name'],
     });
-    const existingStepNames = new Set(existingSteps.map(s => s.name.toLowerCase()));
+    const existingStepNames = new Set(
+      existingSteps.map((s) => s.name.toLowerCase()),
+    );
 
     const stepEntities: (Step | null)[] = [];
 
     // Create steps from payload (if provided)
     if (steps && steps.length > 0) {
       const payloadStepEntities = await Promise.all(
-        steps.map(async (step) => await createStepEntity(step, existingStepNames))
+        steps.map(
+          async (step) => await createStepEntity(step, existingStepNames),
+        ),
       );
       stepEntities.push(...payloadStepEntities);
     }
 
     // Auto-generate payment step only when external service explicitly has payment
     // For all payment methods (including boleto), create the standard payment step
-    const isBoleto = serviceData.payment_method?.toLowerCase() === 'bank slip' ||
-                     serviceData.payment_method?.toLowerCase() === 'boleto';
+    const isBoleto =
+      serviceData.payment_method?.toLowerCase() === 'bank slip' ||
+      serviceData.payment_method?.toLowerCase() === 'boleto';
 
     if (!isInternal && hasPayment) {
       const paymentStepName = 'Realizar pagamento';
-      const hasPaymentStep = existingStepNames.has(paymentStepName.toLowerCase()) ||
-        stepEntities.some(se => se?.name.toLowerCase() === paymentStepName.toLowerCase());
+      const hasPaymentStep =
+        existingStepNames.has(paymentStepName.toLowerCase()) ||
+        stepEntities.some(
+          (se) => se?.name.toLowerCase() === paymentStepName.toLowerCase(),
+        );
 
       if (!hasPaymentStep) {
         // Build description based on amount and payment method
         let paymentDescription = 'Realizar pagamento.';
-        if (serviceData.amount_to_receive && serviceData.amount_to_receive > 0) {
+        if (
+          serviceData.amount_to_receive &&
+          serviceData.amount_to_receive > 0
+        ) {
           const methodLabel = serviceData.payment_method || 'pagamento';
           paymentDescription = `Realizar pagamento (${methodLabel}). Valor: R$ ${serviceData.amount_to_receive.toFixed(2)}.`;
         } else {
@@ -329,9 +433,10 @@ export class ServicesService {
         }
 
         // Find payment step from payload to get responsable and expiration, or use null
-        const paymentStepFromPayload = steps?.find(s => 
-          s.name.toLowerCase().includes('realizar pagamento') || 
-          s.name.toLowerCase() === 'realizar pagamento'
+        const paymentStepFromPayload = steps?.find(
+          (s) =>
+            s.name.toLowerCase().includes('realizar pagamento') ||
+            s.name.toLowerCase() === 'realizar pagamento',
         );
 
         const paymentStepDto: CreateStepDto = {
@@ -342,7 +447,10 @@ export class ServicesService {
           status: StepStatus.PENDING,
         };
 
-        const paymentStepEntity = await createStepEntity(paymentStepDto, existingStepNames);
+        const paymentStepEntity = await createStepEntity(
+          paymentStepDto,
+          existingStepNames,
+        );
         if (paymentStepEntity) {
           stepEntities.push(paymentStepEntity);
           existingStepNames.add(paymentStepName.toLowerCase());
@@ -351,29 +459,41 @@ export class ServicesService {
     }
 
     // Save all step entities (no step dependencies - feature removed)
-    const validStepEntities = stepEntities.filter(step => step !== null) as Step[];
+    const validStepEntities = stepEntities.filter(
+      (step) => step !== null,
+    ) as Step[];
     if (validStepEntities.length > 0) {
       // Use transaction to ensure atomicity
-      await this.stepsRepository.manager.transaction(async (transactionalEntityManager) => {
-        // Save all steps
-        await transactionalEntityManager.save(Step, validStepEntities);
-      });
+      await this.stepsRepository.manager.transaction(
+        async (transactionalEntityManager) => {
+          // Save all steps
+          await transactionalEntityManager.save(Step, validStepEntities);
+        },
+      );
 
       // Create checklists for steps that have checklist_descriptions
       for (const stepEntity of validStepEntities) {
         const savedStep = await this.stepsRepository.findOne({
           where: { service_id: savedService.id, name: stepEntity.name },
         });
-        if (savedStep && (stepEntity as any).checklist_descriptions && (stepEntity as any).checklist_descriptions.length > 0) {
+        if (
+          savedStep &&
+          (stepEntity as any).checklist_descriptions &&
+          (stepEntity as any).checklist_descriptions.length > 0
+        ) {
           // Filter out empty strings
-          const validDescriptions = (stepEntity as any).checklist_descriptions.filter((desc: string) => desc && desc.trim());
+          const validDescriptions = (
+            stepEntity as any
+          ).checklist_descriptions.filter(
+            (desc: string) => desc && desc.trim(),
+          );
           if (validDescriptions.length > 0) {
             const checklists = validDescriptions.map((desc: string) =>
               this.checklistsRepository.create({
                 description: desc.trim(),
                 completed: false,
                 step_id: savedStep.id,
-              })
+              }),
             );
             await this.checklistsRepository.save(checklists);
           }
@@ -386,12 +506,17 @@ export class ServicesService {
     return this.findOne(savedService.id);
   }
 
-  async update(id: number, updateServiceDto: UpdateServiceDto): Promise<Service> {
+  async update(
+    id: number,
+    updateServiceDto: UpdateServiceDto,
+  ): Promise<Service> {
     const { steps, has_payment, ...serviceData } = updateServiceDto;
     const service = await this.findOne(id);
 
     const isInternal =
-      serviceData.is_internal !== undefined ? serviceData.is_internal : service.is_internal;
+      serviceData.is_internal !== undefined
+        ? serviceData.is_internal
+        : service.is_internal;
 
     let effectiveHasPayment: boolean;
     if (isInternal) {
@@ -402,7 +527,8 @@ export class ServicesService {
       effectiveHasPayment = false;
     } else {
       effectiveHasPayment =
-        this.inferLegacyHasPaymentFromServiceData(serviceData) || this.inferExistingServiceHasPayment(service);
+        this.inferLegacyHasPaymentFromServiceData(serviceData) ||
+        this.inferExistingServiceHasPayment(service);
     }
 
     const {
@@ -443,7 +569,8 @@ export class ServicesService {
     await this.servicesRepository.save(service);
 
     if (steps && steps.length > 0) {
-      const stepsToPersist = this.filterStepsForPaymentMode(steps, effectiveHasPayment) ?? [];
+      const stepsToPersist =
+        this.filterStepsForPaymentMode(steps, effectiveHasPayment) ?? [];
 
       if (service.steps && service.steps.length > 0) {
         await this.stepsRepository.remove(service.steps);
@@ -462,20 +589,24 @@ export class ServicesService {
               if (!user) {
                 throw new BadRequestException({
                   message: 'Validation failed',
-                  errors: [{
-                    field: `steps[${stepsToPersist.findIndex(s => s.name === step.name)}].responsable_id`,
-                    message: `User with ID ${step.responsable_id} not found`
-                  }]
+                  errors: [
+                    {
+                      field: `steps[${stepsToPersist.findIndex((s) => s.name === step.name)}].responsable_id`,
+                      message: `User with ID ${step.responsable_id} not found`,
+                    },
+                  ],
                 });
               }
               // Validate that user is active
               if (!user.active) {
                 throw new BadRequestException({
                   message: 'Validation failed',
-                  errors: [{
-                    field: `steps[${stepsToPersist.findIndex(s => s.name === step.name)}].responsable_id`,
-                    message: `Responsável selecionado está inativo`
-                  }]
+                  errors: [
+                    {
+                      field: `steps[${stepsToPersist.findIndex((s) => s.name === step.name)}].responsable_id`,
+                      message: `Responsável selecionado está inativo`,
+                    },
+                  ],
                 });
               }
               responsableUser = user;
@@ -487,40 +618,53 @@ export class ServicesService {
             description: step.description,
             service_id: service.id,
             observation: step.observation ?? undefined,
-            datetime_start: step.datetime_start ? new Date(step.datetime_start) : undefined,
-            datetime_conclusion: step.datetime_conclusion ? new Date(step.datetime_conclusion) : undefined,
-            datetime_expiration: step.datetime_expiration ? new Date(step.datetime_expiration) : undefined,
+            datetime_start: step.datetime_start
+              ? new Date(step.datetime_start)
+              : undefined,
+            datetime_conclusion: step.datetime_conclusion
+              ? new Date(step.datetime_conclusion)
+              : undefined,
+            datetime_expiration: step.datetime_expiration
+              ? new Date(step.datetime_expiration)
+              : undefined,
             status: step.status ?? undefined,
             responsable_client: step.responsable_client ?? undefined,
             reason_cancellament: step.reason_cancellament ?? undefined,
-            responsable: responsableUser !== undefined ? responsableUser : undefined,
+            responsable:
+              responsableUser !== undefined ? responsableUser : undefined,
           };
 
           return this.stepsRepository.create(stepData);
-        })
+        }),
       );
-        
+
       await this.stepsRepository.save(stepEntities);
 
       // Create checklists for steps that have checklist_descriptions
       for (const stepEntity of stepEntities) {
         const stepIndex = stepEntities.indexOf(stepEntity);
         const stepDto = stepsToPersist[stepIndex];
-        if (stepDto && stepDto.checklist_descriptions && stepDto.checklist_descriptions.length > 0) {
+        if (
+          stepDto &&
+          stepDto.checklist_descriptions &&
+          stepDto.checklist_descriptions.length > 0
+        ) {
           // Find the saved step
           const savedStep = await this.stepsRepository.findOne({
             where: { service_id: service.id, name: stepEntity.name },
           });
           if (savedStep) {
             // Filter out empty strings
-            const validDescriptions = stepDto.checklist_descriptions.filter((desc: string) => desc && desc.trim());
+            const validDescriptions = stepDto.checklist_descriptions.filter(
+              (desc: string) => desc && desc.trim(),
+            );
             if (validDescriptions.length > 0) {
               const checklists = validDescriptions.map((desc: string) =>
                 this.checklistsRepository.create({
                   description: desc.trim(),
                   completed: false,
                   step_id: savedStep.id,
-                })
+                }),
               );
               await this.checklistsRepository.save(checklists);
             }
@@ -530,8 +674,12 @@ export class ServicesService {
     }
 
     if (!isInternal && !effectiveHasPayment) {
-      const existingSteps = await this.stepsRepository.find({ where: { service_id: id } });
-      const toRemove = existingSteps.filter((s) => this.isAutoPaymentOrBoletoStepName(s.name));
+      const existingSteps = await this.stepsRepository.find({
+        where: { service_id: id },
+      });
+      const toRemove = existingSteps.filter((s) =>
+        this.isAutoPaymentOrBoletoStepName(s.name),
+      );
       if (toRemove.length) {
         await this.stepsRepository.remove(toRemove);
       }
@@ -598,8 +746,8 @@ export class ServicesService {
 
     if (service.steps && service.steps.length > 0) {
       // Get all step IDs
-      const stepIds = service.steps.map(step => step.id);
-      
+      const stepIds = service.steps.map((step) => step.id);
+
       // Find and delete all billings related to these steps
       if (stepIds.length > 0) {
         const billings = await this.billingsRepository.find({
@@ -607,7 +755,7 @@ export class ServicesService {
             step_id: In(stepIds),
           },
         });
-        
+
         if (billings.length > 0) {
           await this.billingsRepository.remove(billings);
         }
@@ -722,7 +870,9 @@ export class ServicesService {
       .select('DISTINCT step.service_id', 'serviceId')
       .where('step.datetime_expiration IS NOT NULL')
       .andWhere('step.datetime_expiration < :now', { now })
-      .andWhere('step.status != :concluded', { concluded: StepStatus.CONCLUDED })
+      .andWhere('step.status != :concluded', {
+        concluded: StepStatus.CONCLUDED,
+      })
       .getRawMany();
 
     const overdue = overdueResult.length;
@@ -757,11 +907,16 @@ export class ServicesService {
   }
 
   private inferLegacyHasPaymentFromServiceData(
-    serviceData: Partial<Pick<CreateServiceDto, 'amount_to_receive' | 'payment_method'>>,
+    serviceData: Partial<
+      Pick<CreateServiceDto, 'amount_to_receive' | 'payment_method'>
+    >,
   ): boolean {
     const hasAmount =
-      serviceData.amount_to_receive != null && Number(serviceData.amount_to_receive) > 0;
-    const hasMethod = !!(serviceData.payment_method && String(serviceData.payment_method).trim());
+      serviceData.amount_to_receive != null &&
+      Number(serviceData.amount_to_receive) > 0;
+    const hasMethod = !!(
+      serviceData.payment_method && String(serviceData.payment_method).trim()
+    );
     return hasAmount || hasMethod;
   }
 
@@ -770,14 +925,20 @@ export class ServicesService {
       return false;
     }
     const hasAmount =
-      service.amount_to_receive != null && Number(service.amount_to_receive) > 0;
-    const hasMethod = !!(service.payment_method && String(service.payment_method).trim());
+      service.amount_to_receive != null &&
+      Number(service.amount_to_receive) > 0;
+    const hasMethod = !!(
+      service.payment_method && String(service.payment_method).trim()
+    );
     if (hasAmount || hasMethod || service.is_invoiced) {
       return true;
     }
     const stepNames = (service.steps || []).map((s) => s.name.toLowerCase());
     return stepNames.some(
-      (n) => n === 'realizar pagamento' || n === 'cobrança de boleto' || n.includes('cobrança de boleto'),
+      (n) =>
+        n === 'realizar pagamento' ||
+        n === 'cobrança de boleto' ||
+        n.includes('cobrança de boleto'),
     );
   }
 
@@ -799,5 +960,3 @@ export class ServicesService {
     return steps.filter((s) => !this.isAutoPaymentOrBoletoStepName(s.name));
   }
 }
-
-

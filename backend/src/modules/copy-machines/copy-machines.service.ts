@@ -26,25 +26,35 @@ export class CopyMachinesService {
 
   // Catalog Copy Machine methods
 
-  async createCatalog(createCopyMachineCatalogDto: CreateCopyMachineCatalogDto): Promise<CopyMachineCatalog> {
-    const copyMachine = this.copyMachineCatalogRepository.create(createCopyMachineCatalogDto);
+  async createCatalog(
+    createCopyMachineCatalogDto: CreateCopyMachineCatalogDto,
+  ): Promise<CopyMachineCatalog> {
+    const copyMachine = this.copyMachineCatalogRepository.create(
+      createCopyMachineCatalogDto,
+    );
     return this.copyMachineCatalogRepository.save(copyMachine);
   }
 
   async findAllCatalog(
-    search?: string, 
-    page: number = 1, 
-    limit: number = 10
-  ): Promise<{ data: CopyMachineCatalog[]; total: number; page: number; limit: number; totalPages: number }> {
+    search?: string,
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<{
+    data: CopyMachineCatalog[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
     const pageNum = Number(page) || 1;
     const limitNum = Number(limit) || 10;
     const skip = (pageNum - 1) * limitNum;
-    
+
     let queryBuilder = this.copyMachineCatalogRepository
       .createQueryBuilder('catalog')
       .where('catalog.isDisabled = :isDisabled', { isDisabled: false })
       .orderBy('catalog.created_at', 'DESC');
-    
+
     const q = search?.trim();
     if (q) {
       // Case-insensitive partial match on model/manufacturer (and description as fallback).
@@ -54,20 +64,20 @@ export class CopyMachinesService {
         { search: `%${q.toLowerCase()}%` },
       );
     }
-    
+
     const [data, total] = await queryBuilder
       .skip(skip)
       .take(limitNum)
       .getManyAndCount();
-    
+
     const totalPages = Math.ceil(total / limitNum);
-    
+
     return {
       data,
       total,
       page: pageNum,
       limit: limitNum,
-      totalPages
+      totalPages,
     };
   }
 
@@ -78,13 +88,18 @@ export class CopyMachinesService {
     });
 
     if (!copyMachine) {
-      throw new NotFoundException(`Catalog copy machine with ID ${id} not found`);
+      throw new NotFoundException(
+        `Catalog copy machine with ID ${id} not found`,
+      );
     }
 
     return copyMachine;
   }
 
-  async updateCatalog(id: number, updateCopyMachineCatalogDto: UpdateCopyMachineCatalogDto): Promise<CopyMachineCatalog> {
+  async updateCatalog(
+    id: number,
+    updateCopyMachineCatalogDto: UpdateCopyMachineCatalogDto,
+  ): Promise<CopyMachineCatalog> {
     const copyMachine = await this.findOneCatalog(id);
     Object.assign(copyMachine, updateCopyMachineCatalogDto);
     return this.copyMachineCatalogRepository.save(copyMachine);
@@ -96,7 +111,9 @@ export class CopyMachinesService {
     });
 
     if (!copyMachine) {
-      throw new NotFoundException(`Catalog copy machine with ID ${id} not found`);
+      throw new NotFoundException(
+        `Catalog copy machine with ID ${id} not found`,
+      );
     }
 
     copyMachine.isDisabled = true;
@@ -104,7 +121,9 @@ export class CopyMachinesService {
   }
 
   // Client Copy Machine methods
-  async createClientCopyMachine(createClientCopyMachineDto: CreateClientCopyMachineDto): Promise<ClientCopyMachine> {
+  async createClientCopyMachine(
+    createClientCopyMachineDto: CreateClientCopyMachineDto,
+  ): Promise<ClientCopyMachine> {
     // Use a transaction to ensure atomicity of stock update and machine creation
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -119,10 +138,14 @@ export class CopyMachinesService {
           lock: { mode: 'pessimistic_write' }, // Lock row for update to prevent race conditions
         });
         if (!catalogMachine) {
-          throw new NotFoundException(`Catalog copy machine with ID ${createClientCopyMachineDto.catalog_copy_machine_id} not found`);
+          throw new NotFoundException(
+            `Catalog copy machine with ID ${createClientCopyMachineDto.catalog_copy_machine_id} not found`,
+          );
         }
         if (catalogMachine.isDisabled) {
-          throw new NotFoundException(`Cannot link to a disabled catalog machine. The machine has been deactivated.`);
+          throw new NotFoundException(
+            `Cannot link to a disabled catalog machine. The machine has been deactivated.`,
+          );
         }
       }
 
@@ -132,16 +155,26 @@ export class CopyMachinesService {
           where: { id: createClientCopyMachineDto.franchise_id },
         });
         if (!franchise) {
-          throw new NotFoundException(`Franchise with ID ${createClientCopyMachineDto.franchise_id} not found`);
+          throw new NotFoundException(
+            `Franchise with ID ${createClientCopyMachineDto.franchise_id} not found`,
+          );
         }
         if (franchise.isDisabled) {
-          throw new NotFoundException(`Cannot link to a disabled franchise. The franchise has been deactivated.`);
+          throw new NotFoundException(
+            `Cannot link to a disabled franchise. The franchise has been deactivated.`,
+          );
         }
       }
 
       // Create client machine
-      const clientCopyMachine = queryRunner.manager.create(ClientCopyMachine, createClientCopyMachineDto);
-      const savedClientCopyMachine = await queryRunner.manager.save(ClientCopyMachine, clientCopyMachine);
+      const clientCopyMachine = queryRunner.manager.create(
+        ClientCopyMachine,
+        createClientCopyMachineDto,
+      );
+      const savedClientCopyMachine = await queryRunner.manager.save(
+        ClientCopyMachine,
+        clientCopyMachine,
+      );
 
       // Decrement quantity if acquisition type is RENT or SOLD (ALUGADA or VENDIDA)
       if (
@@ -179,13 +212,18 @@ export class CopyMachinesService {
     });
 
     if (!clientCopyMachine) {
-      throw new NotFoundException(`Client copy machine with ID ${id} not found`);
+      throw new NotFoundException(
+        `Client copy machine with ID ${id} not found`,
+      );
     }
 
     return clientCopyMachine;
   }
 
-  async updateClientCopyMachine(id: number, updateClientCopyMachineDto: UpdateClientCopyMachineDto): Promise<ClientCopyMachine> {
+  async updateClientCopyMachine(
+    id: number,
+    updateClientCopyMachineDto: UpdateClientCopyMachineDto,
+  ): Promise<ClientCopyMachine> {
     const clientCopyMachine = await this.findOneClientCopyMachine(id);
 
     // Validate catalog / franchise when provided (null clears the link)
@@ -213,7 +251,9 @@ export class CopyMachinesService {
           where: { id: updateClientCopyMachineDto.franchise_id },
         });
         if (!franchise) {
-          throw new NotFoundException(`Franchise with ID ${updateClientCopyMachineDto.franchise_id} not found`);
+          throw new NotFoundException(
+            `Franchise with ID ${updateClientCopyMachineDto.franchise_id} not found`,
+          );
         }
         if (franchise.isDisabled) {
           throw new NotFoundException(
@@ -251,9 +291,17 @@ export class CopyMachinesService {
     });
   }
 
-  async findRentMachines(
-    filters?: { clientId?: number; page?: number; limit?: number }
-  ): Promise<{ data: ClientCopyMachine[]; total: number; page: number; limit: number; totalPages: number }> {
+  async findRentMachines(filters?: {
+    clientId?: number;
+    page?: number;
+    limit?: number;
+  }): Promise<{
+    data: ClientCopyMachine[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
     const page = Math.max(filters?.page ?? 1, 1);
     const limit = Math.max(Math.min(filters?.limit ?? 10, 100), 1);
     const skip = (page - 1) * limit;
@@ -263,11 +311,15 @@ export class CopyMachinesService {
       .leftJoinAndSelect('machine.client', 'client')
       .leftJoinAndSelect('machine.catalogCopyMachine', 'catalogCopyMachine')
       .leftJoinAndSelect('machine.franchise', 'franchise')
-      .where('machine.acquisition_type = :acquisitionType', { acquisitionType: AcquisitionType.RENT })
+      .where('machine.acquisition_type = :acquisitionType', {
+        acquisitionType: AcquisitionType.RENT,
+      })
       .orderBy('machine.created_at', 'DESC');
 
     if (filters?.clientId) {
-      query.andWhere('machine.client_id = :clientId', { clientId: filters.clientId });
+      query.andWhere('machine.client_id = :clientId', {
+        clientId: filters.clientId,
+      });
     }
 
     const [data, total] = await query.skip(skip).take(limit).getManyAndCount();
@@ -276,9 +328,17 @@ export class CopyMachinesService {
     return { data, total, page, limit, totalPages };
   }
 
-  async findSoldMachines(
-    filters?: { clientId?: number; page?: number; limit?: number }
-  ): Promise<{ data: ClientCopyMachine[]; total: number; page: number; limit: number; totalPages: number }> {
+  async findSoldMachines(filters?: {
+    clientId?: number;
+    page?: number;
+    limit?: number;
+  }): Promise<{
+    data: ClientCopyMachine[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
     const page = Math.max(filters?.page ?? 1, 1);
     const limit = Math.max(Math.min(filters?.limit ?? 10, 100), 1);
     const skip = (page - 1) * limit;
@@ -287,11 +347,15 @@ export class CopyMachinesService {
       .createQueryBuilder('machine')
       .leftJoinAndSelect('machine.client', 'client')
       .leftJoinAndSelect('machine.catalogCopyMachine', 'catalogCopyMachine')
-      .where('machine.acquisition_type = :acquisitionType', { acquisitionType: AcquisitionType.SOLD })
+      .where('machine.acquisition_type = :acquisitionType', {
+        acquisitionType: AcquisitionType.SOLD,
+      })
       .orderBy('machine.created_at', 'DESC');
 
     if (filters?.clientId) {
-      query.andWhere('machine.client_id = :clientId', { clientId: filters.clientId });
+      query.andWhere('machine.client_id = :clientId', {
+        clientId: filters.clientId,
+      });
     }
 
     const [data, total] = await query.skip(skip).take(limit).getManyAndCount();
@@ -300,9 +364,17 @@ export class CopyMachinesService {
     return { data, total, page, limit, totalPages };
   }
 
-  async findExternalMachines(
-    filters?: { clientId?: number; page?: number; limit?: number }
-  ): Promise<{ data: ClientCopyMachine[]; total: number; page: number; limit: number; totalPages: number }> {
+  async findExternalMachines(filters?: {
+    clientId?: number;
+    page?: number;
+    limit?: number;
+  }): Promise<{
+    data: ClientCopyMachine[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
     const page = Math.max(filters?.page ?? 1, 1);
     const limit = Math.max(Math.min(filters?.limit ?? 10, 100), 1);
     const skip = (page - 1) * limit;
@@ -314,7 +386,9 @@ export class CopyMachinesService {
       .orderBy('machine.created_at', 'DESC');
 
     if (filters?.clientId) {
-      query.andWhere('machine.client_id = :clientId', { clientId: filters.clientId });
+      query.andWhere('machine.client_id = :clientId', {
+        clientId: filters.clientId,
+      });
     }
 
     const [data, total] = await query.skip(skip).take(limit).getManyAndCount();
@@ -324,7 +398,9 @@ export class CopyMachinesService {
   }
 
   // Franchise methods
-  async createFranchise(createFranchiseDto: CreateFranchiseDto): Promise<Franchise> {
+  async createFranchise(
+    createFranchiseDto: CreateFranchiseDto,
+  ): Promise<Franchise> {
     const franchise = this.franchiseRepository.create(createFranchiseDto);
     return this.franchiseRepository.save(franchise);
   }
@@ -340,15 +416,21 @@ export class CopyMachinesService {
       .leftJoinAndSelect('franchise.clientCopyMachines', 'clientCopyMachines');
 
     if (filters?.period) {
-      queryBuilder.andWhere('franchise.period LIKE :period', { period: `%${filters.period}%` });
+      queryBuilder.andWhere('franchise.period LIKE :period', {
+        period: `%${filters.period}%`,
+      });
     }
 
     if (filters?.color !== undefined) {
-      queryBuilder.andWhere('franchise.color = :color', { color: filters.color });
+      queryBuilder.andWhere('franchise.color = :color', {
+        color: filters.color,
+      });
     }
 
     if (filters?.paper_type) {
-      queryBuilder.andWhere('franchise.paper_type LIKE :paper_type', { paper_type: `%${filters.paper_type}%` });
+      queryBuilder.andWhere('franchise.paper_type LIKE :paper_type', {
+        paper_type: `%${filters.paper_type}%`,
+      });
     }
 
     return queryBuilder.orderBy('franchise.created_at', 'DESC').getMany();
@@ -365,7 +447,10 @@ export class CopyMachinesService {
     return franchise;
   }
 
-  async updateFranchise(id: number, updateFranchiseDto: UpdateFranchiseDto): Promise<Franchise> {
+  async updateFranchise(
+    id: number,
+    updateFranchiseDto: UpdateFranchiseDto,
+  ): Promise<Franchise> {
     const franchise = await this.findOneFranchise(id);
     Object.assign(franchise, updateFranchiseDto);
     return this.franchiseRepository.save(franchise);

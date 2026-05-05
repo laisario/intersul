@@ -10,7 +10,13 @@ import {
   ParseIntPipe,
   Query,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { BillingsService } from './billings.service';
 import { Billing } from './entities/billing.entity';
 import { CreateBillingDto } from './dto/create-billing.dto';
@@ -19,7 +25,10 @@ import { GenerateBillingsDto } from './dto/generate-billings.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { CurrentUser, CurrentUserData } from '../../common/decorators/current-user.decorator';
+import {
+  CurrentUser,
+  CurrentUserData,
+} from '../../common/decorators/current-user.decorator';
 import { UserRole } from '../../common/enums/user-role.enum';
 
 @ApiTags('Billings')
@@ -32,14 +41,48 @@ export class BillingsController {
   @Get()
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @ApiOperation({ summary: 'Get all billings with optional filters' })
-  @ApiResponse({ status: 200, description: 'List of billings', type: [Billing] })
-  @ApiQuery({ name: 'city_id', required: false, description: 'Filter by city ID' })
-  @ApiQuery({ name: 'client_id', required: false, description: 'Filter by client ID' })
-  @ApiQuery({ name: 'payment_method', required: false, description: 'Filter by payment method' })
-  @ApiQuery({ name: 'sort_by', required: false, description: 'Sort field', enum: ['date', 'payment_method', 'created_at'] })
-  @ApiQuery({ name: 'sort_order', required: false, description: 'asc or desc', enum: ['asc', 'desc'] })
-  @ApiQuery({ name: 'page', required: false, description: 'Page number for pagination' })
-  @ApiQuery({ name: 'limit', required: false, description: 'Number of records per page' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of billings',
+    type: [Billing],
+  })
+  @ApiQuery({
+    name: 'city_id',
+    required: false,
+    description: 'Filter by city ID',
+  })
+  @ApiQuery({
+    name: 'client_id',
+    required: false,
+    description: 'Filter by client ID',
+  })
+  @ApiQuery({
+    name: 'payment_method',
+    required: false,
+    description: 'Filter by payment method',
+  })
+  @ApiQuery({
+    name: 'sort_by',
+    required: false,
+    description: 'Sort field',
+    enum: ['date', 'payment_method', 'created_at'],
+  })
+  @ApiQuery({
+    name: 'sort_order',
+    required: false,
+    description: 'asc or desc',
+    enum: ['asc', 'desc'],
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number for pagination',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Number of records per page',
+  })
   async findAll(
     @Query('city_id') city_id?: string,
     @Query('client_id') client_id?: string,
@@ -48,7 +91,13 @@ export class BillingsController {
     @Query('sort_order') sort_order?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
-  ): Promise<{ data: Billing[]; total: number; page: number; limit: number; totalPages: number }> {
+  ): Promise<{
+    data: Billing[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
     const filters: any = {};
     if (city_id) filters.city_id = Number(city_id);
     if (client_id) filters.client_id = Number(client_id);
@@ -73,7 +122,11 @@ export class BillingsController {
   @Post()
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @ApiOperation({ summary: 'Create a new billing' })
-  @ApiResponse({ status: 201, description: 'Billing created successfully', type: Billing })
+  @ApiResponse({
+    status: 201,
+    description: 'Billing created successfully',
+    type: Billing,
+  })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   async create(@Body() createBillingDto: CreateBillingDto): Promise<Billing> {
     return this.billingsService.create(createBillingDto);
@@ -90,9 +143,16 @@ export class BillingsController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update billing' })
-  @ApiResponse({ status: 200, description: 'Billing updated successfully', type: Billing })
+  @ApiResponse({
+    status: 200,
+    description: 'Billing updated successfully',
+    type: Billing,
+  })
   @ApiResponse({ status: 404, description: 'Billing not found' })
-  @ApiResponse({ status: 403, description: 'Forbidden - You are not authorized to update this billing' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - You are not authorized to update this billing',
+  })
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateBillingDto: UpdateBillingDto,
@@ -110,4 +170,3 @@ export class BillingsController {
     return this.billingsService.remove(id);
   }
 }
-

@@ -1,4 +1,11 @@
-import { IsNumber, IsOptional, IsString, IsDateString, IsDecimal, IsBoolean } from 'class-validator';
+import {
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsDateString,
+  IsDecimal,
+  IsBoolean,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type, Transform } from 'class-transformer';
 
@@ -56,7 +63,7 @@ export class CreateBillingDto {
   payment_method?: string;
 
   @ApiProperty({
-    example: 100.00,
+    example: 100.0,
     description: 'Amount to receive',
   })
   @Transform(({ value }) => parseFloat(value))
@@ -95,4 +102,3 @@ export class CreateBillingDto {
   })
   is_invoiced?: boolean;
 }
-

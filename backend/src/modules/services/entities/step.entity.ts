@@ -47,28 +47,28 @@ export class Step {
     default: StepStatus.PENDING,
   })
   status: StepStatus;
-  
+
   @Column({ nullable: true })
   responsable_client: string;
-  
+
   @Column({ type: 'text', nullable: true })
   reason_cancellament: string;
-  
+
   @Column({ nullable: true })
   category_id: number;
-  
+
   @Column({ nullable: true })
   service_id: number;
-  
+
   @Column({ default: false })
   is_billing: boolean;
-  
+
   @CreateDateColumn()
   created_at: Date;
-  
+
   @UpdateDateColumn()
   updated_at: Date;
-  
+
   @ManyToOne(() => User, (user) => user.assignedSteps)
   @JoinColumn({ name: 'responsable_id' })
   responsable: User;
@@ -79,7 +79,7 @@ export class Step {
   }
 
   @ManyToOne(() => Category, (category) => category.steps, {
-    onDelete: 'CASCADE'
+    onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'category_id' })
   category: Category;

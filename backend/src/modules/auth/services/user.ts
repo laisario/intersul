@@ -1,4 +1,9 @@
-import { Injectable, UnauthorizedException, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
@@ -19,13 +24,17 @@ export class UserService {
     private stepsRepository: Repository<Step>,
   ) {}
 
-  async findAll(filters?: { role?: UserRole; active?: boolean; includeInactive?: boolean }): Promise<User[]> {
+  async findAll(filters?: {
+    role?: UserRole;
+    active?: boolean;
+    includeInactive?: boolean;
+  }): Promise<User[]> {
     const where: any = {};
-    
+
     if (filters?.role !== undefined) {
       where.role = filters.role;
     }
-    
+
     // Default to active=true unless includeInactive=true is explicitly set
     // If active is explicitly set, use that value; otherwise default to true unless includeInactive
     if (filters?.active !== undefined) {
@@ -35,7 +44,7 @@ export class UserService {
       where.active = true;
     }
     // If includeInactive is true and active is not set, don't filter by active (show all)
-    
+
     return this.usersRepository.find({ where });
   }
 
@@ -73,10 +82,13 @@ export class UserService {
       ),
     ]);
 
-    const byRole = Object.values(UserRole).reduce((acc, role, index) => {
-      acc[role] = roleCounts[index] ?? 0;
-      return acc;
-    }, {} as Record<UserRole, number>);
+    const byRole = Object.values(UserRole).reduce(
+      (acc, role, index) => {
+        acc[role] = roleCounts[index] ?? 0;
+        return acc;
+      },
+      {} as Record<UserRole, number>,
+    );
 
     return {
       total,

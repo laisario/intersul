@@ -52,7 +52,9 @@ describe('ServicesController', () => {
 
   describe('findAll', () => {
     it('should return paginated services without filters', async () => {
-      jest.spyOn(servicesService, 'findAll').mockResolvedValue(mockListResponse);
+      jest
+        .spyOn(servicesService, 'findAll')
+        .mockResolvedValue(mockListResponse);
 
       const result = await servicesController.findAll();
 
@@ -62,7 +64,9 @@ describe('ServicesController', () => {
 
     it('should return filtered services by category_id', async () => {
       const categoryId = '1';
-      jest.spyOn(servicesService, 'findAll').mockResolvedValue(mockListResponse);
+      jest
+        .spyOn(servicesService, 'findAll')
+        .mockResolvedValue(mockListResponse);
 
       const result = await servicesController.findAll(categoryId);
 
@@ -71,7 +75,9 @@ describe('ServicesController', () => {
     });
 
     it('should return filtered services by client_id', async () => {
-      jest.spyOn(servicesService, 'findAll').mockResolvedValue(mockListResponse);
+      jest
+        .spyOn(servicesService, 'findAll')
+        .mockResolvedValue(mockListResponse);
 
       const result = await servicesController.findAll(undefined, '2');
 
@@ -80,16 +86,26 @@ describe('ServicesController', () => {
     });
 
     it('should return filtered services by client_copy_machine_id', async () => {
-      jest.spyOn(servicesService, 'findAll').mockResolvedValue(mockListResponse);
+      jest
+        .spyOn(servicesService, 'findAll')
+        .mockResolvedValue(mockListResponse);
 
-      const result = await servicesController.findAll(undefined, undefined, '3');
+      const result = await servicesController.findAll(
+        undefined,
+        undefined,
+        '3',
+      );
 
       expect(result).toBe(mockListResponse);
-      expect(servicesService.findAll).toHaveBeenCalledWith({ client_copy_machine_id: 3 });
+      expect(servicesService.findAll).toHaveBeenCalledWith({
+        client_copy_machine_id: 3,
+      });
     });
 
     it('should return filtered services with multiple filters', async () => {
-      jest.spyOn(servicesService, 'findAll').mockResolvedValue(mockListResponse);
+      jest
+        .spyOn(servicesService, 'findAll')
+        .mockResolvedValue(mockListResponse);
 
       const result = await servicesController.findAll('1', '2', '3');
 
@@ -102,7 +118,9 @@ describe('ServicesController', () => {
     });
 
     it('should pass search, sort_by and sort_order', async () => {
-      jest.spyOn(servicesService, 'findAll').mockResolvedValue(mockListResponse);
+      jest
+        .spyOn(servicesService, 'findAll')
+        .mockResolvedValue(mockListResponse);
 
       await servicesController.findAll(
         undefined,
@@ -150,9 +168,13 @@ describe('ServicesController', () => {
 
     it('should throw error when service not found', async () => {
       const serviceId = 999;
-      jest.spyOn(servicesService, 'findOne').mockRejectedValue(new Error('Service not found'));
+      jest
+        .spyOn(servicesService, 'findOne')
+        .mockRejectedValue(new Error('Service not found'));
 
-      await expect(servicesController.findOne(serviceId)).rejects.toThrow('Service not found');
+      await expect(servicesController.findOne(serviceId)).rejects.toThrow(
+        'Service not found',
+      );
       expect(servicesService.findOne).toHaveBeenCalledWith(serviceId);
     });
   });
@@ -182,9 +204,13 @@ describe('ServicesController', () => {
         description: 'New Service',
       };
 
-      jest.spyOn(servicesService, 'create').mockRejectedValue(new Error('Invalid service data'));
+      jest
+        .spyOn(servicesService, 'create')
+        .mockRejectedValue(new Error('Invalid service data'));
 
-      await expect(servicesController.create(createServiceDto)).rejects.toThrow('Invalid service data');
+      await expect(servicesController.create(createServiceDto)).rejects.toThrow(
+        'Invalid service data',
+      );
       expect(servicesService.create).toHaveBeenCalledWith(createServiceDto);
     });
   });
@@ -199,10 +225,16 @@ describe('ServicesController', () => {
       const updatedService = { ...mockService, ...updateServiceDto };
       jest.spyOn(servicesService, 'update').mockResolvedValue(updatedService);
 
-      const result = await servicesController.update(serviceId, updateServiceDto);
+      const result = await servicesController.update(
+        serviceId,
+        updateServiceDto,
+      );
 
       expect(result).toBe(updatedService);
-      expect(servicesService.update).toHaveBeenCalledWith(serviceId, updateServiceDto);
+      expect(servicesService.update).toHaveBeenCalledWith(
+        serviceId,
+        updateServiceDto,
+      );
     });
 
     it('should throw error when service update fails', async () => {
@@ -211,10 +243,17 @@ describe('ServicesController', () => {
         description: 'Updated Service',
       };
 
-      jest.spyOn(servicesService, 'update').mockRejectedValue(new Error('Service not found'));
+      jest
+        .spyOn(servicesService, 'update')
+        .mockRejectedValue(new Error('Service not found'));
 
-      await expect(servicesController.update(serviceId, updateServiceDto)).rejects.toThrow('Service not found');
-      expect(servicesService.update).toHaveBeenCalledWith(serviceId, updateServiceDto);
+      await expect(
+        servicesController.update(serviceId, updateServiceDto),
+      ).rejects.toThrow('Service not found');
+      expect(servicesService.update).toHaveBeenCalledWith(
+        serviceId,
+        updateServiceDto,
+      );
     });
   });
 
@@ -230,9 +269,13 @@ describe('ServicesController', () => {
 
     it('should throw error when service removal fails', async () => {
       const serviceId = 999;
-      jest.spyOn(servicesService, 'remove').mockRejectedValue(new Error('Service not found'));
+      jest
+        .spyOn(servicesService, 'remove')
+        .mockRejectedValue(new Error('Service not found'));
 
-      await expect(servicesController.remove(serviceId)).rejects.toThrow('Service not found');
+      await expect(servicesController.remove(serviceId)).rejects.toThrow(
+        'Service not found',
+      );
       expect(servicesService.remove).toHaveBeenCalledWith(serviceId);
     });
   });

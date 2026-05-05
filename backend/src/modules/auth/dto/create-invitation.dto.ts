@@ -1,5 +1,13 @@
 import { Expose, Transform } from 'class-transformer';
-import { IsEmail, IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import {
+  IsEmail,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 import { UserRole } from '../../../common/enums/user-role.enum';
 
 export class CreateInvitationDto {
@@ -32,4 +40,3 @@ export class CreateInvitationDto {
   @IsString()
   note?: string;
 }
-

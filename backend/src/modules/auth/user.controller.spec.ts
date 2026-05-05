@@ -36,7 +36,7 @@ describe('UserController', () => {
         updated_at: new Date(),
       } as User,
     ];
-    
+
     jest.spyOn(userService, 'findAll').mockResolvedValue(mockUsers);
 
     const result = await userController.findAll();

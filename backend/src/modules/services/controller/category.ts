@@ -1,9 +1,18 @@
-import { Controller, Get, Post, Body, Param, Patch, ParseIntPipe, Delete } from "@nestjs/common";
-import { Category } from "../entities/category.entity";
-import { CategoryService } from "../service/category";
-import { CreateCategoryDto } from "../dto/create-category.dto";
-import { UpdateCategoryDto } from "../dto/update-category.dto";
-import { ApiTags } from "@nestjs/swagger";
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Patch,
+  ParseIntPipe,
+  Delete,
+} from '@nestjs/common';
+import { Category } from '../entities/category.entity';
+import { CategoryService } from '../service/category';
+import { CreateCategoryDto } from '../dto/create-category.dto';
+import { UpdateCategoryDto } from '../dto/update-category.dto';
+import { ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Categories')
 @Controller('categories')
@@ -16,12 +25,17 @@ export class CategoryController {
   }
 
   @Post()
-  async create(@Body() createCategoryDto: CreateCategoryDto): Promise<Category> {
+  async create(
+    @Body() createCategoryDto: CreateCategoryDto,
+  ): Promise<Category> {
     return this.categoryService.create(createCategoryDto);
   }
 
   @Patch(':id')
-  async update(@Param('id', ParseIntPipe) id: number, @Body() updateCategoryDto: UpdateCategoryDto): Promise<Category> {
+  async update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateCategoryDto: UpdateCategoryDto,
+  ): Promise<Category> {
     return this.categoryService.update(id, updateCategoryDto);
   }
 

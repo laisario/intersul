@@ -21,10 +21,17 @@ async function bootstrap() {
   try {
     app = await NestFactory.createApplicationContext(AppModule);
   } catch (error: any) {
-    if (error.message?.includes('database') || error.message?.includes('Access denied')) {
+    if (
+      error.message?.includes('database') ||
+      error.message?.includes('Access denied')
+    ) {
       console.error('❌ Erro de conexão com o banco de dados');
-      console.error('Verifique se o banco está rodando e as credenciais estão corretas');
-      console.error('Variáveis de ambiente: DB_HOST, DB_PORT, DB_USERNAME, DB_PASSWORD, DB_DATABASE');
+      console.error(
+        'Verifique se o banco está rodando e as credenciais estão corretas',
+      );
+      console.error(
+        'Variáveis de ambiente: DB_HOST, DB_PORT, DB_USERNAME, DB_PASSWORD, DB_DATABASE',
+      );
       process.exit(1);
     }
     throw error;
@@ -47,12 +54,19 @@ async function bootstrap() {
       console.log('Email:', result.user.email);
       console.log('Nome:', result.user.name);
       console.log('Perfil:', result.user.role);
-      console.log('\n⚠️  IMPORTANTE: Altere a senha padrão após o primeiro login!');
+      console.log(
+        '\n⚠️  IMPORTANTE: Altere a senha padrão após o primeiro login!',
+      );
     } catch (error: any) {
-      if (error instanceof ConflictException || error.message?.includes('already exists')) {
+      if (
+        error instanceof ConflictException ||
+        error.message?.includes('already exists')
+      ) {
         console.log('⚠️  Usuário administrador já existe');
         console.log('Email:', adminEmail);
-        console.log('Para criar um novo administrador, use: npm run create-user');
+        console.log(
+          'Para criar um novo administrador, use: npm run create-user',
+        );
         process.exit(0);
       } else {
         throw error;

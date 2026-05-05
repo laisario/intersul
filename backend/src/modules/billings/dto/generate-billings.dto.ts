@@ -1,4 +1,12 @@
-import { IsNumber, IsObject, ValidateNested, IsOptional, IsDateString, IsString, IsBoolean } from 'class-validator';
+import {
+  IsNumber,
+  IsObject,
+  ValidateNested,
+  IsOptional,
+  IsDateString,
+  IsString,
+  IsBoolean,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
@@ -30,7 +38,8 @@ export class MachineUserMapping {
 
   @ApiProperty({
     example: 12345,
-    description: 'Previous counter at the moment of billing generation (optional)',
+    description:
+      'Previous counter at the moment of billing generation (optional)',
     required: false,
   })
   @Type(() => Number)
@@ -49,7 +58,8 @@ export class MachineUserMapping {
 
   @ApiProperty({
     example: false,
-    description: 'Whether billing has been invoiced/payment completed (optional)',
+    description:
+      'Whether billing has been invoiced/payment completed (optional)',
     required: false,
   })
   @IsBoolean()
@@ -58,7 +68,8 @@ export class MachineUserMapping {
 
   @ApiProperty({
     example: 1,
-    description: 'User ID responsible for boleto billing service (only when payment_method is Boleto)',
+    description:
+      'User ID responsible for boleto billing service (only when payment_method is Boleto)',
     required: false,
   })
   @Type(() => Number)
@@ -68,7 +79,8 @@ export class MachineUserMapping {
 
   @ApiProperty({
     example: '2024-12-31T23:59:59.999Z',
-    description: 'Expiration date for boleto billing service (only when payment_method is Boleto)',
+    description:
+      'Expiration date for boleto billing service (only when payment_method is Boleto)',
     required: false,
   })
   @IsDateString()
@@ -98,4 +110,3 @@ export class GenerateBillingsDto {
   @Type(() => MachineUserMapping)
   machines: MachineUserMapping[];
 }
-

@@ -21,11 +21,17 @@ async function bootstrap() {
   const position = args[5];
 
   if (!email || !password || !name) {
-    console.error('Usage: npm run create-user <email> <password> <name> [role] [phone] [position]');
+    console.error(
+      'Usage: npm run create-user <email> <password> <name> [role] [phone] [position]',
+    );
     console.error('');
     console.error('Examples:');
-    console.error('  npm run create-user user@example.com password123 "John Doe" ADMIN');
-    console.error('  npm run create-user user@example.com password123 "John Doe" MANAGER "123456789" "Manager"');
+    console.error(
+      '  npm run create-user user@example.com password123 "John Doe" ADMIN',
+    );
+    console.error(
+      '  npm run create-user user@example.com password123 "John Doe" MANAGER "123456789" "Manager"',
+    );
     console.error('');
     console.error('Roles: ADMIN, MANAGER, TECHNICIAN, COMMERCIAL');
     process.exit(1);
@@ -42,10 +48,17 @@ async function bootstrap() {
   try {
     app = await NestFactory.createApplicationContext(AppModule);
   } catch (error: any) {
-    if (error.message?.includes('database') || error.message?.includes('Access denied')) {
+    if (
+      error.message?.includes('database') ||
+      error.message?.includes('Access denied')
+    ) {
       console.error('❌ Erro de conexão com o banco de dados');
-      console.error('Verifique se o banco está rodando e as credenciais estão corretas');
-      console.error('Variáveis de ambiente: DB_HOST, DB_PORT, DB_USERNAME, DB_PASSWORD, DB_DATABASE');
+      console.error(
+        'Verifique se o banco está rodando e as credenciais estão corretas',
+      );
+      console.error(
+        'Variáveis de ambiente: DB_HOST, DB_PORT, DB_USERNAME, DB_PASSWORD, DB_DATABASE',
+      );
       process.exit(1);
     }
     throw error;
@@ -70,7 +83,10 @@ async function bootstrap() {
     if (phone) console.log('Phone:', phone);
     if (position) console.log('Position:', position);
   } catch (error: any) {
-    if (error instanceof ConflictException || error.message?.includes('already exists')) {
+    if (
+      error instanceof ConflictException ||
+      error.message?.includes('already exists')
+    ) {
       console.error('❌ Error: User with this email already exists');
       console.error(`Email: ${email}`);
     } else {
@@ -88,4 +104,3 @@ async function bootstrap() {
 }
 
 bootstrap();
-

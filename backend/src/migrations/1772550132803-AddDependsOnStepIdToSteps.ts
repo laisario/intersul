@@ -1,13 +1,20 @@
-import { MigrationInterface, QueryRunner, TableColumn, TableForeignKey } from 'typeorm';
+import {
+  MigrationInterface,
+  QueryRunner,
+  TableColumn,
+  TableForeignKey,
+} from 'typeorm';
 
-export class AddDependsOnStepIdToSteps1772550132803 implements MigrationInterface {
+export class AddDependsOnStepIdToSteps1772550132803
+  implements MigrationInterface
+{
   name = 'AddDependsOnStepIdToSteps1772550132803';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Check if column already exists (in case migration was partially run)
     const table = await queryRunner.getTable('steps');
     const hasColumn = table?.findColumnByName('depends_on_step_id');
-    
+
     if (!hasColumn) {
       // Add depends_on_step_id column
       await queryRunner.addColumn(
@@ -23,7 +30,7 @@ export class AddDependsOnStepIdToSteps1772550132803 implements MigrationInterfac
     // Check if foreign key already exists
     const foreignKeys = table?.foreignKeys || [];
     const hasForeignKey = foreignKeys.some(
-      fk => fk.columnNames.indexOf('depends_on_step_id') !== -1
+      (fk) => fk.columnNames.indexOf('depends_on_step_id') !== -1,
     );
 
     if (!hasForeignKey) {
@@ -42,7 +49,7 @@ export class AddDependsOnStepIdToSteps1772550132803 implements MigrationInterfac
 
     // Check if index already exists
     const hasIndex = table?.indices?.some(
-      idx => idx.columnNames.indexOf('depends_on_step_id') !== -1
+      (idx) => idx.columnNames.indexOf('depends_on_step_id') !== -1,
     );
 
     if (!hasIndex) {
@@ -83,7 +90,7 @@ export class AddDependsOnStepIdToSteps1772550132803 implements MigrationInterfac
     // Drop foreign key
     const table = await queryRunner.getTable('steps');
     const foreignKey = table?.foreignKeys.find(
-      fk => fk.columnNames.indexOf('depends_on_step_id') !== -1
+      (fk) => fk.columnNames.indexOf('depends_on_step_id') !== -1,
     );
     if (foreignKey) {
       await queryRunner.dropForeignKey('steps', foreignKey);
@@ -92,7 +99,7 @@ export class AddDependsOnStepIdToSteps1772550132803 implements MigrationInterfac
     // Drop index
     const indices = table?.indices || [];
     const index = indices.find(
-      idx => idx.columnNames.indexOf('depends_on_step_id') !== -1
+      (idx) => idx.columnNames.indexOf('depends_on_step_id') !== -1,
     );
     if (index) {
       await queryRunner.query(`

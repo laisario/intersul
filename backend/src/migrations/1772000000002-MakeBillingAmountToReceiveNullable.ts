@@ -1,6 +1,8 @@
 import { MigrationInterface, QueryRunner, TableColumn } from 'typeorm';
 
-export class MakeBillingAmountToReceiveNullable1772000000002 implements MigrationInterface {
+export class MakeBillingAmountToReceiveNullable1772000000002
+  implements MigrationInterface
+{
   name = 'MakeBillingAmountToReceiveNullable1772000000002';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

@@ -1,4 +1,12 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { Neighborhood } from './neighborhood.entity';
 
@@ -47,7 +55,9 @@ export class Address {
   @Column()
   neighborhood_id: number;
 
-  @ManyToOne(() => Neighborhood, neighborhood => neighborhood.addresses, { eager: true })
+  @ManyToOne(() => Neighborhood, (neighborhood) => neighborhood.addresses, {
+    eager: true,
+  })
   @JoinColumn({ name: 'neighborhood_id' })
   neighborhood: Neighborhood;
 

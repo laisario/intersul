@@ -24,18 +24,18 @@ describe('Clients (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({ transform: true, whitelist: true }),
+    );
     await app.init();
 
     // Register and login to get token
-    await request(app.getHttpServer())
-      .post('/auth/register')
-      .send({
-        name: 'Test Admin',
-        email: 'admin@example.com',
-        password: 'password123',
-        role: UserRole.ADMIN,
-      });
+    await request(app.getHttpServer()).post('/auth/register').send({
+      name: 'Test Admin',
+      email: 'admin@example.com',
+      password: 'password123',
+      role: UserRole.ADMIN,
+    });
 
     const loginResponse = await request(app.getHttpServer())
       .post('/auth/login')
@@ -104,9 +104,7 @@ describe('Clients (e2e)', () => {
     });
 
     it('should fail without authentication', () => {
-      return request(app.getHttpServer())
-        .get('/clients')
-        .expect(401);
+      return request(app.getHttpServer()).get('/clients').expect(401);
     });
   });
 

@@ -1,4 +1,14 @@
-import { IsNumber, IsOptional, IsString, IsArray, ValidateNested, IsEnum, IsBoolean, Min, ValidateIf } from 'class-validator';
+import {
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsArray,
+  ValidateNested,
+  IsEnum,
+  IsBoolean,
+  Min,
+  ValidateIf,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type, Transform } from 'class-transformer';
 import { CreateStepDto } from './create-step.dto';
@@ -126,7 +136,7 @@ export class CreateServiceDto {
   has_payment?: boolean;
 
   @ApiProperty({
-    example: 100.00,
+    example: 100.0,
     description: 'Amount to receive (optional for external services)',
     required: false,
   })
@@ -147,7 +157,8 @@ export class CreateServiceDto {
 
   @ApiProperty({
     example: false,
-    description: 'Whether payment has been completed (optional for external services)',
+    description:
+      'Whether payment has been completed (optional for external services)',
     required: false,
   })
   @IsOptional()

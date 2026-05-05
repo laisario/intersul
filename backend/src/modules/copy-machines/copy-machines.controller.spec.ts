@@ -22,8 +22,8 @@ describe('CopyMachinesController', () => {
     manufacturer: 'Test Manufacturer',
     description: 'Test Description',
     features: ['feature1', 'feature2'],
-    price: 1000.00,
-    monthly_rent_price: 100.00,
+    price: 1000.0,
+    monthly_rent_price: 100.0,
     quantity: 5,
     created_at: new Date(),
     updated_at: new Date(),
@@ -38,7 +38,7 @@ describe('CopyMachinesController', () => {
     external_manufacturer: 'External Manufacturer',
     external_description: 'External Description',
     acquisition_type: AcquisitionType.RENT,
-    value: 1500.00,
+    value: 1500.0,
     franchise_id: 1,
     created_at: new Date(),
     updated_at: new Date(),
@@ -51,7 +51,7 @@ describe('CopyMachinesController', () => {
     colorida: false,
     quantidade: 1000,
     preco_unidade: 0.05,
-    valor: 50.00,
+    valor: 50.0,
     created_at: new Date(),
     updated_at: new Date(),
   } as Franchise;
@@ -86,7 +86,9 @@ describe('CopyMachinesController', () => {
       ],
     }).compile();
 
-    copyMachinesController = module.get<CopyMachinesController>(CopyMachinesController);
+    copyMachinesController = module.get<CopyMachinesController>(
+      CopyMachinesController,
+    );
     copyMachinesService = module.get<CopyMachinesService>(CopyMachinesService);
   });
 
@@ -98,23 +100,29 @@ describe('CopyMachinesController', () => {
           manufacturer: 'Test Manufacturer',
           description: 'Test Description',
           features: ['feature1', 'feature2'],
-          price: 1000.00,
-          monthly_rent_price: 100.00,
+          price: 1000.0,
+          monthly_rent_price: 100.0,
           quantity: 5,
         };
 
-        jest.spyOn(copyMachinesService, 'createCatalog').mockResolvedValue(mockCatalog);
+        jest
+          .spyOn(copyMachinesService, 'createCatalog')
+          .mockResolvedValue(mockCatalog);
 
         const result = await copyMachinesController.createCatalog(createDto);
 
         expect(result).toBe(mockCatalog);
-        expect(copyMachinesService.createCatalog).toHaveBeenCalledWith(createDto);
+        expect(copyMachinesService.createCatalog).toHaveBeenCalledWith(
+          createDto,
+        );
       });
     });
 
     describe('findAllCatalog', () => {
       it('should return all catalog copy machines', async () => {
-        jest.spyOn(copyMachinesService, 'findAllCatalog').mockResolvedValue([mockCatalog]);
+        jest
+          .spyOn(copyMachinesService, 'findAllCatalog')
+          .mockResolvedValue([mockCatalog]);
 
         const result = await copyMachinesController.findAllCatalog();
 
@@ -126,12 +134,16 @@ describe('CopyMachinesController', () => {
     describe('findOneCatalog', () => {
       it('should return a catalog copy machine by id', async () => {
         const catalogId = 1;
-        jest.spyOn(copyMachinesService, 'findOneCatalog').mockResolvedValue(mockCatalog);
+        jest
+          .spyOn(copyMachinesService, 'findOneCatalog')
+          .mockResolvedValue(mockCatalog);
 
         const result = await copyMachinesController.findOneCatalog(catalogId);
 
         expect(result).toBe(mockCatalog);
-        expect(copyMachinesService.findOneCatalog).toHaveBeenCalledWith(catalogId);
+        expect(copyMachinesService.findOneCatalog).toHaveBeenCalledWith(
+          catalogId,
+        );
       });
     });
 
@@ -140,27 +152,39 @@ describe('CopyMachinesController', () => {
         const catalogId = 1;
         const updateDto: UpdateCopyMachineCatalogDto = {
           model: 'Updated Model',
-          price: 1200.00,
+          price: 1200.0,
         };
 
         const updatedCatalog = { ...mockCatalog, ...updateDto };
-        jest.spyOn(copyMachinesService, 'updateCatalog').mockResolvedValue(updatedCatalog);
+        jest
+          .spyOn(copyMachinesService, 'updateCatalog')
+          .mockResolvedValue(updatedCatalog);
 
-        const result = await copyMachinesController.updateCatalog(catalogId, updateDto);
+        const result = await copyMachinesController.updateCatalog(
+          catalogId,
+          updateDto,
+        );
 
         expect(result).toBe(updatedCatalog);
-        expect(copyMachinesService.updateCatalog).toHaveBeenCalledWith(catalogId, updateDto);
+        expect(copyMachinesService.updateCatalog).toHaveBeenCalledWith(
+          catalogId,
+          updateDto,
+        );
       });
     });
 
     describe('removeCatalog', () => {
       it('should remove a catalog copy machine', async () => {
         const catalogId = 1;
-        jest.spyOn(copyMachinesService, 'removeCatalog').mockResolvedValue(undefined);
+        jest
+          .spyOn(copyMachinesService, 'removeCatalog')
+          .mockResolvedValue(undefined);
 
         await copyMachinesController.removeCatalog(catalogId);
 
-        expect(copyMachinesService.removeCatalog).toHaveBeenCalledWith(catalogId);
+        expect(copyMachinesService.removeCatalog).toHaveBeenCalledWith(
+          catalogId,
+        );
       });
     });
   });
@@ -176,39 +200,55 @@ describe('CopyMachinesController', () => {
           external_manufacturer: 'External Manufacturer',
           external_description: 'External Description',
           acquisition_type: AcquisitionType.RENT,
-          value: 1500.00,
+          value: 1500.0,
           franchise_id: 1,
         };
 
-        jest.spyOn(copyMachinesService, 'createClientCopyMachine').mockResolvedValue(mockClientCopyMachine);
+        jest
+          .spyOn(copyMachinesService, 'createClientCopyMachine')
+          .mockResolvedValue(mockClientCopyMachine);
 
-        const result = await copyMachinesController.createClientCopyMachine(createDto);
+        const result =
+          await copyMachinesController.createClientCopyMachine(createDto);
 
         expect(result).toBe(mockClientCopyMachine);
-        expect(copyMachinesService.createClientCopyMachine).toHaveBeenCalledWith(createDto);
+        expect(
+          copyMachinesService.createClientCopyMachine,
+        ).toHaveBeenCalledWith(createDto);
       });
     });
 
     describe('findAllClientCopyMachines', () => {
       it('should return all client copy machines', async () => {
-        jest.spyOn(copyMachinesService, 'findAllClientCopyMachines').mockResolvedValue([mockClientCopyMachine]);
+        jest
+          .spyOn(copyMachinesService, 'findAllClientCopyMachines')
+          .mockResolvedValue([mockClientCopyMachine]);
 
         const result = await copyMachinesController.findAllClientCopyMachines();
 
         expect(result).toEqual([mockClientCopyMachine]);
-        expect(copyMachinesService.findAllClientCopyMachines).toHaveBeenCalled();
+        expect(
+          copyMachinesService.findAllClientCopyMachines,
+        ).toHaveBeenCalled();
       });
     });
 
     describe('findOneClientCopyMachine', () => {
       it('should return a client copy machine by id', async () => {
         const clientCopyMachineId = 1;
-        jest.spyOn(copyMachinesService, 'findOneClientCopyMachine').mockResolvedValue(mockClientCopyMachine);
+        jest
+          .spyOn(copyMachinesService, 'findOneClientCopyMachine')
+          .mockResolvedValue(mockClientCopyMachine);
 
-        const result = await copyMachinesController.findOneClientCopyMachine(clientCopyMachineId);
+        const result =
+          await copyMachinesController.findOneClientCopyMachine(
+            clientCopyMachineId,
+          );
 
         expect(result).toBe(mockClientCopyMachine);
-        expect(copyMachinesService.findOneClientCopyMachine).toHaveBeenCalledWith(clientCopyMachineId);
+        expect(
+          copyMachinesService.findOneClientCopyMachine,
+        ).toHaveBeenCalledWith(clientCopyMachineId);
       });
     });
 
@@ -217,27 +257,43 @@ describe('CopyMachinesController', () => {
         const clientCopyMachineId = 1;
         const updateDto: UpdateClientCopyMachineDto = {
           external_model: 'Updated External Model',
-          value: 2000.00,
+          value: 2000.0,
         };
 
-        const updatedClientCopyMachine = { ...mockClientCopyMachine, ...updateDto };
-        jest.spyOn(copyMachinesService, 'updateClientCopyMachine').mockResolvedValue(updatedClientCopyMachine);
+        const updatedClientCopyMachine = {
+          ...mockClientCopyMachine,
+          ...updateDto,
+        };
+        jest
+          .spyOn(copyMachinesService, 'updateClientCopyMachine')
+          .mockResolvedValue(updatedClientCopyMachine);
 
-        const result = await copyMachinesController.updateClientCopyMachine(clientCopyMachineId, updateDto);
+        const result = await copyMachinesController.updateClientCopyMachine(
+          clientCopyMachineId,
+          updateDto,
+        );
 
         expect(result).toBe(updatedClientCopyMachine);
-        expect(copyMachinesService.updateClientCopyMachine).toHaveBeenCalledWith(clientCopyMachineId, updateDto);
+        expect(
+          copyMachinesService.updateClientCopyMachine,
+        ).toHaveBeenCalledWith(clientCopyMachineId, updateDto);
       });
     });
 
     describe('removeClientCopyMachine', () => {
       it('should remove a client copy machine', async () => {
         const clientCopyMachineId = 1;
-        jest.spyOn(copyMachinesService, 'removeClientCopyMachine').mockResolvedValue(undefined);
+        jest
+          .spyOn(copyMachinesService, 'removeClientCopyMachine')
+          .mockResolvedValue(undefined);
 
-        await copyMachinesController.removeClientCopyMachine(clientCopyMachineId);
+        await copyMachinesController.removeClientCopyMachine(
+          clientCopyMachineId,
+        );
 
-        expect(copyMachinesService.removeClientCopyMachine).toHaveBeenCalledWith(clientCopyMachineId);
+        expect(
+          copyMachinesService.removeClientCopyMachine,
+        ).toHaveBeenCalledWith(clientCopyMachineId);
       });
     });
   });
@@ -251,21 +307,27 @@ describe('CopyMachinesController', () => {
           colorida: false,
           quantidade: 1000,
           preco_unidade: 0.05,
-          valor: 50.00,
+          valor: 50.0,
         };
 
-        jest.spyOn(copyMachinesService, 'createFranchise').mockResolvedValue(mockFranchise);
+        jest
+          .spyOn(copyMachinesService, 'createFranchise')
+          .mockResolvedValue(mockFranchise);
 
         const result = await copyMachinesController.createFranchise(createDto);
 
         expect(result).toBe(mockFranchise);
-        expect(copyMachinesService.createFranchise).toHaveBeenCalledWith(createDto);
+        expect(copyMachinesService.createFranchise).toHaveBeenCalledWith(
+          createDto,
+        );
       });
     });
 
     describe('findAllFranchises', () => {
       it('should return all franchises', async () => {
-        jest.spyOn(copyMachinesService, 'findAllFranchises').mockResolvedValue([mockFranchise]);
+        jest
+          .spyOn(copyMachinesService, 'findAllFranchises')
+          .mockResolvedValue([mockFranchise]);
 
         const result = await copyMachinesController.findAllFranchises();
 
@@ -277,12 +339,17 @@ describe('CopyMachinesController', () => {
     describe('findOneFranchise', () => {
       it('should return a franchise by id', async () => {
         const franchiseId = 1;
-        jest.spyOn(copyMachinesService, 'findOneFranchise').mockResolvedValue(mockFranchise);
+        jest
+          .spyOn(copyMachinesService, 'findOneFranchise')
+          .mockResolvedValue(mockFranchise);
 
-        const result = await copyMachinesController.findOneFranchise(franchiseId);
+        const result =
+          await copyMachinesController.findOneFranchise(franchiseId);
 
         expect(result).toBe(mockFranchise);
-        expect(copyMachinesService.findOneFranchise).toHaveBeenCalledWith(franchiseId);
+        expect(copyMachinesService.findOneFranchise).toHaveBeenCalledWith(
+          franchiseId,
+        );
       });
     });
 
@@ -295,23 +362,35 @@ describe('CopyMachinesController', () => {
         };
 
         const updatedFranchise = { ...mockFranchise, ...updateDto };
-        jest.spyOn(copyMachinesService, 'updateFranchise').mockResolvedValue(updatedFranchise);
+        jest
+          .spyOn(copyMachinesService, 'updateFranchise')
+          .mockResolvedValue(updatedFranchise);
 
-        const result = await copyMachinesController.updateFranchise(franchiseId, updateDto);
+        const result = await copyMachinesController.updateFranchise(
+          franchiseId,
+          updateDto,
+        );
 
         expect(result).toBe(updatedFranchise);
-        expect(copyMachinesService.updateFranchise).toHaveBeenCalledWith(franchiseId, updateDto);
+        expect(copyMachinesService.updateFranchise).toHaveBeenCalledWith(
+          franchiseId,
+          updateDto,
+        );
       });
     });
 
     describe('removeFranchise', () => {
       it('should remove a franchise', async () => {
         const franchiseId = 1;
-        jest.spyOn(copyMachinesService, 'removeFranchise').mockResolvedValue(undefined);
+        jest
+          .spyOn(copyMachinesService, 'removeFranchise')
+          .mockResolvedValue(undefined);
 
         await copyMachinesController.removeFranchise(franchiseId);
 
-        expect(copyMachinesService.removeFranchise).toHaveBeenCalledWith(franchiseId);
+        expect(copyMachinesService.removeFranchise).toHaveBeenCalledWith(
+          franchiseId,
+        );
       });
     });
   });

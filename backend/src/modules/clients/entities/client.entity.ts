@@ -53,9 +53,15 @@ export class Client {
   @UpdateDateColumn()
   updated_at: Date;
 
-  @OneToMany(() => Service, (service) => service.client, { onDelete: 'CASCADE' })
+  @OneToMany(() => Service, (service) => service.client, {
+    onDelete: 'CASCADE',
+  })
   services: Service[];
 
-  @OneToMany(() => ClientCopyMachine, (clientCopyMachine) => clientCopyMachine.client, { onDelete: 'CASCADE' })
+  @OneToMany(
+    () => ClientCopyMachine,
+    (clientCopyMachine) => clientCopyMachine.client,
+    { onDelete: 'CASCADE' },
+  )
   copyMachines: ClientCopyMachine[];
 }

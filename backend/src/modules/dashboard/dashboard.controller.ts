@@ -1,5 +1,17 @@
-import { Controller, Get, UseGuards, Query, Param, ParseIntPipe } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  UseGuards,
+  Query,
+  Param,
+  ParseIntPipe,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -38,7 +50,9 @@ export class DashboardController {
 
   @Get('stats/:year/:month')
   @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Get dashboard statistics for specific month (Admin only)' })
+  @ApiOperation({
+    summary: 'Get dashboard statistics for specific month (Admin only)',
+  })
   @ApiResponse({
     status: 200,
     description: 'Statistics for the specified month returned successfully',
@@ -50,4 +64,3 @@ export class DashboardController {
     return this.dashboardService.getStatsForMonth(year, month);
   }
 }
-

@@ -1,8 +1,15 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { StepChecklist } from '../entities/step-checklist.entity';
-import { CreateStepChecklistDto, UpdateStepChecklistDto } from '../dto/step-checklist.dto';
+import {
+  CreateStepChecklistDto,
+  UpdateStepChecklistDto,
+} from '../dto/step-checklist.dto';
 import { StepService } from './step';
 import { StepStatus } from '../../../common/enums/step-status.enum';
 import { Step } from '../entities/step.entity';
@@ -24,9 +31,13 @@ export class StepChecklistService {
     });
   }
 
-  async create(stepId: number, dto: CreateStepChecklistDto, userId: number): Promise<StepChecklist> {
+  async create(
+    stepId: number,
+    dto: CreateStepChecklistDto,
+    userId: number,
+  ): Promise<StepChecklist> {
     const step = await this.stepService.findOne(stepId, userId);
-    
+
     const checklist = this.checklistRepository.create({
       description: dto.description,
       completed: dto.completed || false,
@@ -36,21 +47,29 @@ export class StepChecklistService {
     return this.checklistRepository.save(checklist);
   }
 
-  async createBulk(stepId: number, descriptions: string[], userId: number): Promise<StepChecklist[]> {
+  async createBulk(
+    stepId: number,
+    descriptions: string[],
+    userId: number,
+  ): Promise<StepChecklist[]> {
     const step = await this.stepService.findOne(stepId, userId);
-    
-    const checklists = descriptions.map(desc => 
+
+    const checklists = descriptions.map((desc) =>
       this.checklistRepository.create({
         description: desc,
         completed: false,
         step_id: stepId,
-      })
+      }),
     );
 
     return this.checklistRepository.save(checklists);
   }
 
-  async update(id: number, dto: UpdateStepChecklistDto, userId: number): Promise<StepChecklist> {
+  async update(
+    id: number,
+    dto: UpdateStepChecklistDto,
+    userId: number,
+  ): Promise<StepChecklist> {
     const checklist = await this.checklistRepository.findOne({
       where: { id },
       relations: ['step'],
@@ -84,7 +103,11 @@ export class StepChecklistService {
     const savedChecklist = await this.checklistRepository.save(checklist);
 
     // If checklist was just checked and step is still PENDING, start the step
-    if (checklist.completed && checklist.step && checklist.step.status === StepStatus.PENDING) {
+    if (
+      checklist.completed &&
+      checklist.step &&
+      checklist.step.status === StepStatus.PENDING
+    ) {
       checklist.step.status = StepStatus.IN_PROGRESS;
       await this.stepRepository.save(checklist.step);
       (savedChecklist as any).step = checklist.step;
