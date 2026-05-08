@@ -9,7 +9,7 @@ import { UpdateCopyMachineCatalogDto } from './dto/update-copy-machine-catalog.d
 import { CreateClientCopyMachineDto } from './dto/create-client-copy-machine.dto';
 import { UpdateClientCopyMachineDto } from './dto/update-client-copy-machine.dto';
 import { CreateFranchiseDto } from './dto/create-franchise.dto';
-import { UpdateFranchiseDto } from './dto/update-franchise.dto';
+import { UpdateFranchiseDto } from './dto/create-franchise.dto';
 import { AcquisitionType } from '../../common/enums/acquisition-type.enum';
 
 @Injectable()

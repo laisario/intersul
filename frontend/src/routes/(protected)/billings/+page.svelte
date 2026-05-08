@@ -260,8 +260,12 @@
 			<p class="text-muted-foreground">Gerencie os fechamentos de franquia</p>
 		</div>
 		<div class="flex gap-2">
-			<Button variant="outline" onclick={() => showCityBillingDialog = true} class="md:w-auto">
-				Gerar Fechamento
+			<Button variant="outline" onclick={() => showCityBillingDialog = true} class="md:w-auto" disabled={isGeneratingBillings}>
+				{#if isGeneratingBillings}
+					Gerando...
+				{:else}
+					Gerar Fechamento
+				{/if}
 			</Button>
 		</div>
 	</div>
