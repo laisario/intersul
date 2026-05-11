@@ -71,9 +71,24 @@ export interface BillingResponse {
 }
 
 export interface GenerateBillingsResponse {
-  billings: Billing[];
-  services: any[];
-  steps: Step[];
+  jobId: string;
+  status: string;
+  message: string;
+}
+
+export interface BillingJobStatus {
+  jobId: string;
+  state: string;
+  name?: string;
+  createdAt?: number;
+  attempts?: number;
+  result?: {
+    status: string;
+    billingsCount?: number;
+    servicesCount?: number;
+    stepsCount?: number;
+  };
+  error?: string;
 }
 
 

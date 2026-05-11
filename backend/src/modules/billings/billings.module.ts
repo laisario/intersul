@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { BullModule } from '@nestjs/bullmq';
 import { BillingsService } from './billings.service';
 import { BillingsController } from './billings.controller';
 import { Billing } from './entities/billing.entity';
@@ -21,6 +22,9 @@ import { User } from '../auth/entities/user.entity';
       Category,
       User,
     ]),
+    BullModule.registerQueue({
+      name: 'billings',
+    }),
   ],
   controllers: [BillingsController],
   providers: [BillingsService],

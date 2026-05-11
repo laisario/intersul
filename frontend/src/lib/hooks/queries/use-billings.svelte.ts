@@ -9,6 +9,7 @@ import type {
   BillingQueryParams,
   BillingResponse,
   GenerateBillingsResponse,
+  BillingJobStatus,
 } from '$lib/api/types/billing.types.js';
 import { PAGINATION } from '$lib/utils/constants.js';
 
@@ -112,6 +113,31 @@ export const useDeleteBilling = () => {
 };
 
 /**
+ * Get billing job status query
+ * Accepts a getter function to make it reactive when jobId changes
+ */
+export const useBillingJobStatus = (getJobId: () => string | undefined) => {
+  return createQuery(() => {
+    const jobId = getJobId();
+    return {
+      queryKey: ['billing-job-status', jobId],
+      queryFn: async (): Promise<BillingJobStatus | null> => {
+        if (!jobId) return null;
+        return billingsApi.getJobStatus(jobId);
+      },
+      enabled: !!jobId,
+      refetchInterval: (query) => {
+        const state = query.state.data?.state;
+        if (state === 'waiting' || state === 'active' || state === 'queued' || state === 'delayed') {
+          return 2000; // Poll every 2 seconds while job is waiting/active/queued/delayed
+        }
+        return false; // Stop polling when completed or failed
+      },
+    };
+  });
+};
+
+/**
  * Generate billings by city mutation
  */
 export const useGenerateBillingsByCity = () => {
@@ -119,12 +145,9 @@ export const useGenerateBillingsByCity = () => {
     mutationFn: async (data: GenerateBillingsDto): Promise<GenerateBillingsResponse> => {
       return billingsApi.generateByCity(data);
     },
-    onSuccess: () => {
-      // Invalidate billings, services, and steps
-      queryClient.invalidateQueries({ queryKey: ['billings'] });
-      queryClient.invalidateQueries({ queryKey: ['services'] });
-      queryClient.invalidateQueries({ queryKey: ['steps'] });
-      queryClient.invalidateQueries({ queryKey: ['clients'] });
+    retry: false, // Do not retry - prevent duplicate job creation
+    onSuccess: (_data, _variables, _context) => {
+      // Billings will be refetched after job completes via the status query
     },
     onError: (error) => {
       console.error('Generate billings failed:', error);

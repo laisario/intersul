@@ -17,6 +17,8 @@ import {
   ApiBearerAuth,
   ApiQuery,
 } from '@nestjs/swagger';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { BillingsService } from './billings.service';
 import { Billing } from './entities/billing.entity';
 import { CreateBillingDto } from './dto/create-billing.dto';
@@ -36,7 +38,10 @@ import { UserRole } from '../../common/enums/user-role.enum';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class BillingsController {
-  constructor(private readonly billingsService: BillingsService) {}
+  constructor(
+    private readonly billingsService: BillingsService,
+    @InjectQueue('billings') private readonly billingsQueue: Queue,
+  ) {}
 
   @Get()
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
@@ -113,10 +118,55 @@ export class BillingsController {
   @Post('generate-by-city')
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @ApiOperation({ summary: 'Generate billings by city' })
-  @ApiResponse({ status: 201, description: 'Billings generated successfully' })
+  @ApiResponse({ status: 201, description: 'Billing generation job queued' })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   async generateByCity(@Body() generateDto: GenerateBillingsDto) {
-    return this.billingsService.generateByCity(generateDto);
+    const job = await this.billingsQueue.add('generate-by-city', {
+      cityId: generateDto.city_id,
+      machines: generateDto.machines,
+    });
+
+    return {
+      jobId: job.id,
+      status: 'queued',
+      message: 'Billing generation started',
+    };
+  }
+
+  @Get('generate-by-city/jobs/:jobId')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  @ApiOperation({ summary: 'Get billing generation job status' })
+  @ApiResponse({ status: 200, description: 'Job status' })
+  async getJobStatus(@Param('jobId') jobId: string) {
+    const job = await this.billingsQueue.getJob(jobId);
+
+    if (!job) {
+      return {
+        jobId,
+        state: 'not-found',
+        message: 'Job not found',
+      };
+    }
+
+    const state = await job.getState();
+
+    const response: any = {
+      jobId: job.id,
+      state: state,
+      name: job.name,
+      createdAt: job.timestamp,
+      attempts: job.attemptsMade,
+    };
+
+    if (state === 'completed') {
+      response.result = job.returnvalue;
+    }
+
+    if (state === 'failed') {
+      response.error = job.failedReason;
+    }
+
+    return response;
   }
 
   @Post()

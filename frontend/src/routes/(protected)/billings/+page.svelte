@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { useBillings, useGenerateBillingsByCity, useDeleteBilling } from '$lib/hooks/queries/use-billings.svelte.js';
+	import { useBillings, useGenerateBillingsByCity, useDeleteBilling, useBillingJobStatus } from '$lib/hooks/queries/use-billings.svelte.js';
 	import { useClients } from '$lib/hooks/queries/use-clients.svelte.js';
 	import { formatDate, formatCurrency, getPaymentMethodLabel, getBillingStatusLabel } from '$lib/utils/formatting.js';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card/index.js';
@@ -16,7 +16,7 @@
 	import type { BillingQueryParams } from '$lib/api/types/billing.types.js';
 	import type { City } from '$lib/api/types/address.types.js';
 	import PaginationControls from '$lib/components/pagination-controls.svelte';
-	import { errorToast, successToast, showError } from '$lib/utils/toast.js';
+	import { errorToast, successToast, showError, showInfo } from '$lib/utils/toast.js';
 	import { MoreVertical, Edit, Trash2 } from 'lucide-svelte';
 	import { PAGINATION } from '$lib/utils/constants.js';
 	import { goto } from '$app/navigation';
@@ -109,6 +109,43 @@
 	const isGeneratingBillings = $derived(generateBillingsMutation.isPending);
 	const deleteBillingMutation = useDeleteBilling();
 	let createdBillingIds = $state<number[]>([]);
+	let currentJobId = $state<string | null>(null);
+	let isJobWaitingForCompletion = $state(false);
+
+	// Job status query - only active when there's a jobId
+	const jobStatusQuery = useBillingJobStatus(() => currentJobId ?? undefined);
+	const jobStatus = $derived(jobStatusQuery.data);
+	const isJobWaiting = $derived(jobStatus?.state === 'waiting');
+	const isJobActive = $derived(jobStatus?.state === 'active');
+	const isJobQueued = $derived(jobStatus?.state === 'queued');
+	const isJobDelayed = $derived(jobStatus?.state === 'delayed');
+	const isJobRunning = $derived(isJobWaitingForCompletion || isJobWaiting || isJobActive || isJobQueued || isJobDelayed);
+	const isJobCompleted = $derived(jobStatus?.state === 'completed');
+	const isJobFailed = $derived(jobStatus?.state === 'failed');
+
+	// Handle job completion
+	$effect(() => {
+		if (isJobCompleted && jobStatus) {
+			successToast.created('Fechamentos gerados com sucesso');
+			showResponsablesDialog = false;
+			selectedCityId = null;
+			currentJobId = null;
+			isJobWaitingForCompletion = false;
+			// Refresh billing list
+			billingsQuery.refetch();
+		}
+	});
+
+	// Handle job failure
+	$effect(() => {
+		if (isJobFailed && jobStatus) {
+			const errorMessage = jobStatus.error || 'Erro ao gerar fechamentos';
+			showError(errorMessage);
+			// Stop loading and re-enable the button
+			currentJobId = null;
+			isJobWaitingForCompletion = false;
+		}
+	});
 
 	function handleCitySelected(cityId: number) {
 		selectedCityId = cityId;
@@ -131,6 +168,8 @@
 	function handleResponsablesSelected(machines: any[]) {
 		if (!selectedCityId) return;
 
+		currentJobId = null;
+		isJobWaitingForCompletion = true;
 		generateBillingsMutation.mutate(
 			{
 				cityId: selectedCityId,
@@ -138,22 +177,22 @@
 			},
 			{
 				onSuccess: (response) => {
-					// Store created billing IDs
-					createdBillingIds = response.billings.map((billing) => billing.id);
-					successToast.created('Fechamentos gerados com sucesso');
+					// Store job ID for status polling
+					currentJobId = response.jobId;
+					// Close dialog immediately after job is enqueued
 					showResponsablesDialog = false;
-					selectedCityId = null;
-					// Keep IDs in case user needs to cancel - will be cleared when dialog actually closes
+					// Show info message that generation was started
+					showInfo('Geração de fechamentos iniciada.');
 				},
 				onError: (error: any) => {
 					console.error('Error generating fechamentos:', error);
+					// Re-enable button on immediate error (not job failure, which is handled by effect)
+					isJobWaitingForCompletion = false;
 					if (error.response?.data?.message) {
 						showError(error.response.data.message);
 					} else {
 						errorToast.unknown();
 					}
-					// Clear created billing IDs on error
-					createdBillingIds = [];
 				},
 			}
 		);
@@ -260,9 +299,9 @@
 			<p class="text-muted-foreground">Gerencie os fechamentos de franquia</p>
 		</div>
 		<div class="flex gap-2">
-			<Button variant="outline" onclick={() => showCityBillingDialog = true} class="md:w-auto" disabled={isGeneratingBillings}>
-				{#if isGeneratingBillings}
-					Gerando...
+			<Button variant="outline" onclick={() => showCityBillingDialog = true} class="md:w-auto" disabled={isJobRunning}>
+				{#if isJobRunning}
+					Aguarde...
 				{:else}
 					Gerar Fechamento
 				{/if}

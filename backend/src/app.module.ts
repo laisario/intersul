@@ -13,6 +13,7 @@ import { CopyMachinesModule } from './modules/copy-machines/copy-machines.module
 import { ServicesModule } from './modules/services/services.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { BillingsModule } from './modules/billings/billings.module';
+import { QueuesModule } from './modules/queues/queues.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { BillingsModule } from './modules/billings/billings.module';
     ServicesModule,
     DashboardModule,
     BillingsModule,
+    QueuesModule,
   ],
   controllers: [AppController],
   providers: [

@@ -11,6 +11,7 @@ import type {
   BillingQueryParams,
   BillingResponse,
   GenerateBillingsResponse,
+  BillingJobStatus,
 } from '../types/billing.types.js';
 
 export const billingsApi = {
@@ -49,6 +50,12 @@ export const billingsApi = {
    */
   generateByCity: (data: GenerateBillingsDto): Promise<GenerateBillingsResponse> =>
     axios.post('/billings/generate-by-city', data).then((res) => res.data),
+
+  /**
+   * Get billing job status
+   */
+  getJobStatus: (jobId: string): Promise<BillingJobStatus> =>
+    axios.get(`/billings/generate-by-city/jobs/${jobId}`).then((res) => res.data),
 };
 
 
