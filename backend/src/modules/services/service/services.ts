@@ -419,19 +419,6 @@ export class ServicesService {
         );
 
       if (!hasPaymentStep) {
-        // Build description based on amount and payment method
-        let paymentDescription = 'Realizar pagamento.';
-        if (
-          serviceData.amount_to_receive &&
-          serviceData.amount_to_receive > 0
-        ) {
-          const methodLabel = serviceData.payment_method || 'pagamento';
-          paymentDescription = `Realizar pagamento (${methodLabel}). Valor: R$ ${serviceData.amount_to_receive.toFixed(2)}.`;
-        } else {
-          const methodLabel = serviceData.payment_method || 'pagamento';
-          paymentDescription = `Realizar pagamento (${methodLabel}). O valor será definido posteriormente na etapa de pagamento.`;
-        }
-
         // Find payment step from payload to get responsable and expiration, or use null
         const paymentStepFromPayload = steps?.find(
           (s) =>
@@ -441,7 +428,7 @@ export class ServicesService {
 
         const paymentStepDto: CreateStepDto = {
           name: paymentStepName,
-          description: paymentDescription,
+          description: paymentStepFromPayload?.description?.trim() || undefined,
           responsable_id: paymentStepFromPayload?.responsable_id ?? null,
           datetime_expiration: paymentStepFromPayload?.datetime_expiration,
           status: StepStatus.PENDING,

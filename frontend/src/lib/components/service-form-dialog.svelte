@@ -45,7 +45,11 @@
 	};
 
 	// Estado separado para previews extras (não modifica steps)
-	let paymentStepPreview = $state<{ responsableId?: number; datetimeExpiration?: string } | null>(null);
+	let paymentStepPreview = $state<{
+		description?: string;
+		responsableId?: number;
+		datetimeExpiration?: string;
+	} | null>(null);
 
 	let { open = $bindable(false), service = null, serviceId = null, onSuccess }: Props = $props();
 
@@ -212,7 +216,11 @@
 		if (!initialized) return;
 
 		if (shouldShowPaymentPreview && !paymentStepPreview) {
-			paymentStepPreview = { responsableId: undefined, datetimeExpiration: undefined };
+			paymentStepPreview = {
+				description: '',
+				responsableId: undefined,
+				datetimeExpiration: undefined
+			};
 		} else if (!shouldShowPaymentPreview && paymentStepPreview) {
 			paymentStepPreview = null;
 		}
@@ -328,18 +336,9 @@
 			);
 
 			if (!hasPaymentStep && paymentStepPreview) {
-				// Build description based on whether amount is provided
-				let description = 'Realizar pagamento.';
-				if (formData.amountToReceive && formData.amountToReceive > 0) {
-				const amountText = formData.amountToReceive.toFixed(2);
-					description = `Realizar pagamento. Consulte o valor informado no serviço: R$ ${amountText}.`;
-				} else {
-					description = 'Realizar pagamento. O valor será definido posteriormente na etapa de pagamento.';
-				}
-				
 				stepsArray.push({
 					name: 'Realizar pagamento',
-					description: description,
+					description: paymentStepPreview.description?.trim() || undefined,
 					responsableId: paymentStepPreview.responsableId || undefined,
 					datetimeExpiration: paymentStepPreview.datetimeExpiration || undefined
 				});
@@ -917,12 +916,14 @@
 									<div class="space-y-2">
 										<Label>Descrição</Label>
 										<textarea
-											value={formData.amountToReceive && formData.amountToReceive > 0
-												? `Realizar pagamento. Consulte o valor informado no serviço: R$ ${formData.amountToReceive.toFixed(2)}.`
-												: 'Realizar pagamento. O valor será definido posteriormente na etapa de pagamento.'}
-											disabled
+											value={paymentStepPreview.description || ''}
+											oninput={(e) => {
+												if (paymentStepPreview) {
+													paymentStepPreview.description = e.currentTarget.value;
+												}
+											}}
 											rows="3"
-											class="flex min-h-[80px] w-full rounded-md border border-input bg-muted px-3 py-2 text-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
+											class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
 										></textarea>
 									</div>
 
