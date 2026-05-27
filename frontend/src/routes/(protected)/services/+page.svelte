@@ -38,7 +38,7 @@
 	import { canManageServices } from "$lib/stores/auth.svelte";
 
 	/** Preview length in the table; longer text opens a popover on click. */
-	const DESCRIPTION_TABLE_PREVIEW_MAX = 45;
+	const DESCRIPTION_TABLE_PREVIEW_MAX = 28;
 
 	function serviceDescriptionPreview(text: string): { preview: string; isTruncated: boolean } {
 		const d = text.trim();
@@ -46,7 +46,7 @@
 			return { preview: d, isTruncated: false };
 		}
 		return {
-			preview: `${d.slice(0, DESCRIPTION_TABLE_PREVIEW_MAX)}…`,
+			preview: `${d.slice(0, DESCRIPTION_TABLE_PREVIEW_MAX)}...`,
 			isTruncated: true,
 		};
 	}
@@ -672,7 +672,7 @@
 										<TableHead>Status</TableHead>
 										<TableHead>Prioridade</TableHead>
 										<TableHead>Categoria</TableHead>
-										<TableHead class="min-w-[10rem] max-w-[22rem]">Descrição</TableHead>
+										<TableHead class="w-[10rem] max-w-[10rem]">Descrição</TableHead>
 										<TableHead class="min-w-[10rem]">Funcionários responsáveis</TableHead>
 										<TableHead>Cidade</TableHead>
 										<TableHead>Data de Criação</TableHead>
@@ -714,7 +714,7 @@
 												</Badge>
 											</TableCell>
 											<TableCell
-												class="max-w-[22rem] align-top text-sm"
+												class="w-[10rem] max-w-[10rem] align-top text-sm"
 												onclick={(e) => e.stopPropagation()}
 											>
 												{#if service.description?.trim()}
@@ -723,7 +723,7 @@
 													{#if isTruncated}
 														<Popover.Root>
 															<Popover.Trigger
-																class="inline-flex max-w-full cursor-pointer rounded border-0 bg-transparent p-0 text-left text-foreground underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+																class="block max-w-full cursor-pointer truncate rounded border-0 bg-transparent p-0 text-left text-foreground underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 																type="button"
 															>
 																{preview}
@@ -741,7 +741,7 @@
 															</Popover.Portal>
 														</Popover.Root>
 													{:else}
-														<span class="text-foreground">{preview}</span>
+														<span class="block max-w-full truncate text-foreground">{preview}</span>
 													{/if}
 												{:else}
 													<span class="text-muted-foreground">—</span>
