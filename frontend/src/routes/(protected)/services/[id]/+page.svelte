@@ -15,7 +15,7 @@
 	import ConfirmationDialog from '$lib/components/confirmation-dialog.svelte';
 	import type { AcquisitionType, ClientCopyMachine } from '$lib/api/types/copy-machine.types.js';
 	import type { Client } from '$lib/api/types/client.types.js';
-	import type { ServiceQueryParams } from '$lib/api/types/service.types.js';
+	import type { ServiceQueryParams, Step } from '$lib/api/types/service.types.js';
 
 	const serviceId = Number($page.params.id);
 	const serviceQuery = useService(serviceId);
@@ -230,9 +230,15 @@
 		cancelReason = '';
 	}
 
-	function copyStepLink(stepId: number) {
-		const url = `${window.location.origin}/?stepId=${stepId}`;
-		copyToClipboard(url, 'Link copiado!');
+	function copyStepLink(step: Step) {
+		if (!step.id) return;
+
+		const clientName = service?.client?.name?.trim() || 'Cliente não informado';
+		const stepTitle = step.name?.trim() || 'Etapa sem título';
+		const url = `${window.location.origin}/?stepId=${step.id}`;
+		const message = `Cliente: ${clientName}\nEtapa: ${stepTitle}\nLink: ${url}`;
+
+		copyToClipboard(message, 'Link copiado!');
 	}
 </script>
 
@@ -396,7 +402,7 @@
 													{#if step.id}
 														<button
 															type="button"
-															onclick={(e) => { e.stopPropagation(); copyStepLink(step.id!); }}
+															onclick={(e) => { e.stopPropagation(); copyStepLink(step); }}
 															class="shrink-0 rounded p-1 text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted transition-colors"
 															title="Copiar link desta etapa"
 															aria-label="Copiar link desta etapa"
@@ -748,4 +754,3 @@
 		{/if}
 	</div>
 </ConfirmationDialog>
-
