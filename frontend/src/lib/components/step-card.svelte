@@ -108,6 +108,7 @@
 		step?.responsable?.id !== undefined &&
 		currentUser.id === step.responsable.id
 	);
+	const serviceDescription = $derived(step?.service?.description?.trim());
 </script>
 
 {#if isLoading}
@@ -230,8 +231,14 @@
 			{/if}
 
 			<!-- Form info -->
-			{#if step.responsableClient || step.observation}
+			{#if serviceDescription || step.responsableClient || step.observation}
 				<div class="border-t pt-3 space-y-2">
+					{#if serviceDescription}
+						<div>
+							<p class="text-xs font-medium text-muted-foreground uppercase tracking-wide">DESCRIÇÃO DO SERVIÇO</p>
+							<p class="text-sm mt-0.5 whitespace-pre-wrap">{serviceDescription}</p>
+						</div>
+					{/if}
 					{#if step.responsableClient}
 						<div>
 							<p class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Resp. no cliente</p>
