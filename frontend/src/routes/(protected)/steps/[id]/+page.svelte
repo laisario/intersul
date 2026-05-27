@@ -16,8 +16,9 @@
 	import { queryClient } from '$lib/config/query-client.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
-	import type { Image, StepChecklist } from '$lib/api/types/service.types.js';
+	import type { StepChecklist } from '$lib/api/types/service.types.js';
 	import StepFormDialog from '$lib/components/step-form-dialog.svelte';
+	import ImagePreviewModal from '$lib/components/image-preview-modal.svelte';
 	import { user, canManageServices } from '$lib/stores/auth.svelte.js';
 	import { useUpdateBilling, useBilling } from '$lib/hooks/queries/use-billings.svelte.js';
 	import { useUsers } from '$lib/hooks/queries/use-users.svelte.js';
@@ -94,6 +95,8 @@
 	let isSaving = $state(false);
 	let showEditResponsableDialog = $state(false);
 	let selectedResponsableId = $state<number | null>(null);
+	let imagePreviewOpen = $state(false);
+	let imagePreviewInitialIndex = $state(0);
 
 	// Billing fields
 	let previousCounter = $state<number | null>(null);
@@ -214,6 +217,11 @@
 				},
 			});
 		}
+	}
+
+	function openImagePreview(index: number) {
+		imagePreviewInitialIndex = index;
+		imagePreviewOpen = true;
 	}
 
 	function handleStart() {
@@ -928,14 +936,19 @@
 									<div>
 										<p class="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">Fotos</p>
 										<div class="grid grid-cols-3 gap-2">
-											{#each images as image (image.id)}
-												<div class="aspect-square rounded-md overflow-hidden border bg-muted">
+											{#each images as image, index (image.id)}
+												<button
+													type="button"
+													class="aspect-square overflow-hidden rounded-md border bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+													onclick={() => openImagePreview(index)}
+													aria-label="Abrir preview da foto"
+												>
 													<img
 														src={image.path}
 														alt="Foto da etapa"
 														class="w-full h-full object-cover"
 													/>
-												</div>
+												</button>
 											{/each}
 										</div>
 									</div>
@@ -1187,3 +1200,9 @@
 		}}
 	/>
 {/if}
+
+<ImagePreviewModal
+	{images}
+	initialIndex={imagePreviewInitialIndex}
+	bind:open={imagePreviewOpen}
+/>
