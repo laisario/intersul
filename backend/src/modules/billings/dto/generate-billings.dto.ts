@@ -86,6 +86,26 @@ export class MachineUserMapping {
   @IsDateString()
   @IsOptional()
   boleto_service_expiration_date?: string;
+
+  @ApiProperty({
+    example: 'Emitir e enviar boleto referente ao fechamento.',
+    description:
+      'Description for boleto billing service step (only when payment_method is Boleto)',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  boleto_service_description?: string;
+
+  @ApiProperty({
+    example: 'Emitir e enviar boleto referente ao fechamento.',
+    description:
+      'CamelCase alias for boleto_service_description, accepted for queue/payload compatibility',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  boletoServiceDescription?: string;
 }
 
 export class GenerateBillingsDto {

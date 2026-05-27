@@ -123,7 +123,11 @@ export class BillingsController {
   async generateByCity(@Body() generateDto: GenerateBillingsDto) {
     const job = await this.billingsQueue.add('generate-by-city', {
       cityId: generateDto.city_id,
-      machines: generateDto.machines,
+      machines: generateDto.machines.map((machine: any) => ({
+        ...machine,
+        boleto_service_description:
+          machine.boleto_service_description ?? machine.boletoServiceDescription,
+      })),
     });
 
     return {

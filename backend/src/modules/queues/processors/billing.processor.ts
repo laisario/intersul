@@ -34,7 +34,12 @@ export class BillingProcessor extends WorkerHost {
         try {
           const generateDto: GenerateBillingsDto = {
             city_id: job.data.cityId,
-            machines: job.data.machines,
+            machines: job.data.machines?.map((machine: any) => ({
+              ...machine,
+              boleto_service_description:
+                machine.boleto_service_description ??
+                machine.boletoServiceDescription,
+            })),
           };
 
           const result = await this.billingsService.generateByCity(generateDto);

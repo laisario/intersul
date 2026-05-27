@@ -45,6 +45,7 @@ export interface MachineUserMapping {
   isInvoiced?: boolean;
   boletoServiceResponsibleUserId?: number;
   boletoServiceExpirationDate?: string;
+  boletoServiceDescription?: string;
 }
 
 export interface GenerateBillingsDto {
@@ -90,5 +91,4 @@ export interface BillingJobStatus {
   };
   error?: string;
 }
-
 

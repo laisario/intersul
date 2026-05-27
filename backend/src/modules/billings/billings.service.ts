@@ -741,6 +741,9 @@ export class BillingsService {
               .boleto_service_responsible_user_id;
             const boletoExpirationDate = (machineMapping as any)
               .boleto_service_expiration_date;
+            const boletoDescription =
+              (machineMapping as any).boleto_service_description ??
+              (machineMapping as any).boletoServiceDescription;
 
             // Validate responsable user if provided
             let boletoResponsableUser: User | null = null;
@@ -762,11 +765,16 @@ export class BillingsService {
 
             // Get machine info for the boleto step description
             const machineSerialNumber = machine.serial_number || 'N/A';
+            const defaultBoletoDescription = `Serviço de cobrança de boleto para fechamento\nMáquina: ${modelName}\nNúmero de série: ${machineSerialNumber}`;
 
             // Create "Cobrança de Boleto" step inside the existing fechamento service
             const boletoStepData: any = {
               name: 'Cobrança de Boleto',
-              description: `Serviço de cobrança de boleto para fechamento\nMáquina: ${modelName}\nNúmero de série: ${machineSerialNumber}`,
+              description:
+                typeof boletoDescription === 'string' &&
+                boletoDescription.trim()
+                  ? boletoDescription
+                  : defaultBoletoDescription,
               service_id: savedService.id, // Use the existing fechamento service
               category_id: savedService.category_id,
               status: StepStatus.PENDING,

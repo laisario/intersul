@@ -43,6 +43,7 @@
 	let machinePreviousCounterDraftMap = $state<Map<number, string>>(new Map());
 	let machineBoletoServiceUserMap = $state<Map<number, number>>(new Map());
 	let machineBoletoServiceExpirationMap = $state<Map<number, string>>(new Map());
+	let machineBoletoServiceDescriptionMap = $state<Map<number, string>>(new Map());
 
 	$effect(() => {
 		if (!open) {
@@ -53,6 +54,7 @@
 			machinePreviousCounterDraftMap.clear();
 			machineBoletoServiceUserMap.clear();
 			machineBoletoServiceExpirationMap.clear();
+			machineBoletoServiceDescriptionMap.clear();
 		}
 	});
 
@@ -114,6 +116,7 @@
 				const previousCounter = machinePreviousCounterMap.get(machineId);
 				const boletoServiceUserId = machineBoletoServiceUserMap.get(machineId);
 				const boletoServiceExpiration = machineBoletoServiceExpirationMap.get(machineId);
+				const boletoServiceDescription = machineBoletoServiceDescriptionMap.get(machineId);
 				machines.push({
 					copyMachineId: machineId,
 					responsibleUserId: userId,
@@ -122,6 +125,7 @@
 					paymentMethod: paymentMethod || undefined,
 					boletoServiceResponsibleUserId: boletoServiceUserId || undefined,
 					boletoServiceExpirationDate: boletoServiceExpiration || undefined,
+					boletoServiceDescription: boletoServiceDescription || undefined,
 				});
 			}
 		});
@@ -138,6 +142,7 @@
 		machinePreviousCounterDraftMap.clear();
 		machineBoletoServiceUserMap.clear();
 		machineBoletoServiceExpirationMap.clear();
+		machineBoletoServiceDescriptionMap.clear();
 	}
 
 	function handleCancel() {
@@ -148,6 +153,7 @@
 		machinePreviousCounterDraftMap.clear();
 		machineBoletoServiceUserMap.clear();
 		machineBoletoServiceExpirationMap.clear();
+		machineBoletoServiceDescriptionMap.clear();
 		onCancel();
 	}
 
@@ -411,8 +417,10 @@
 															// Clear boleto-specific fields
 															machineBoletoServiceUserMap.delete(machine.id);
 															machineBoletoServiceExpirationMap.delete(machine.id);
+															machineBoletoServiceDescriptionMap.delete(machine.id);
 															machineBoletoServiceUserMap = new Map(machineBoletoServiceUserMap);
 															machineBoletoServiceExpirationMap = new Map(machineBoletoServiceExpirationMap);
+															machineBoletoServiceDescriptionMap = new Map(machineBoletoServiceDescriptionMap);
 														}
 													}}
 												>
@@ -477,6 +485,26 @@
 													</div>
 
 													<div class="space-y-2">
+														<Label for="boleto-service-description-{machine.id}">Descrição</Label>
+														<textarea
+															id="boleto-service-description-{machine.id}"
+															value={machineBoletoServiceDescriptionMap.get(machine.id) || ''}
+															oninput={(e) => {
+																const value = e.currentTarget.value;
+																if (value) {
+																	machineBoletoServiceDescriptionMap.set(machine.id, value);
+																} else {
+																	machineBoletoServiceDescriptionMap.delete(machine.id);
+																}
+																machineBoletoServiceDescriptionMap = new Map(machineBoletoServiceDescriptionMap);
+															}}
+															rows="3"
+															class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+															placeholder="Descrição da etapa de boleto"
+														></textarea>
+													</div>
+
+													<div class="space-y-2">
 														<Label for="boleto-service-expiration-{machine.id}">Data de Expiração do Serviço</Label>
 														<Input
 															id="boleto-service-expiration-{machine.id}"
@@ -514,4 +542,3 @@
 		</DialogFooter>
 	</DialogContent>
 </Dialog>
-
